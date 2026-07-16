@@ -1,0 +1,10 @@
+services:
+  hex-panel:
+    build: .
+    container_name: hex-panel
+    ports:
+      - "3000:3000"
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - CORE_URL=https://172.17.0.1:8080 # Points to the VPS host where Go core runs

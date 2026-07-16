@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+Old/
+needtoadd.txt
+docs/
+z.txt
+# Testing
+coverage/
+
+# Next.js
+.next/
+out/
+build/
+
+# Go
+bin/
+obj/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Hex Runtime
+/var/lib/Hex/
+/etc/hex/
+/var/log/hex/

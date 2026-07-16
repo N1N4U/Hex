@@ -16,14 +16,9 @@ func main() {
 	fmt.Println("Starting Hex Core...")
 
 	// 1. Initialize Firewall Abstraction
-	fw, err := firewall.NewManager()
-	if err != nil {
-		log.Printf("Warning: Failed to initialize firewall manager: %v\n", err)
-	} else {
-		log.Println("Firewall manager initialized successfully.")
-		// Example usage: fw.AllowPort(80, "tcp")
-		_ = fw
-	}
+	fw := firewall.NewManager()
+	log.Println("Firewall manager initialized successfully.")
+	_ = fw
 
 	// 2. Setup API Server (mTLS + JWT will be configured here)
 	server := api.NewServer(8080)

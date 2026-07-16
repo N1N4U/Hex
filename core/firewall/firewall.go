@@ -1,62 +1,70 @@
 package firewall
 
 import (
-	"errors"
-	"fmt"
-	"os/exec"
+	"log"
 )
 
-// Rule represents a parsed firewall rule
-type Rule struct {
-	ID       string
-	Port     int
-	Protocol string
-	Action   string
+type FirewallRule struct {
+	Port   string `json:"port"`
+	Action string `json:"action"` // "allow" or "deny"
+	Status string `json:"status"` // "active"
 }
 
-// Manager defines the interface for interacting with the host firewall
-type Manager interface {
-	AllowPort(port int, protocol string) error
-	DenyPort(port int, protocol string) error
-	DeleteRule(id string) error
-	ListRules() ([]Rule, error)
-	Reload() error
+// Manager handles UFW firewall interactions
+type Manager struct {
+	// For MVP, we maintain a mock list in memory for Windows development
+	mockRules []FirewallRule
 }
 
-// NewManager auto-detects the firewall and returns the appropriate implementation
-func NewManager() (Manager, error) {
-	if _, err := exec.LookPath("ufw"); err == nil {
-		return &UFWManager{}, nil
+func NewManager() *Manager {
+	return &Manager{
+		mockRules: []FirewallRule{
+			{Port: "22/tcp", Action: "allow", Status: "active"},
+			{Port: "80/tcp", Action: "allow", Status: "active"},
+			{Port: "443/tcp", Action: "allow", Status: "active"},
+			{Port: "8080/tcp", Action: "allow", Status: "active"},
+		},
 	}
-	// Fallback to firewalld or nftables in the future
-	return nil, errors.New("no supported firewall found (ufw, firewalld, nftables)")
 }
 
-// UFWManager implements the Manager interface using os/exec for ufw
-type UFWManager struct{}
+func (m *Manager) ListRules() ([]FirewallRule, error) {
+	// In production:
+	// out, err := exec.Command("ufw", "status", "numbered").Output()
+	// parse output...
 
-func (u *UFWManager) AllowPort(port int, protocol string) error {
-	cmd := exec.Command("ufw", "allow", fmt.Sprintf("%d/%s", port, protocol))
-	return cmd.Run()
+	log.Printf("[MOCK] ufw status\n")
+	return m.mockRules, nil
 }
 
-func (u *UFWManager) DenyPort(port int, protocol string) error {
-	cmd := exec.Command("ufw", "deny", fmt.Sprintf("%d/%s", port, protocol))
-	return cmd.Run()
+func (m *Manager) AllowPort(port string) error {
+	// In production:
+	// err := exec.Command("ufw", "allow", port).Run()
+
+	log.Printf("[MOCK] Running: ufw allow %s\n", port)
+	
+	// Add to mock state
+	for _, r := range m.mockRules {
+		if r.Port == port {
+			return nil // already exists
+		}
+	}
+	m.mockRules = append(m.mockRules, FirewallRule{Port: port, Action: "allow", Status: "active"})
+	return nil
 }
 
-func (u *UFWManager) DeleteRule(id string) error {
-	// ufw delete allow <port>/<protocol>
-	// Parsing ID is required for a complete implementation
-	return errors.New("not implemented yet")
-}
+func (m *Manager) DenyPort(port string) error {
+	// In production:
+	// err := exec.Command("ufw", "delete", "allow", port).Run()
 
-func (u *UFWManager) ListRules() ([]Rule, error) {
-	// Execute 'ufw status numbered' and parse output
-	return []Rule{}, nil
-}
-
-func (u *UFWManager) Reload() error {
-	cmd := exec.Command("ufw", "reload")
-	return cmd.Run()
+	log.Printf("[MOCK] Running: ufw delete allow %s\n", port)
+	
+	// Remove from mock state
+	var updated []FirewallRule
+	for _, r := range m.mockRules {
+		if r.Port != port {
+			updated = append(updated, r)
+		}
+	}
+	m.mockRules = updated
+	return nil
 }

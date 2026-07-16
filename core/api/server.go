@@ -9,11 +9,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
 	"github.com/N1N4U/Hex/core/proxy"
+	"github.com/N1N4U/Hex/core/terminal"
 )
 
 type Server struct {
@@ -99,6 +101,30 @@ func NewServer(port int) *Server {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"success": true}`))
+	}))
+
+	mux.HandleFunc("/docker/terminal", func(w http.ResponseWriter, r *http.Request) {
+		// Bypass JWTMiddleware for WebSockets standard upgrader (token passed in query string typically)
+		// token := r.URL.Query().Get("token")
+		terminal.HandleTerminal(w, r)
+	})
+
+	mux.HandleFunc("/docker/files", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		containerID := r.URL.Query().Get("id")
+		path := r.URL.Query().Get("path")
+		if path == "" {
+			path = "/"
+		}
+
+		cmd := exec.Command("docker", "exec", containerID, "ls", "-la", path)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			http.Error(w, string(out), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write(out)
 	}))
 
 	mux.HandleFunc("/docker/containers", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {

@@ -43,8 +43,12 @@ export default async function DashboardPage() {
           </thead>
           <tbody className="divide-y divide-gray-800">
             {containers.map((c) => (
-              <tr key={c.id}>
-                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-white">{c.name.replace('/', '')}</td>
+              <tr key={c.id} className="hover:bg-gray-800/50 cursor-pointer transition-colors">
+                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-white">
+                  <a href={`/dashboard/servers/${c.id}`} className="block h-full w-full text-blue-400 hover:text-blue-300">
+                    {c.name.replace('/', '')}
+                  </a>
+                </td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-300">{c.image}</td>
                 <td className="whitespace-nowrap px-6 py-4 text-sm">
                   <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${

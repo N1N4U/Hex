@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/N1N4U/Hex/core/database"
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
 	"github.com/N1N4U/Hex/core/firewall"
@@ -62,6 +63,38 @@ func NewServer(port int) *Server {
 	}
 
 	firewallMgr := firewall.NewManager()
+	dbMgr := database.NewManager()
+
+	mux.HandleFunc("/databases", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(dbMgr.ListDatabases())
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			var req struct {
+				Type string `json:"type"`
+				Name string `json:"name"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			db, err := dbMgr.CreateDatabase(req.Type, req.Name)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(db)
+			return
+		}
+
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}))
 
 	mux.HandleFunc("/firewall", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {

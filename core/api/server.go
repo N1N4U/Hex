@@ -15,6 +15,7 @@ import (
 
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
+	"github.com/N1N4U/Hex/core/firewall"
 	"github.com/N1N4U/Hex/core/proxy"
 	"github.com/N1N4U/Hex/core/terminal"
 )
@@ -59,6 +60,51 @@ func NewServer(port int) *Server {
 	if err != nil {
 		log.Printf("Warning: Failed to initialize proxy manager: %v\n", err)
 	}
+
+	firewallMgr := firewall.NewManager()
+
+	mux.HandleFunc("/firewall", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			rules, err := firewallMgr.ListRules()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(rules)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			var req struct {
+				Port   string `json:"port"`
+				Action string `json:"action"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			if req.Action == "allow" {
+				if err := firewallMgr.AllowPort(req.Port); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+			} else if req.Action == "deny" {
+				if err := firewallMgr.DenyPort(req.Port); err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}))
 
 	mux.HandleFunc("/proxy", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

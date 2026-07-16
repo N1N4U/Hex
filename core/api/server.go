@@ -11,6 +11,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
 )
 
@@ -44,6 +45,33 @@ func NewServer(port int) *Server {
 	if err != nil {
 		log.Printf("Warning: Failed to initialize docker client: %v\n", err)
 	}
+
+	deployMgr, err := deployments.NewManager()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize deployment manager: %v\n", err)
+	}
+
+	mux.HandleFunc("/deployments", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		
+		var req deployments.DeploymentRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := deployMgr.Deploy(r.Context(), req); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"success": true}`))
+	}))
 
 	mux.HandleFunc("/docker/containers", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if dockerClient == nil {

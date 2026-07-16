@@ -39,9 +39,25 @@ export class CoreClient {
       headers: {
         'Authorization': this.generatePanelJWT(),
       },
-      // @ts-ignore - Next.js fetch doesn't natively support https agent in typings easily, but node fetch does
       agent: this.agent,
-    });
+    } as any);
+    
+    if (!res.ok) {
+      throw new Error(`Core responded with ${res.status}`);
+    }
+    return res.json();
+  }
+
+  async post(endpoint: string, body: any) {
+    const res = await fetch(`${this.coreUrl}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': this.generatePanelJWT(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      agent: this.agent,
+    } as any);
     
     if (!res.ok) {
       throw new Error(`Core responded with ${res.status}`);

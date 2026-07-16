@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type DeploymentRequest struct {

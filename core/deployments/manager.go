@@ -51,7 +51,15 @@ func (m *Manager) Deploy(ctx context.Context, req DeploymentRequest) error {
   app:
     image: %s
     restart: always
+    env_file:
+      - .env
 `, imageName)
+
+	// Ensure .env exists so docker compose doesn't fail
+	envPath := filepath.Join(targetDir, ".env")
+	if _, err := os.Stat(envPath); os.IsNotExist(err) {
+		os.WriteFile(envPath, []byte(""), 0600)
+	}
 
 	composePath := filepath.Join(targetDir, "compose.yaml")
 	if err := os.WriteFile(composePath, []byte(composeContent), 0644); err != nil {

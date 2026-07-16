@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -101,6 +102,48 @@ func NewServer(port int) *Server {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"success": true}`))
+	}))
+
+	mux.HandleFunc("/deployments/env", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		if id == "" {
+			http.Error(w, "Deployment ID required", http.StatusBadRequest)
+			return
+		}
+
+		envPath := fmt.Sprintf("./deployments_data/%s/.env", id)
+
+		if r.Method == http.MethodGet {
+			content, err := os.ReadFile(envPath)
+			if err != nil {
+				// If not found, just return empty
+				w.Header().Set("Content-Type", "text/plain")
+				w.Write([]byte(""))
+				return
+			}
+			w.Header().Set("Content-Type", "text/plain")
+			w.Write(content)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			if err := os.WriteFile(envPath, body, 0600); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
 	mux.HandleFunc("/docker/terminal", func(w http.ResponseWriter, r *http.Request) {

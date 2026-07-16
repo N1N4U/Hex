@@ -13,6 +13,7 @@ import (
 
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
+	"github.com/N1N4U/Hex/core/proxy"
 )
 
 type Server struct {
@@ -50,6 +51,33 @@ func NewServer(port int) *Server {
 	if err != nil {
 		log.Printf("Warning: Failed to initialize deployment manager: %v\n", err)
 	}
+
+	proxyMgr, err := proxy.NewManager()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize proxy manager: %v\n", err)
+	}
+
+	mux.HandleFunc("/proxy", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		
+		var req proxy.ProxyRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		if err := proxyMgr.CreateProxy(r.Context(), req); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"success": true}`))
+	}))
 
 	mux.HandleFunc("/deployments", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {

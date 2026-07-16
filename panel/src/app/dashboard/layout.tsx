@@ -23,8 +23,8 @@ export default async function DashboardLayout({
         
         <nav className="flex-1 space-y-2">
           <a href="/dashboard" className="block rounded-md bg-gray-800 px-3 py-2 text-sm font-medium text-white">Overview</a>
-          <a href="/dashboard/servers" className="block rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">Servers</a>
           <a href="/dashboard/deployments" className="block rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">Deployments</a>
+          <a href="/dashboard/proxy" className="block rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white">Reverse Proxy</a>
         </nav>
 
         <div className="mt-auto">

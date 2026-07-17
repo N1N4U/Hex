@@ -3,15 +3,16 @@ import { getSession } from '@/lib/session';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const res = await fetch(`${process.env.CORE_URL || 'https://127.0.0.1:8080'}/deployments/env?id=${params.id}`, {
+    const res = await fetch(`${process.env.CORE_URL || 'https://127.0.0.1:8080'}/deployments/env?id=${id}`, {
       headers: {
         'Authorization': `Bearer dummy_jwt_signed_by_${process.env.PANEL_API_KEY || 'hx_panel_default_key'}`,
       }
@@ -27,8 +28,9 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getSession();
     if (!session) {
@@ -37,7 +39,7 @@ export async function POST(
 
     const bodyText = await request.text();
 
-    const res = await fetch(`${process.env.CORE_URL || 'https://127.0.0.1:8080'}/deployments/env?id=${params.id}`, {
+    const res = await fetch(`${process.env.CORE_URL || 'https://127.0.0.1:8080'}/deployments/env?id=${id}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer dummy_jwt_signed_by_${process.env.PANEL_API_KEY || 'hx_panel_default_key'}`,

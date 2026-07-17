@@ -4,8 +4,9 @@ import { coreClient } from '@/lib/coreClient';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const session = await getSession();
     if (!session) {
@@ -16,13 +17,13 @@ export async function GET(
     const path = searchParams.get('path') || '/';
 
     // Forward to Core API
-    const coreResponse = await coreClient.get(`/docker/files?id=${params.id}&path=${encodeURIComponent(path)}`);
+    const coreResponse = await coreClient.get(`/docker/files?id=${id}&path=${encodeURIComponent(path)}`);
     
     // Core returns text/plain for files, coreClient expects JSON, so we handle the raw response if it's text
     // Wait, coreClient `.get()` automatically does `res.json()`. I should adjust it if the core returns plain text.
     // Let's use standard fetch instead for this specific route since we expect plain text.
     
-    const res = await fetch(`${process.env.CORE_URL || 'https://127.0.0.1:8080'}/docker/files?id=${params.id}&path=${encodeURIComponent(path)}`, {
+    const res = await fetch(`${process.env.CORE_URL || 'https://127.0.0.1:8080'}/docker/files?id=${id}&path=${encodeURIComponent(path)}`, {
       headers: {
         'Authorization': `Bearer dummy_jwt_signed_by_${process.env.PANEL_API_KEY || 'hx_panel_default_key'}`,
       }

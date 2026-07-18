@@ -3,26 +3,21 @@ package terminal
 import (
 	"log"
 	"net/http"
+	"os"
 	"os/exec"
+	"runtime"
 
+	"github.com/creack/pty"
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
-		// In production, validate this against Panel Domain
-		return true
+		return true // In production, validate origin
 	},
 }
 
-// HandleTerminal handles the websocket connection and bridges it to docker exec
 func HandleTerminal(w http.ResponseWriter, r *http.Request) {
-	containerID := r.URL.Query().Get("id")
-	if containerID == "" {
-		http.Error(w, "Container ID is required", http.StatusBadRequest)
-		return
-	}
-
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("Failed to upgrade websocket: %v", err)
@@ -30,27 +25,38 @@ func HandleTerminal(w http.ResponseWriter, r *http.Request) {
 	}
 	defer ws.Close()
 
-	// Spawn Docker Exec PTY
-	// Using sh as standard fallback shell
-	cmd := exec.Command("docker", "exec", "-it", containerID, "/bin/sh")
+	containerID := r.URL.Query().Get("id")
 
-	// Create pseudo-terminal (PTY) using os pipes or generic io.ReadWriter
-	// Note: True PTY requires github.com/creack/pty, but standard pipes work for a basic WebSSH MVP
-	
-	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
-	stdin, _ := cmd.StdinPipe()
-
-	if err := cmd.Start(); err != nil {
-		ws.WriteMessage(websocket.TextMessage, []byte("Failed to start terminal.\r\n"))
-		return
+	var cmd *exec.Cmd
+	if containerID != "" {
+		// Docker Exec Terminal
+		cmd = exec.Command("docker", "exec", "-it", containerID, "/bin/sh")
+	} else {
+		// Host Terminal
+		shell := os.Getenv("SHELL")
+		if shell == "" {
+			shell = "/bin/bash"
+			if runtime.GOOS == "windows" {
+				shell = "powershell.exe"
+			}
+		}
+		cmd = exec.Command(shell)
+		cmd.Env = append(os.Environ(), "TERM=xterm")
 	}
 
-	// Read from Docker and send to WebSocket
+	// Start the command in a PTY
+	ptmx, err := pty.Start(cmd)
+	if err != nil {
+		ws.WriteMessage(websocket.TextMessage, []byte("Failed to start pseudo-terminal.\r\n"))
+		return
+	}
+	defer func() { _ = ptmx.Close() }() // Best effort.
+
+	// Read from PTY and send to WebSocket
 	go func() {
 		buf := make([]byte, 1024)
 		for {
-			n, err := stdout.Read(buf)
+			n, err := ptmx.Read(buf)
 			if err != nil {
 				return
 			}
@@ -58,25 +64,14 @@ func HandleTerminal(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := stderr.Read(buf)
-			if err != nil {
-				return
-			}
-			ws.WriteMessage(websocket.TextMessage, buf[:n])
-		}
-	}()
-
-	// Read from WebSocket and send to Docker
+	// Read from WebSocket and send to PTY
 	go func() {
 		for {
 			_, msg, err := ws.ReadMessage()
 			if err != nil {
 				return
 			}
-			stdin.Write(msg)
+			ptmx.Write(msg)
 		}
 	}()
 

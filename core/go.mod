@@ -3,6 +3,7 @@ module github.com/N1N4U/Hex/core
 go 1.26.5
 
 require (
+	github.com/creack/pty v1.1.24
 	github.com/docker/docker v24.0.9+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gorilla/websocket v1.5.3

@@ -10,13 +10,13 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"time"
 
 	"github.com/N1N4U/Hex/core/auth"
 	"github.com/N1N4U/Hex/core/database"
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
+	"github.com/N1N4U/Hex/core/files"
 	"github.com/N1N4U/Hex/core/firewall"
 	"github.com/N1N4U/Hex/core/monitor"
 	"github.com/N1N4U/Hex/core/proxy"
@@ -54,6 +54,59 @@ func NewServer(port int) *Server {
 	firewallMgr := firewall.NewManager()
 	dbMgr := database.NewManager()
 	monitorMgr := monitor.NewManager()
+	fileMgr := files.NewManager()
+
+	mux.HandleFunc("/files", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Query().Get("path")
+		if path == "" {
+			path = "/"
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			// Read File or List Directory
+			action := r.URL.Query().Get("action")
+			if action == "read" {
+				content, err := fileMgr.ReadFile(path)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/octet-stream")
+				w.Write(content)
+			} else {
+				// Default to list
+				filesList, err := fileMgr.ListFiles(path)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(filesList)
+			}
+
+		case http.MethodPost:
+			// Write File
+			if err := fileMgr.WriteFile(path, r.Body); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+
+		case http.MethodDelete:
+			// Delete File or Directory
+			if err := fileMgr.DeleteFile(path); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 
 	mux.HandleFunc("/monitor", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -247,29 +300,11 @@ func NewServer(port int) *Server {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
-	mux.HandleFunc("/docker/terminal", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/terminal", func(w http.ResponseWriter, r *http.Request) {
 		// Bypass JWTMiddleware for WebSockets standard upgrader (token passed in query string typically)
 		// token := r.URL.Query().Get("token")
 		terminal.HandleTerminal(w, r)
 	})
-
-	mux.HandleFunc("/docker/files", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
-		containerID := r.URL.Query().Get("id")
-		path := r.URL.Query().Get("path")
-		if path == "" {
-			path = "/"
-		}
-
-		cmd := exec.Command("docker", "exec", containerID, "ls", "-la", path)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
-			http.Error(w, string(out), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/plain")
-		w.Write(out)
-	}))
 
 	mux.HandleFunc("/docker/containers", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if dockerClient == nil {

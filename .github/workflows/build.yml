@@ -1,0 +1,57 @@
+name: Build and Release Hex Core
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Go Binary
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21' # Adjust this to your Go version if needed
+
+      - name: Build Hex Core
+        run: |
+          cd core
+          GOOS=linux GOARCH=amd64 go build -o ../hex-linux-amd64 .
+          
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hex-linux-amd64
+          path: hex-linux-amd64
+
+  release:
+    name: Create Latest Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hex-linux-amd64
+          
+      - name: Update Latest Release
+        uses: pyTooling/Actions/releaser@main
+        with:
+          tag: latest
+          rm: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: hex-linux-amd64

@@ -9,6 +9,7 @@ docs/
 z.txt
 # Testing
 coverage/
+trash/
 
 # Next.js
 .next/

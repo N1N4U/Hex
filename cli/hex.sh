@@ -57,21 +57,36 @@ case $COMMAND in
     ;;
   update)
     echo "Updating Hex..."
-    cd /opt/hex
-    git pull origin main
-
+    ARCH=$(uname -m)
+    if [ "$ARCH" == "x86_64" ]; then
+        HEX_ARCH="amd64"
+    elif [ "$ARCH" == "aarch64" ]; then
+        HEX_ARCH="arm64"
+    else
+        echo "Unsupported Architecture: $ARCH"
+        exit 1
+    fi
+    
     # Update Core
-    echo "Recompiling Hex Core..."
-    cd /opt/hex/core
-    /usr/local/go/bin/go build -o /var/lib/hex/core/hex-core main.go
-    systemctl restart hex-core
+    echo "Downloading latest Hex Core binary..."
+    DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-linux-$HEX_ARCH"
+    
+    if wget -q -O /tmp/hex-core-update "$DOWNLOAD_URL"; then
+        chmod +x /tmp/hex-core-update
+        systemctl stop hex-core
+        mv /tmp/hex-core-update /var/lib/hex/core/hex-core
+        systemctl start hex-core
+        echo "Hex Core updated successfully."
+    else
+        echo "Failed to download update from $DOWNLOAD_URL. Make sure the release exists."
+    fi
 
     # Update Panel (if running)
     if [ "$(docker ps -q -f name=hex-panel)" ]; then
-        echo "Rebuilding Hex Panel Docker image..."
-        cd /opt/hex/panel
-        docker compose build
-        docker compose up -d
+        # If panel is distributed as an image
+        # docker pull ghcr.io/n1n4u/hex-panel:latest
+        # docker compose up -d
+        echo "Panel update logic goes here..."
     fi
 
     echo "Update complete!"

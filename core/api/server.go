@@ -128,25 +128,43 @@ func NewServer(port int) *Server {
 	}))
 
 	mux.HandleFunc("/proxy", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		if r.Method == http.MethodPost {
+			var req proxy.ProxyRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+
+			if err := proxyMgr.CreateProxy(r.Context(), req); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+
+		if r.Method == http.MethodDelete {
+			domain := r.URL.Query().Get("domain")
+			if domain == "" {
+				http.Error(w, "domain is required", http.StatusBadRequest)
+				return
+			}
+			
+			if err := proxyMgr.DeleteProxy(domain); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
 			return
 		}
 		
-		var req proxy.ProxyRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-
-		if err := proxyMgr.CreateProxy(r.Context(), req); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"success": true}`))
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
 	mux.HandleFunc("/deployments", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {

@@ -91,6 +91,33 @@ fi
 read -p "Configure Firewall automatically? (Y/n): " CONF_FW
 CONF_FW=${CONF_FW:-Y}
 
+# Map mode to string for summary
+MODE_STR="Unknown"
+if [ "$INSTALL_MODE" -eq 1 ]; then MODE_STR="Core Only"; fi
+if [ "$INSTALL_MODE" -eq 2 ]; then MODE_STR="Panel Only"; fi
+if [ "$INSTALL_MODE" -eq 3 ]; then MODE_STR="Core + Panel"; fi
+if [ "$INSTALL_MODE" -eq 4 ]; then MODE_STR="Core + Panel (Secure)"; fi
+
+FW_STR="Will be configured"
+if [[ "$CONF_FW" == "n" || "$CONF_FW" == "N" ]]; then FW_STR="Skipped"; fi
+
+echo -e "" >&3
+echo -e "${BLUE}==========================================================${NC}" >&3
+echo -e "${GREEN}Installation Summary${NC}" >&3
+echo -e "" >&3
+echo -e "OS:            $OS" >&3
+echo -e "Architecture:  $HEX_ARCH" >&3
+echo -e "Install Mode:  $MODE_STR" >&3
+echo -e "Docker:        Will be checked/installed" >&3
+echo -e "Firewall:      $FW_STR" >&3
+echo -e "Core Port:     $CORE_PORT" >&3
+if [ "$INSTALL_MODE" -ne 1 ]; then
+    echo -e "Panel Port:    $PANEL_PORT" >&3
+fi
+echo -e "${BLUE}==========================================================${NC}" >&3
+echo -e "" >&3
+read -p "Press ENTER to begin installation or Ctrl+C to cancel..." 
+
 # 3. Port Check
 echo -e "${CYAN}[*] Checking required ports...${NC}" >&3
 check_port() {
@@ -236,8 +263,5 @@ echo -e "${GREEN} Hex Installation Complete! ${NC}" >&3
 echo -e "${YELLOW} Logs are available at: /var/log/hex-install.log${NC}" >&3
 echo "" >&3
 echo -e "${YELLOW} To manage your Hex instance, use the CLI tool:${NC}" >&3
-echo -e "   ${CYAN}hex start core${NC}" >&3
-echo -e "   ${CYAN}hex restart core${NC}" >&3
-echo -e "   ${CYAN}hex update${NC}" >&3
-echo -e "   ${CYAN}hex uninstall${NC}" >&3
+echo -e "   ${CYAN}hex help${NC}" >&3
 echo -e "${BLUE}==========================================================${NC}" >&3

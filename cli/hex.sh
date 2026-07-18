@@ -6,56 +6,100 @@ set -e
 
 COMMAND=$1
 TARGET=$2
+SUBTARGET=$3
 
 print_usage() {
-  echo "Hex CLI Utility"
-  echo "Usage:"
+  echo "=========================================================="
+  echo "                     Hex CLI Utility                      "
+  echo "=========================================================="
+  echo "Service Management:"
   echo "  hex start [core|panel]"
   echo "  hex stop [core|panel]"
   echo "  hex restart [core|panel]"
+  echo "  hex status [core|panel]"
+  echo "  hex logs [core|panel]"
+  echo "  hex enable [core|panel]"
+  echo "  hex disable [core|panel]"
+  echo "  hex reload [core|panel]"
+  echo ""
+  echo "System Management:"
   echo "  hex update"
   echo "  hex uninstall"
+  echo "  hex reinstall"
+  echo "  hex repair"
+  echo "  hex migrate"
+  echo ""
+  echo "Backups:"
+  echo "  hex backup create"
+  echo "  hex backup restore"
+  echo "  hex backup list"
+  echo "  hex backup delete"
+  echo ""
+  echo "Panel Specific:"
+  echo "  hex panel install"
+  echo "  hex panel update"
+  echo "  hex panel restart"
+  echo "  hex panel logs"
+  echo ""
+  echo "Diagnostics & Information:"
+  echo "  hex doctor"
+  echo "  hex check"
+  echo "  hex diagnose"
+  echo "  hex version"
+  echo "  hex info"
+  echo "  hex about"
+  echo ""
+  echo "Maintenance & Developer:"
+  echo "  hex clean"
+  echo "  hex cache clear"
+  echo "  hex reset"
+  echo "  hex dev"
+  echo "  hex debug"
+  echo "  hex trace"
+  echo "=========================================================="
 }
 
-if [ -z "$COMMAND" ]; then
+if [ -z "$COMMAND" ] || [[ "$COMMAND" == "help" ]] || [[ "$COMMAND" == "cmd" ]]; then
   print_usage
-  exit 1
+  exit 0
 fi
 
+# Utility function for service management
+manage_service() {
+    local action=$1
+    local target=$2
+
+    if [ "$target" == "core" ]; then
+        if [[ "$action" == "logs" ]]; then
+            journalctl -u hex-core -f
+        else
+            systemctl $action hex-core
+            echo "Hex Core $action executed."
+        fi
+    elif [ "$target" == "panel" ]; then
+        if [ ! -d "/opt/hex/panel" ]; then
+            echo "Hex Panel is not installed in /opt/hex/panel."
+            return
+        fi
+        cd /opt/hex/panel
+        case $action in
+            start) docker compose up -d ;;
+            stop) docker compose down ;;
+            restart) docker compose restart ;;
+            logs) docker compose logs -f ;;
+            status) docker compose ps ;;
+            *) echo "Unsupported action $action for panel." ;;
+        esac
+    else
+        echo "Unknown target '$target'. Use 'core' or 'panel'."
+    fi
+}
+
 case $COMMAND in
-  start)
-    if [ "$TARGET" == "core" ]; then
-      systemctl start hex-core
-      echo "Hex Core started."
-    elif [ "$TARGET" == "panel" ]; then
-      cd /opt/hex/panel && docker compose up -d
-      echo "Hex Panel started."
-    else
-      echo "Unknown target. Use 'core' or 'panel'."
-    fi
+  start|stop|restart|status|logs|enable|disable|reload)
+    manage_service "$COMMAND" "$TARGET"
     ;;
-  stop)
-    if [ "$TARGET" == "core" ]; then
-      systemctl stop hex-core
-      echo "Hex Core stopped."
-    elif [ "$TARGET" == "panel" ]; then
-      cd /opt/hex/panel && docker compose down
-      echo "Hex Panel stopped."
-    else
-      echo "Unknown target. Use 'core' or 'panel'."
-    fi
-    ;;
-  restart)
-    if [ "$TARGET" == "core" ]; then
-      systemctl restart hex-core
-      echo "Hex Core restarted."
-    elif [ "$TARGET" == "panel" ]; then
-      cd /opt/hex/panel && docker compose restart
-      echo "Hex Panel restarted."
-    else
-      echo "Unknown target. Use 'core' or 'panel'."
-    fi
-    ;;
+    
   update)
     echo "Updating Hex..."
     ARCH=$(uname -m)
@@ -84,9 +128,9 @@ case $COMMAND in
     if [ "$(docker ps -q -f name=hex-panel)" ]; then
         echo "Panel update logic goes here..."
     fi
-
     echo "Update complete!"
     ;;
+    
   uninstall)
     if [ "$EUID" -ne 0 ]; then
       echo "[ERROR] Please run this command as root (sudo hex uninstall)"
@@ -134,6 +178,50 @@ case $COMMAND in
         echo "Hex has been completely uninstalled from this system."
     fi
     ;;
+    
+  backup)
+    case $TARGET in
+        create) echo "[Stub] Creating backup..." ;;
+        restore) echo "[Stub] Restoring backup..." ;;
+        list) echo "[Stub] Listing backups..." ;;
+        delete) echo "[Stub] Deleting backup..." ;;
+        *) echo "Unknown backup command. Use create, restore, list, or delete." ;;
+    esac
+    ;;
+    
+  panel)
+    case $TARGET in
+        install) echo "[Stub] Installing panel..." ;;
+        update) echo "[Stub] Updating panel..." ;;
+        restart) manage_service "restart" "panel" ;;
+        logs) manage_service "logs" "panel" ;;
+        *) echo "Unknown panel command." ;;
+    esac
+    ;;
+    
+  reinstall|repair|migrate)
+    echo "[Stub] $COMMAND is not fully implemented yet."
+    ;;
+    
+  doctor|check|diagnose)
+    echo "[Stub] Running diagnostics..."
+    systemctl is-active hex-core
+    docker --version || echo "Docker not installed"
+    ;;
+    
+  version|info|about)
+    echo "Hex Control Panel - CLI Utility v0.1.0"
+    echo "By N1N4U"
+    ;;
+    
+  clean|cache)
+    echo "[Stub] Cleaning system cache..."
+    ;;
+    
+  reset|dev|debug|trace)
+    echo "[Stub] Running developer command: $COMMAND..."
+    ;;
+    
   *)
     print_usage
     ;;

@@ -22,6 +22,11 @@ print_usage() {
   echo "  hex disable [core|panel]"
   echo "  hex reload [core|panel]"
   echo ""
+  echo "Core Management:"
+  echo "  hex core create-api [name]"
+  echo "  hex core approve <ip>"
+  echo "  hex core deny <ip>"
+  echo ""
   echo "System Management:"
   echo "  hex update"
   echo "  hex uninstall"
@@ -187,6 +192,22 @@ case $COMMAND in
         list) echo "[Stub] Listing backups..." ;;
         delete) echo "[Stub] Deleting backup..." ;;
         *) echo "Unknown backup command. Use create, restore, list, or delete." ;;
+    esac
+    ;;
+    
+  core)
+    case $TARGET in
+        create-api|approve|deny)
+            if [ -x "/var/lib/hex/core/hex-core" ]; then
+                /var/lib/hex/core/hex-core "$TARGET" "$SUBTARGET" "${@:4}"
+            else
+                echo "[ERROR] Hex Core binary not found at /var/lib/hex/core/hex-core"
+                exit 1
+            fi
+            ;;
+        *)
+            echo "Unknown core command. See 'hex help' for available commands."
+            ;;
     esac
     ;;
     

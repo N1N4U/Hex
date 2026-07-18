@@ -284,10 +284,13 @@ func NewServer(port int) *Server {
 
 func (s *Server) Start() error {
 	// Setup mTLS
-	caCert, err := os.ReadFile("../cli/certs/ca.crt")
+	caCert, err := os.ReadFile("/var/lib/hex/certs/ca.crt")
 	if err != nil {
-		log.Println("Warning: mTLS CA cert not found, running insecurely for dev")
-		return s.server.ListenAndServe()
+		caCert, err = os.ReadFile("../cli/certs/ca.crt")
+		if err != nil {
+			log.Println("Warning: mTLS CA cert not found, running insecurely for dev")
+			return s.server.ListenAndServe()
+		}
 	}
 
 	caCertPool := x509.NewCertPool()
@@ -299,7 +302,14 @@ func (s *Server) Start() error {
 	}
 	s.server.TLSConfig = tlsConfig
 
-	return s.server.ListenAndServeTLS("../cli/certs/server.crt", "../cli/certs/server.key")
+	serverCrt := "/var/lib/hex/certs/server.crt"
+	serverKey := "/var/lib/hex/certs/server.key"
+	if _, err := os.Stat(serverCrt); err != nil {
+		serverCrt = "../cli/certs/server.crt"
+		serverKey = "../cli/certs/server.key"
+	}
+
+	return s.server.ListenAndServeTLS(serverCrt, serverKey)
 }
 
 func (s *Server) Stop() error {

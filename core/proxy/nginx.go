@@ -10,6 +10,7 @@ import (
 )
 
 type ProxyRequest struct {
+	Name       string `json:"name"`
 	Domain     string `json:"domain"`
 	TargetIP   string `json:"targetIp"`
 	TargetPort int    `json:"targetPort"`
@@ -36,9 +37,9 @@ func NewManager() (*Manager, error) {
 }
 
 func (m *Manager) CreateProxy(ctx context.Context, req ProxyRequest) error {
-	log.Printf("Setting up reverse proxy for %s -> %s:%d (SSL: %v)\n", req.Domain, req.TargetIP, req.TargetPort, req.EnableSSL)
+	log.Printf("Setting up reverse proxy for %s (%s) -> %s:%d (SSL: %v)\n", req.Name, req.Domain, req.TargetIP, req.TargetPort, req.EnableSSL)
 
-	confPath := filepath.Join(m.confDir, fmt.Sprintf("%s.conf", req.Domain))
+	confPath := filepath.Join(m.confDir, fmt.Sprintf("%s.conf", req.Name))
 
 	// 1. Generate Nginx template
 	confContent := fmt.Sprintf(`server {
@@ -66,7 +67,7 @@ func (m *Manager) CreateProxy(ctx context.Context, req ProxyRequest) error {
 	if err := m.testNginx(); err != nil {
 		// Rollback on failure
 		os.Remove(confPath)
-		return fmt.Errorf("nginx config test failed: %w", err)
+		return fmt.Errorf("nginx config test failed: %s", err.Error())
 	}
 
 	// 3. Reload Nginx
@@ -84,8 +85,8 @@ func (m *Manager) CreateProxy(ctx context.Context, req ProxyRequest) error {
 	return nil
 }
 
-func (m *Manager) DeleteProxy(domain string) error {
-	confPath := filepath.Join(m.confDir, fmt.Sprintf("%s.conf", domain))
+func (m *Manager) DeleteProxy(name string) error {
+	confPath := filepath.Join(m.confDir, fmt.Sprintf("%s.conf", name))
 	if err := os.Remove(confPath); err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to delete config: %w", err)

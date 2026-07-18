@@ -18,6 +18,7 @@ import (
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
 	"github.com/N1N4U/Hex/core/firewall"
+	"github.com/N1N4U/Hex/core/monitor"
 	"github.com/N1N4U/Hex/core/proxy"
 	"github.com/N1N4U/Hex/core/terminal"
 )
@@ -52,6 +53,21 @@ func NewServer(port int) *Server {
 
 	firewallMgr := firewall.NewManager()
 	dbMgr := database.NewManager()
+	monitorMgr := monitor.NewManager()
+
+	mux.HandleFunc("/monitor", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			stats, err := monitorMgr.GetStats(r.Context())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(stats)
+			return
+		}
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}))
 
 	mux.HandleFunc("/databases", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
@@ -147,13 +163,13 @@ func NewServer(port int) *Server {
 		}
 
 		if r.Method == http.MethodDelete {
-			domain := r.URL.Query().Get("domain")
-			if domain == "" {
-				http.Error(w, "domain is required", http.StatusBadRequest)
+			name := r.URL.Query().Get("name")
+			if name == "" {
+				http.Error(w, "name is required", http.StatusBadRequest)
 				return
 			}
 			
-			if err := proxyMgr.DeleteProxy(domain); err != nil {
+			if err := proxyMgr.DeleteProxy(name); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}

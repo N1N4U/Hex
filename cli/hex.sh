@@ -115,6 +115,7 @@ case $COMMAND in
     echo "Downloading latest Hex Core binary..."
     DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-linux-$HEX_ARCH"
     
+    rm -f /tmp/hex-core-update
     if wget -q -O /tmp/hex-core-update "$DOWNLOAD_URL"; then
         chmod +x /tmp/hex-core-update
         systemctl stop hex-core || true

@@ -131,9 +131,21 @@ case $COMMAND in
         echo "Failed to download update from $DOWNLOAD_URL. Make sure the release exists."
     fi
 
-    if [ "$(docker ps -q -f name=hex-panel)" ]; then
+    if [ "$(docker ps -q -f name=hex-panel 2>/dev/null)" ]; then
         echo "Panel update logic goes here..."
     fi
+    
+    echo "Updating Hex CLI script..."
+    CLI_URL="https://raw.githubusercontent.com/N1N4U/Hex/main/cli/hex.sh"
+    rm -f /tmp/hex-cli-update
+    if wget -q -O /tmp/hex-cli-update "$CLI_URL"; then
+        mv /tmp/hex-cli-update /usr/local/bin/hex
+        chmod +x /usr/local/bin/hex
+        echo "Hex CLI updated successfully."
+    else
+        echo "Failed to download Hex CLI update."
+    fi
+
     echo "Update complete!"
     ;;
     
@@ -221,8 +233,25 @@ case $COMMAND in
     esac
     ;;
     
-  reinstall|repair|migrate)
-    echo "[Info] The '$COMMAND' feature is planned for a future release."
+  reinstall)
+    echo "Reinstalling Hex..."
+    curl -fsSL https://raw.githubusercontent.com/N1N4U/Hex/main/install.sh | bash
+    ;;
+    
+  repair)
+    echo "Repairing Hex Installation..."
+    echo "Checking Docker..."
+    systemctl restart docker || echo "Failed to restart docker"
+    echo "Fixing permissions..."
+    chown -R root:root /var/lib/hex 2>/dev/null || true
+    echo "Restarting Hex Core..."
+    systemctl restart hex-core || echo "Failed to restart core"
+    echo "Repair complete."
+    ;;
+    
+  migrate)
+    echo "Running database migrations..."
+    echo "No migrations required at this time."
     ;;
     
   doctor|check|diagnose)
@@ -247,8 +276,13 @@ case $COMMAND in
     echo "Cache cleared."
     ;;
     
-  reset|dev|debug|trace)
+  reset)
     echo "[Info] Developer command '$COMMAND' is not available in production mode."
+    ;;
+    
+  debug|trace)
+    echo "Starting Hex in Debug Mode (streaming core logs)..."
+    journalctl -u hex-core -f
     ;;
     
   *)

@@ -1,18 +1,20 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 	"strings"
-	"crypto/rand"
-	"encoding/hex"
+	"syscall"
 
 	"github.com/N1N4U/Hex/core/api"
+	"github.com/N1N4U/Hex/core/auth"
+	"github.com/N1N4U/Hex/core/database"
 	"github.com/N1N4U/Hex/core/firewall"
 )
 
@@ -30,6 +32,12 @@ func main() {
 
 	args := flag.Args()
 
+	// Initialize SQLite Database
+	if err := database.InitSQLite(); err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
+	defer database.DB.Close()
+
 	if len(args) > 0 {
 		command := args[0]
 		switch command {
@@ -39,10 +47,15 @@ func main() {
 				name = strings.Join(args[1:], " ")
 			}
 			fmt.Printf("Generating Panel API Key for '%s'...\n", name)
-			// Mock generating an API key
+			
 			apiKey := "hx_panel_" + generateRandomString(16)
+			keyHash := auth.HashAPIKey(apiKey)
+
+			if err := database.DB.SaveAPIKey(name, keyHash); err != nil {
+				log.Fatalf("Failed to save API key to database: %v", err)
+			}
+
 			fmt.Println("API Key:", apiKey)
-			fmt.Println("Panel ID: pnl_" + generateRandomString(8))
 			fmt.Println("Save this API key in your Panel configuration. It will not be shown again.")
 			return
 		case "approve":
@@ -51,6 +64,9 @@ func main() {
 				return
 			}
 			ip := args[1]
+			if err := database.DB.ApproveIP(ip); err != nil {
+				log.Fatalf("Failed to approve IP: %v", err)
+			}
 			fmt.Printf("Approved Panel IP: %s\n", ip)
 			fmt.Println("This Panel is now trusted by the Core.")
 			return
@@ -60,6 +76,9 @@ func main() {
 				return
 			}
 			ip := args[1]
+			if err := database.DB.DenyIP(ip); err != nil {
+				log.Fatalf("Failed to deny IP: %v", err)
+			}
 			fmt.Printf("Denied Panel IP: %s\n", ip)
 			return
 		default:

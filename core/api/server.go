@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/N1N4U/Hex/core/auth"
 	"github.com/N1N4U/Hex/core/database"
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
@@ -24,19 +25,6 @@ import (
 type Server struct {
 	port   int
 	server *http.Server
-}
-
-func JWTMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// In production, verify the JWT here using the Panel's public key or shared secret
-		token := r.Header.Get("Authorization")
-		if token == "" {
-			http.Error(w, "Forbidden: Missing JWT", http.StatusForbidden)
-			return
-		}
-		// Skip full validation for boilerplate
-		next.ServeHTTP(w, r)
-	}
 }
 
 func NewServer(port int) *Server {
@@ -65,7 +53,7 @@ func NewServer(port int) *Server {
 	firewallMgr := firewall.NewManager()
 	dbMgr := database.NewManager()
 
-	mux.HandleFunc("/databases", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/databases", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(dbMgr.ListDatabases())
@@ -96,7 +84,7 @@ func NewServer(port int) *Server {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
-	mux.HandleFunc("/firewall", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/firewall", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			rules, err := firewallMgr.ListRules()
 			if err != nil {
@@ -139,7 +127,7 @@ func NewServer(port int) *Server {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
-	mux.HandleFunc("/proxy", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/proxy", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -161,7 +149,7 @@ func NewServer(port int) *Server {
 		w.Write([]byte(`{"success": true}`))
 	}))
 
-	mux.HandleFunc("/deployments", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/deployments", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -183,7 +171,7 @@ func NewServer(port int) *Server {
 		w.Write([]byte(`{"success": true}`))
 	}))
 
-	mux.HandleFunc("/deployments/env", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/deployments/env", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		id := r.URL.Query().Get("id")
 		if id == "" {
 			http.Error(w, "Deployment ID required", http.StatusBadRequest)
@@ -231,7 +219,7 @@ func NewServer(port int) *Server {
 		terminal.HandleTerminal(w, r)
 	})
 
-	mux.HandleFunc("/docker/files", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/docker/files", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		containerID := r.URL.Query().Get("id")
 		path := r.URL.Query().Get("path")
 		if path == "" {
@@ -249,7 +237,7 @@ func NewServer(port int) *Server {
 		w.Write(out)
 	}))
 
-	mux.HandleFunc("/docker/containers", JWTMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/docker/containers", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if dockerClient == nil {
 			http.Error(w, "Docker not available", http.StatusInternalServerError)
 			return

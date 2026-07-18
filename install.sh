@@ -19,9 +19,7 @@ NC='\033[0m'
 exec 3>&1
 
 # Re-attach stdin to terminal so read works when piped from curl
-if [ -t 1 ]; then
-    exec < /dev/tty
-fi
+# Done individually per read command now.
 
 echo -e "${CYAN}" >&3
 cat << "EOF" >&3
@@ -77,18 +75,18 @@ echo -e "[4] Core + Panel (Secure Mode - Core port is locked)" >&3
 echo -e "" >&3
 echo -e "${BLUE}==========================================================${NC}" >&3
 echo "" >&3
-read -p "Enter your choice [1-4]: " INSTALL_MODE
+read -p "Enter your choice [1-4]: " INSTALL_MODE </dev/tty
 INSTALL_MODE=${INSTALL_MODE:-1}
 
-read -p "Core Port [8080]: " CORE_PORT
+read -p "Core Port [8080]: " CORE_PORT </dev/tty
 CORE_PORT=${CORE_PORT:-8080}
 
 if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then
-    read -p "Panel Port [3000]: " PANEL_PORT
+    read -p "Panel Port [3000]: " PANEL_PORT </dev/tty
     PANEL_PORT=${PANEL_PORT:-3000}
 fi
 
-read -p "Configure Firewall automatically? (Y/n): " CONF_FW
+read -p "Configure Firewall automatically? (Y/n): " CONF_FW </dev/tty
 CONF_FW=${CONF_FW:-Y}
 
 # Map mode to string for summary
@@ -116,7 +114,7 @@ if [ "$INSTALL_MODE" -ne 1 ]; then
 fi
 echo -e "${BLUE}==========================================================${NC}" >&3
 echo -e "" >&3
-read -p "Press ENTER to begin installation or Ctrl+C to cancel..." 
+read -p "Press ENTER to begin installation or Ctrl+C to cancel..." </dev/tty 
 
 # 3. Port Check
 echo -e "${CYAN}[*] Checking required ports...${NC}" >&3

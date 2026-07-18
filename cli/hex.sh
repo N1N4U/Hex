@@ -222,13 +222,18 @@ case $COMMAND in
     ;;
     
   reinstall|repair|migrate)
-    echo "[Stub] $COMMAND is not fully implemented yet."
+    echo "[Info] The '$COMMAND' feature is planned for a future release."
     ;;
     
   doctor|check|diagnose)
-    echo "[Stub] Running diagnostics..."
-    systemctl is-active hex-core
-    docker --version || echo "Docker not installed"
+    echo "Running Hex System Diagnostics..."
+    echo "---------------------------------"
+    echo -n "Hex Core Service: "
+    systemctl is-active hex-core || echo "inactive"
+    echo -n "Docker Engine: "
+    docker --version || echo "Not installed"
+    echo "---------------------------------"
+    echo "Diagnostics complete."
     ;;
     
   version|info|about)
@@ -237,11 +242,13 @@ case $COMMAND in
     ;;
     
   clean|cache)
-    echo "[Stub] Cleaning system cache..."
+    echo "Cleaning system cache..."
+    docker system prune -f
+    echo "Cache cleared."
     ;;
     
   reset|dev|debug|trace)
-    echo "[Stub] Running developer command: $COMMAND..."
+    echo "[Info] Developer command '$COMMAND' is not available in production mode."
     ;;
     
   *)

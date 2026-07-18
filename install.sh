@@ -137,7 +137,7 @@ fi
 echo -e "${CYAN}[*] Installing dependencies & Docker...${NC}" >&3
 if [[ "$OS" == "ubuntu" || "$OS" == "debian" ]]; then
     apt-get update -y
-    apt-get install -y ca-certificates curl gnupg ufw openssl tar wget jq iproute2
+    apt-get install -y ca-certificates curl gnupg ufw openssl tar wget jq iproute2 nginx
     
     if ! command -v docker &> /dev/null; then
         install -m 0755 -d /etc/apt/keyrings
@@ -148,7 +148,7 @@ if [[ "$OS" == "ubuntu" || "$OS" == "debian" ]]; then
         apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     fi
 elif [[ "$OS" == "fedora" || "$OS" == "rocky" || "$OS" == "almalinux" || "$OS" == "centos" ]]; then
-    dnf install -y dnf-plugins-core ufw openssl tar wget curl jq iproute
+    dnf install -y dnf-plugins-core ufw openssl tar wget curl jq iproute nginx
     if ! command -v docker &> /dev/null; then
         dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo
         dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -233,6 +233,8 @@ if [[ "$CONF_FW" == "y" || "$CONF_FW" == "Y" ]]; then
     echo -e "${CYAN}[*] Configuring Firewall...${NC}" >&3
     if command -v ufw &> /dev/null; then
         ufw allow ssh > /dev/null 2>&1
+        ufw allow 80/tcp > /dev/null 2>&1
+        ufw allow 443/tcp > /dev/null 2>&1
         
         # Only open Core port externally if NOT in Secure Mode (Mode 4)
         if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ]; then 
@@ -245,6 +247,8 @@ if [[ "$CONF_FW" == "y" || "$CONF_FW" == "Y" ]]; then
         
         ufw --force enable > /dev/null 2>&1
     elif command -v firewall-cmd &> /dev/null; then
+        firewall-cmd --permanent --add-port=80/tcp > /dev/null 2>&1
+        firewall-cmd --permanent --add-port=443/tcp > /dev/null 2>&1
         if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ]; then 
             firewall-cmd --permanent --add-port=$CORE_PORT/tcp > /dev/null 2>&1
         fi

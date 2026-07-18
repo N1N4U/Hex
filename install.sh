@@ -18,6 +18,11 @@ NC='\033[0m'
 # Redirect stdout to console as well for interactive parts
 exec 3>&1
 
+# Re-attach stdin to terminal so read works when piped from curl
+if [ -t 1 ]; then
+    exec < /dev/tty
+fi
+
 echo -e "${CYAN}" >&3
 cat << "EOF" >&3
 ██╗  ██╗███████╗██╗  ██╗
@@ -59,30 +64,36 @@ else
 fi
 
 echo -e "${CYAN}[*] Detected OS: $OS | Architecture: $HEX_ARCH${NC}" >&3
+echo "" >&3
 
 # 2. Interactive Prompts
-echo -e "What would you like to install?" >&3
-echo -e "  1 = Core Only (VPS Daemon)" >&3
-echo -e "  2 = Core + Panel (Standalone)" >&3
-echo -e "  3 = Panel Only" >&3
-read -p "Select Mode [1]: " -u 0 INSTALL_MODE
+echo -e "Choose the installation type for this machine:" >&3
+echo -e "${BLUE}==========================================================${NC}" >&3
+echo -e "" >&3
+echo -e "[1] Core Only (Recommended for Remote Nodes)" >&3
+echo -e "[2] Panel Only" >&3
+echo -e "[3] Core + Panel" >&3
+echo -e "[4] Core + Panel (Secure Mode - Core port is locked)" >&3
+echo -e "" >&3
+echo -e "${BLUE}==========================================================${NC}" >&3
+echo "" >&3
+read -p "Enter your choice [1-4]: " INSTALL_MODE
 INSTALL_MODE=${INSTALL_MODE:-1}
 
-read -p "Core Port [8080]: " -u 0 CORE_PORT
+read -p "Core Port [8080]: " CORE_PORT
 CORE_PORT=${CORE_PORT:-8080}
 
-if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ]; then
-    read -p "Panel Port [3000]: " -u 0 PANEL_PORT
+if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then
+    read -p "Panel Port [3000]: " PANEL_PORT
     PANEL_PORT=${PANEL_PORT:-3000}
 fi
 
-read -p "Configure Firewall automatically? (Y/n): " -u 0 CONF_FW
+read -p "Configure Firewall automatically? (Y/n): " CONF_FW
 CONF_FW=${CONF_FW:-Y}
 
 # 3. Port Check
 echo -e "${CYAN}[*] Checking required ports...${NC}" >&3
 check_port() {
-    # Check if ss command exists, fallback if not
     if command -v ss &> /dev/null; then
         if ss -tuln | grep -q ":$1 "; then
             echo -e "${RED}[ERROR] Port $1 is already in use! Please stop the conflicting service or choose a different port.${NC}" >&3
@@ -90,10 +101,10 @@ check_port() {
         fi
     fi
 }
-if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 2 ]; then
+if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then
     check_port $CORE_PORT
 fi
-if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ]; then
+if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then
     check_port $PANEL_PORT
 fi
 
@@ -138,10 +149,8 @@ mkdir -p /var/log/hex
 mkdir -p /etc/hex
 
 # 6. Install Core
-if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 2 ]; then
+if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then
     echo -e "${CYAN}[*] Downloading Hex Core ($HEX_ARCH)...${NC}" >&3
-    
-    # Download binary from GitHub Releases
     DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-linux-$HEX_ARCH"
     
     if ! wget -q -O /var/lib/hex/core/hex-core "$DOWNLOAD_URL"; then
@@ -199,12 +208,25 @@ if [[ "$CONF_FW" == "y" || "$CONF_FW" == "Y" ]]; then
     echo -e "${CYAN}[*] Configuring Firewall...${NC}" >&3
     if command -v ufw &> /dev/null; then
         ufw allow ssh > /dev/null 2>&1
-        if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 2 ]; then ufw allow $CORE_PORT/tcp > /dev/null 2>&1; fi
-        if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ]; then ufw allow $PANEL_PORT/tcp > /dev/null 2>&1; fi
+        
+        # Only open Core port externally if NOT in Secure Mode (Mode 4)
+        if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ]; then 
+            ufw allow $CORE_PORT/tcp > /dev/null 2>&1
+        fi
+        
+        if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then 
+            ufw allow $PANEL_PORT/tcp > /dev/null 2>&1
+        fi
+        
         ufw --force enable > /dev/null 2>&1
     elif command -v firewall-cmd &> /dev/null; then
-        if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 2 ]; then firewall-cmd --permanent --add-port=$CORE_PORT/tcp > /dev/null 2>&1; fi
-        if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ]; then firewall-cmd --permanent --add-port=$PANEL_PORT/tcp > /dev/null 2>&1; fi
+        if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ]; then 
+            firewall-cmd --permanent --add-port=$CORE_PORT/tcp > /dev/null 2>&1
+        fi
+        
+        if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then 
+            firewall-cmd --permanent --add-port=$PANEL_PORT/tcp > /dev/null 2>&1
+        fi
         firewall-cmd --reload > /dev/null 2>&1
     fi
 fi
@@ -217,4 +239,5 @@ echo -e "${YELLOW} To manage your Hex instance, use the CLI tool:${NC}" >&3
 echo -e "   ${CYAN}hex start core${NC}" >&3
 echo -e "   ${CYAN}hex restart core${NC}" >&3
 echo -e "   ${CYAN}hex update${NC}" >&3
+echo -e "   ${CYAN}hex uninstall${NC}" >&3
 echo -e "${BLUE}==========================================================${NC}" >&3

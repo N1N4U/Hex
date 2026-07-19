@@ -40,7 +40,7 @@ func Middleware(next http.HandlerFunc) http.HandlerFunc {
 		// (JWT Logic will be added here later, for now we assume API Key)
 
 		keyHash := HashAPIKey(token)
-		valid, err := database.DB.VerifyAPIKey(keyHash)
+		valid, err := database.DB.AuthenticateAndBind(keyHash, endpoint)
 		if err != nil || !valid {
 			http.Error(w, "Forbidden: Invalid or Expired Token", http.StatusForbidden)
 			return

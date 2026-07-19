@@ -83,15 +83,27 @@ func (s *SQLiteDB) SaveAPIKey(name, keyHash string, expiresAt *string) error {
 	return err
 }
 
-func (s *SQLiteDB) VerifyAPIKey(keyHash string) (bool, error) {
+func (s *SQLiteDB) AuthenticateAndBind(keyHash, endpoint string) (bool, error) {
 	var id int
-	err := s.db.QueryRow("SELECT id FROM api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)", keyHash).Scan(&id)
+	var expiresAt *string
+	err := s.db.QueryRow("SELECT id, expires_at FROM api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)", keyHash).Scan(&id, &expiresAt)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
+
+	// If it is a temporary API key (has an expiration), we automatically trust this endpoint and permanently bind the key!
+	if expiresAt != nil {
+		// 1. Add to trusted endpoints
+		s.db.Exec("INSERT OR IGNORE INTO trusted_endpoints (endpoint) VALUES (?)", endpoint)
+		// 2. Remove from pending if it was there
+		s.db.Exec("DELETE FROM pending_endpoints WHERE endpoint = ?", endpoint)
+		// 3. Bind the API key permanently to this endpoint
+		s.db.Exec("UPDATE api_keys SET expires_at = NULL, bound_endpoint = ? WHERE id = ?", endpoint, id)
+	}
+
 	return true, nil
 }
 

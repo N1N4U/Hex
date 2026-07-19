@@ -42,8 +42,6 @@ print_usage() {
       echo "  hex api remove [name]"
       echo "  hex api info [name]"
       echo "  hex api list"
-      echo "  hex api approve <ip:port>"
-      echo "  hex api deny <ip:port>"
       ;;
     3)
       echo "System Management:"
@@ -251,7 +249,7 @@ case $COMMAND in
     
   api)
     case $TARGET in
-        create|remove|info|list|approve|deny)
+        create|remove|info|list)
             if [ -x "/var/lib/hex/core/hex-core" ]; then
                 /var/lib/hex/core/hex-core "api" "$TARGET" "$SUBTARGET" "${@:4}"
             else

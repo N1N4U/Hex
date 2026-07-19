@@ -45,7 +45,7 @@ func main() {
 		switch command {
 		case "api":
 			if len(args) < 2 {
-				fmt.Println("Usage: hex api <create|remove|info|list|approve|deny>")
+				fmt.Println("Usage: hex api <create|remove|info|list>")
 				return
 			}
 			subcommand := args[1]
@@ -151,29 +151,7 @@ func main() {
 					fmt.Printf("- %s (Endpoint: %v, Expires: %v)\n", k.Name, endpoint, expires)
 				}
 				return
-			case "approve":
-				if len(args) < 3 {
-					fmt.Println("Usage: hex api approve <ip:port>")
-					return
-				}
-				endpoint := args[2]
-				if err := database.DB.ApproveEndpoint(endpoint); err != nil {
-					log.Fatalf("Failed to approve endpoint: %v", err)
-				}
-				fmt.Printf("Approved Panel Endpoint: %s\n", endpoint)
-				fmt.Println("This Panel is now permanently trusted.")
-				return
-			case "deny":
-				if len(args) < 3 {
-					fmt.Println("Usage: hex api deny <ip:port>")
-					return
-				}
-				endpoint := args[2]
-				if err := database.DB.DenyEndpoint(endpoint); err != nil {
-					log.Fatalf("Failed to deny endpoint: %v", err)
-				}
-				fmt.Printf("Denied Panel Endpoint: %s\n", endpoint)
-				return
+
 			default:
 				fmt.Printf("Unknown api command: %s\n", subcommand)
 				return

@@ -172,7 +172,15 @@ type APIKeyInfo struct {
 }
 
 func (s *SQLiteDB) RemoveAPIKey(nameOrKey string) error {
-	_, err := s.db.Exec("DELETE FROM api_keys WHERE name = ? OR key_hash = ?", nameOrKey, nameOrKey)
+	// 1. Get the bound endpoint before deleting
+	info, err := s.InfoAPIKey(nameOrKey)
+	if err == nil && info != nil && info.BoundEndpoint != nil {
+		// 2. Delete the trusted endpoint
+		s.db.Exec("DELETE FROM trusted_endpoints WHERE endpoint = ?", *info.BoundEndpoint)
+	}
+
+	// 3. Delete the API Key
+	_, err = s.db.Exec("DELETE FROM api_keys WHERE name = ? OR key_hash = ?", nameOrKey, nameOrKey)
 	return err
 }
 

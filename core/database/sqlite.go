@@ -92,9 +92,23 @@ func (s *SQLiteDB) VerifyAPIKey(keyHash string) (bool, error) {
 }
 
 func (s *SQLiteDB) ApproveEndpoint(endpoint string) error {
+	// 1. Add to trusted endpoints
 	_, err := s.db.Exec("INSERT OR IGNORE INTO trusted_endpoints (endpoint) VALUES (?)", endpoint)
 	if err == nil {
+		// 2. Remove from pending
 		s.db.Exec("DELETE FROM pending_endpoints WHERE endpoint = ?", endpoint)
+		
+		// 3. Find the most recently created temporary API key (expires_at IS NOT NULL) and bind it to this endpoint permanently
+		// This assumes the admin runs approve shortly after the panel connects with the temporary key.
+		s.db.Exec(`
+			UPDATE api_keys 
+			SET expires_at = NULL, bound_endpoint = ? 
+			WHERE id = (
+				SELECT id FROM api_keys 
+				WHERE expires_at IS NOT NULL AND bound_endpoint IS NULL 
+				ORDER BY created_at DESC LIMIT 1
+			)
+		`, endpoint)
 	}
 	return err
 }

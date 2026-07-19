@@ -39,10 +39,10 @@ type Server struct {
 func NewServer(port int) *Server {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/health", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hex Core is healthy and mTLS authenticated"))
-	})
+		w.Write([]byte("Hex Core is healthy"))
+	}))
 
 	dockerClient, err := docker.NewClient()
 	if err != nil {

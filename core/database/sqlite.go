@@ -95,6 +95,18 @@ func (s *SQLiteDB) VerifyAPIKey(keyHash string) (bool, error) {
 	return true, nil
 }
 
+func (s *SQLiteDB) HasAPIKey(name string) (bool, error) {
+	var id int
+	err := s.db.QueryRow("SELECT id FROM api_keys WHERE name = ?", name).Scan(&id)
+	if err == sql.ErrNoRows {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (s *SQLiteDB) ApproveEndpoint(endpoint string) error {
 	// 1. Add to trusted endpoints
 	_, err := s.db.Exec("INSERT OR IGNORE INTO trusted_endpoints (endpoint) VALUES (?)", endpoint)

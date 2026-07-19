@@ -50,10 +50,23 @@ func main() {
 			subcommand := args[1]
 			switch subcommand {
 			case "create":
-				name := "Unknown"
-				if len(args) > 2 {
-					name = strings.Join(args[2:], " ")
+				if len(args) < 3 {
+					fmt.Println("Usage: hex api create <name>")
+					return
 				}
+				if len(args) > 3 {
+					fmt.Println("Error: Name cannot contain spaces.")
+					return
+				}
+				name := args[2]
+
+				// Check if name exists manually to handle old DBs without UNIQUE constraint
+				exists, _ := database.DB.HasAPIKey(name)
+				if exists {
+					fmt.Println("Error: An API Key with this name already exists.")
+					return
+				}
+
 				fmt.Printf("Generating Temporary Panel API Key for '%s'...\n", name)
 				
 				apiKey := "hx_panel_" + generateRandomString(16)

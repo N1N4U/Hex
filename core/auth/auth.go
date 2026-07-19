@@ -46,13 +46,16 @@ func Middleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		// 2. Check if Endpoint is trusted
-		isTrusted, err := database.DB.IsEndpointTrusted(endpoint)
-		if err != nil || !isTrusted {
-			// Not trusted yet. We add them to pending if they try to connect.
-			database.DB.AddPendingEndpoint(endpoint)
-			log.Printf("[SECURITY] Connection attempt from unapproved endpoint: %s", endpoint)
-			http.Error(w, "Forbidden: Endpoint Not Approved. Run 'hex core approve <ip:port>' on the Core.", http.StatusForbidden)
-			return
+		// If using mTLS (r.TLS != nil), we skip the IP whitelist since the client certificate already strongly authenticates the connection transport.
+		if r.TLS == nil {
+			isTrusted, err := database.DB.IsEndpointTrusted(endpoint)
+			if err != nil || !isTrusted {
+				// Not trusted yet. We add them to pending if they try to connect.
+				database.DB.AddPendingEndpoint(endpoint)
+				log.Printf("[SECURITY] Connection attempt from unapproved endpoint: %s", endpoint)
+				http.Error(w, "Forbidden: Endpoint Not Approved. Run 'hex api approve <ip:port>' on the Core.", http.StatusForbidden)
+				return
+			}
 		}
 
 		next.ServeHTTP(w, r)

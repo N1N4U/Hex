@@ -24,11 +24,15 @@ import (
 	"github.com/N1N4U/Hex/core/security"
 	"github.com/N1N4U/Hex/core/system"
 	"github.com/N1N4U/Hex/core/terminal"
+	"github.com/soheilhy/cmux"
 )
 
 type Server struct {
-	port   int
-	server *http.Server
+	port      int
+	mux       *http.ServeMux
+	listener  net.Listener
+	tlsServer *http.Server
+	srv       *http.Server
 }
 
 func NewServer(port int) *Server {
@@ -788,37 +792,41 @@ func NewServer(port int) *Server {
 		}
 	})
 
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", port),
-		Handler: mux,
-	}
-
 	return &Server{
-		port:   port,
-		server: srv,
+		port: port,
+		mux:  mux,
 	}
 }
 
 func (s *Server) Start() error {
+	var err error
+	s.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", s.port))
+	if err != nil {
+		return err
+	}
+
+	m := cmux.New(s.listener)
+	tlsL := m.Match(cmux.TLS())
+	httpL := m.Match(cmux.Any())
+
 	// Setup mTLS
 	caCert, err := os.ReadFile("/var/lib/hex/certs/ca.crt")
 	if err != nil {
 		caCert, err = os.ReadFile("../cli/certs/ca.crt")
 		if err != nil {
-			log.Println("Warning: mTLS CA cert not found, running insecurely for dev")
-			return s.server.ListenAndServe()
+			log.Println("Warning: mTLS CA cert not found")
 		}
 	}
 
 	caCertPool := x509.NewCertPool()
-	caCertPool.AppendCertsFromPEM(caCert)
+	if caCert != nil {
+		caCertPool.AppendCertsFromPEM(caCert)
+	}
 
 	tlsConfig := &tls.Config{
 		ClientCAs:  caCertPool,
-		// Disable mTLS client cert requirement for now, we rely on API Keys via Bearer token
-		ClientAuth: tls.NoClientCert,
+		ClientAuth: tls.RequireAndVerifyClientCert,
 	}
-	s.server.TLSConfig = tlsConfig
 
 	serverCrt := "/var/lib/hex/certs/server.crt"
 	serverKey := "/var/lib/hex/certs/server.key"
@@ -827,11 +835,45 @@ func (s *Server) Start() error {
 		serverKey = "../cli/certs/server.key"
 	}
 
-	return s.server.ListenAndServeTLS(serverCrt, serverKey)
+	cert, err := tls.LoadX509KeyPair(serverCrt, serverKey)
+	if err == nil {
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	} else {
+		log.Println("Warning: TLS certificates not found, mTLS connection may fail")
+	}
+
+	s.tlsServer = &http.Server{Handler: s.mux}
+	s.srv = &http.Server{Handler: s.mux}
+
+	tlsListener := tls.NewListener(tlsL, tlsConfig)
+	
+	go func() {
+		if err := s.tlsServer.Serve(tlsListener); err != nil && err != http.ErrServerClosed {
+			log.Printf("TLS Server error: %v", err)
+		}
+	}()
+	
+	go func() {
+		if err := s.srv.Serve(httpL); err != nil && err != http.ErrServerClosed {
+			log.Printf("HTTP Server error: %v", err)
+		}
+	}()
+
+	return m.Serve()
 }
 
 func (s *Server) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return s.server.Shutdown(ctx)
+	
+	if s.tlsServer != nil {
+		s.tlsServer.Shutdown(ctx)
+	}
+	if s.srv != nil {
+		s.srv.Shutdown(ctx)
+	}
+	if s.listener != nil {
+		return s.listener.Close()
+	}
+	return nil
 }

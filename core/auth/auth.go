@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -53,7 +54,7 @@ func Middleware(next http.HandlerFunc) http.HandlerFunc {
 				// Not trusted yet. We add them to pending if they try to connect.
 				database.DB.AddPendingEndpoint(endpoint)
 				log.Printf("[SECURITY] Connection attempt from unapproved endpoint: %s", endpoint)
-				http.Error(w, "Forbidden: Endpoint Not Approved. Run 'hex api approve <ip:port>' on the Core.", http.StatusForbidden)
+				http.Error(w, fmt.Sprintf("Forbidden: Endpoint Not Approved. Run 'hex api approve %s' on the Core.", endpoint), http.StatusForbidden)
 				return
 			}
 		}

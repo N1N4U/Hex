@@ -33,8 +33,16 @@ export async function checkNodeHealth(node: CoreNode): Promise<{ success: boolea
       return { success: true };
     }
     
-    console.warn(`Node ${node.ip} health check failed with status: ${response.status}`);
-    return { success: false, error: `Health check failed with status: ${response.status}` };
+    let errorMsg = `Health check failed with status: ${response.status}`;
+    try {
+      const text = await response.text();
+      if (text) errorMsg = text.trim();
+    } catch (e) {
+      // Ignore text parse errors
+    }
+    
+    console.warn(`Node ${node.ip} health check failed with status: ${response.status} - ${errorMsg}`);
+    return { success: false, error: errorMsg };
   } catch (error: any) {
     console.error(`Error connecting to node ${node.ip}:`, error);
     return { success: false, error: error.message || error.toString() };

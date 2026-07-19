@@ -19,7 +19,9 @@ import (
 	"github.com/N1N4U/Hex/core/files"
 	"github.com/N1N4U/Hex/core/firewall"
 	"github.com/N1N4U/Hex/core/monitor"
+	"github.com/N1N4U/Hex/core/network"
 	"github.com/N1N4U/Hex/core/proxy"
+	"github.com/N1N4U/Hex/core/security"
 	"github.com/N1N4U/Hex/core/system"
 	"github.com/N1N4U/Hex/core/terminal"
 )
@@ -412,6 +414,100 @@ func NewServer(port int) *Server {
 			}
 			w.Write([]byte(out))
 		}
+	}))
+
+	// Phase C: Advanced Networking & Security
+	mux.HandleFunc("/security/firewall", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			out, err := firewallMgr.ListRules()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(out))
+		} else if r.Method == http.MethodPost {
+			action := r.URL.Query().Get("action")
+			port := r.URL.Query().Get("port")
+			var err error
+			switch action {
+			case "allow": err = firewallMgr.AllowPort(port)
+			case "deny": err = firewallMgr.DenyPort(port)
+			case "enable": err = firewallMgr.Enable()
+			case "disable": err = firewallMgr.Disable()
+			}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(`{"success": true}`))
+		}
+	}))
+
+	mux.HandleFunc("/security/ssh", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			out, err := system.GetSSHStatus()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(out))
+		} else if r.Method == http.MethodPost {
+			if err := system.RestartSSH(); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(`{"success": true}`))
+		}
+	}))
+
+	mux.HandleFunc("/security/fail2ban", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			jail := r.URL.Query().Get("jail")
+			var out string
+			var err error
+			if jail != "" {
+				out, err = security.GetFail2banJailStatus(jail)
+			} else {
+				out, err = security.GetFail2banStatus()
+			}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(out))
+		} else if r.Method == http.MethodPost {
+			action := r.URL.Query().Get("action")
+			jail := r.URL.Query().Get("jail")
+			ip := r.URL.Query().Get("ip")
+			var err error
+			if action == "ban" {
+				err = security.BanIP(jail, ip)
+			} else if action == "unban" {
+				err = security.UnbanIP(jail, ip)
+			}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(`{"success": true}`))
+		}
+	}))
+
+	mux.HandleFunc("/network/tools", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		action := r.URL.Query().Get("action")
+		host := r.URL.Query().Get("host")
+		var out string
+		var err error
+		switch action {
+		case "ping": out, err = network.Ping(host)
+		case "traceroute": out, err = network.Traceroute(host)
+		case "ports": out, err = network.OpenPorts()
+		}
+		if err != nil {
+			http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte(out))
 	}))
 
 	mux.HandleFunc("/proxy", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {

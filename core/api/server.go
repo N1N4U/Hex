@@ -20,6 +20,7 @@ import (
 	"github.com/N1N4U/Hex/core/firewall"
 	"github.com/N1N4U/Hex/core/monitor"
 	"github.com/N1N4U/Hex/core/proxy"
+	"github.com/N1N4U/Hex/core/system"
 	"github.com/N1N4U/Hex/core/terminal"
 )
 
@@ -320,6 +321,96 @@ func NewServer(port int) *Server {
 			
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	// Phase B: Advanced System & Storage
+	mux.HandleFunc("/system/packages", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			pkgs, err := system.ListInstalledPackages()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(pkgs)
+		case http.MethodPost:
+			pkg := r.URL.Query().Get("pkg")
+			action := r.URL.Query().Get("action")
+			var out string
+			var err error
+			switch action {
+			case "install":
+				out, err = system.InstallPackage(pkg)
+			case "remove":
+				out, err = system.RemovePackage(pkg)
+			case "update":
+				out, err = system.UpdatePackages()
+			case "upgrade":
+				out, err = system.UpgradePackages()
+			}
+			if err != nil {
+				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(out))
+		}
+	}))
+
+	mux.HandleFunc("/system/storage", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			partitions, err := system.GetPartitions()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(partitions)
+		}
+	}))
+
+	mux.HandleFunc("/system/power", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			action := r.URL.Query().Get("action")
+			if action == "reboot" {
+				system.Reboot()
+				w.Write([]byte(`{"success": true}`))
+			} else if action == "shutdown" {
+				system.Shutdown()
+				w.Write([]byte(`{"success": true}`))
+			}
+		}
+	}))
+
+	mux.HandleFunc("/system/services", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		service := r.URL.Query().Get("service")
+		action := r.URL.Query().Get("action")
+		if service == "" {
+			http.Error(w, "service required", http.StatusBadRequest)
+			return
+		}
+		if r.Method == http.MethodPost {
+			var err error
+			switch action {
+			case "start": err = system.StartService(service)
+			case "stop": err = system.StopService(service)
+			case "restart": err = system.RestartService(service)
+			case "enable": err = system.EnableService(service)
+			case "disable": err = system.DisableService(service)
+			}
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(`{"success": true}`))
+		} else if r.Method == http.MethodGet {
+			out, err := system.ServiceStatus(service)
+			if err != nil {
+				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(out))
 		}
 	}))
 

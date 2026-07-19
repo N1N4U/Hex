@@ -37,13 +37,13 @@ print_usage() {
       echo "  hex reload [core|panel]"
       ;;
     2)
-      echo "Core Management:"
-      echo "  hex core create-api [name]"
-      echo "  hex core remove-api [name]"
-      echo "  hex core info-api [name]"
-      echo "  hex core list-api"
-      echo "  hex core approve <ip:port>"
-      echo "  hex core deny <ip:port>"
+      echo "API & Core Management:"
+      echo "  hex api create [name]"
+      echo "  hex api remove [name]"
+      echo "  hex api info [name]"
+      echo "  hex api list"
+      echo "  hex api approve <ip:port>"
+      echo "  hex api deny <ip:port>"
       ;;
     3)
       echo "System Management:"
@@ -228,18 +228,18 @@ case $COMMAND in
     esac
     ;;
     
-  core)
+  api)
     case $TARGET in
-        create-api|remove-api|info-api|list-api|approve|deny)
+        create|remove|info|list|approve|deny)
             if [ -x "/var/lib/hex/core/hex-core" ]; then
-                /var/lib/hex/core/hex-core "$TARGET" "$SUBTARGET" "${@:4}"
+                /var/lib/hex/core/hex-core "api" "$TARGET" "$SUBTARGET" "${@:4}"
             else
                 echo "[ERROR] Hex Core binary not found at /var/lib/hex/core/hex-core"
                 exit 1
             fi
             ;;
         *)
-            echo "Unknown core command. See 'hex help' for available commands."
+            echo "Unknown api command. See 'hex help' for available commands."
             ;;
     esac
     ;;

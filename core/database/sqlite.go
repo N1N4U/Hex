@@ -41,6 +41,9 @@ func InitSQLite() error {
 }
 
 func (s *SQLiteDB) createSchema() error {
+	// Add backward compatibility for existing DBs that don't have expires_at
+	_, _ = s.db.Exec(`ALTER TABLE api_keys ADD COLUMN expires_at DATETIME`)
+
 	query := `
 	CREATE TABLE IF NOT EXISTS api_keys (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,

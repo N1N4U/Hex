@@ -815,7 +815,8 @@ func (s *Server) Start() error {
 
 	tlsConfig := &tls.Config{
 		ClientCAs:  caCertPool,
-		ClientAuth: tls.RequireAndVerifyClientCert,
+		// Disable mTLS client cert requirement for now, we rely on API Keys via Bearer token
+		ClientAuth: tls.NoClientCert,
 	}
 	s.server.TLSConfig = tlsConfig
 

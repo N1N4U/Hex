@@ -35,11 +35,10 @@ const DEFAULT_DOCK: DockApp[] = [
   { id: "home", label: "Home", icon: "home", iconColor: "text-white" },
   { id: "docker", label: "Docker", imgSrc: "https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" },
   { id: "files", label: "Files", icon: "folder", iconColor: "text-blue-400" },
-  { id: "nginx", label: "Nginx", icon: "public", iconColor: "text-primary" },
-  { id: "firewall", label: "Firewall", icon: "security", iconColor: "text-red-400" },
+  { id: "nginx", label: "Nginx", icon: "public", iconColor: "text-green-500" },
   { id: "terminal", label: "Terminal", icon: "terminal", iconColor: "text-blue-300" },
+  { id: "core", label: "Cores", icon: "dns", iconColor: "text-purple-400" },
   { id: "settings", label: "Settings", icon: "settings", iconColor: "text-on-surface-variant" },
-  { id: "core", label: "Core", icon: "memory", iconColor: "text-on-surface-variant" },
 ];
 
 /* ── Core Selector Strip ────────────────────────────── */
@@ -440,13 +439,7 @@ function DockerView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: stri
 
 /* ── Files View ──────────────────────────────────────── */
 function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: string | "all" }) {
-  const folders = [
-    { name: "AppData", date: "July 11 at 16:37", icon: "deployed_code" },
-    { name: "Documents", date: "July 11 at 16:37", icon: "article" },
-    { name: "Downloads", date: "July 11 at 16:37", icon: "download" },
-    { name: "Gallery", date: "July 11 at 16:37", icon: "image" },
-    { name: "Media", date: "July 11 at 16:37", icon: "play_circle" }
-  ];
+  const folders: { name: string, date: string, icon: string }[] = [];
 
   return (
     <div className="w-full h-full flex bg-[#0c0c0c] rounded-3xl border border-white/5 overflow-hidden min-h-[650px] shadow-2xl">
@@ -531,18 +524,25 @@ function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: strin
 
         {/* Grid */}
         <div className="flex flex-wrap gap-10 overflow-y-auto pb-8">
-          {folders.map(f => (
-            <div key={f.name} className="flex flex-col items-center gap-3 group cursor-pointer w-28">
-              <div className="relative w-24 h-20 flex items-center justify-center">
-                <span className="material-symbols-outlined text-blue-500 text-[90px] drop-shadow-xl group-hover:-translate-y-2 transition-transform duration-300" style={{ fontVariationSettings: "'FILL' 1" }}>folder</span>
-                <span className="material-symbols-outlined text-white/95 text-[34px] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 group-hover:-translate-y-2 transition-transform duration-300 drop-shadow-md">{f.icon}</span>
+          {folders.length > 0 ? (
+            folders.map(f => (
+              <div key={f.name} className="flex flex-col items-center gap-3 group cursor-pointer w-28">
+                <div className="relative w-24 h-20 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-blue-500 text-[90px] drop-shadow-xl group-hover:-translate-y-2 transition-transform duration-300" style={{ fontVariationSettings: "'FILL' 1" }}>folder</span>
+                  <span className="material-symbols-outlined text-white/95 text-[34px] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 group-hover:-translate-y-2 transition-transform duration-300 drop-shadow-md">{f.icon}</span>
+                </div>
+                <div className="text-center mt-2">
+                  <p className="text-sm font-semibold text-on-surface/90 group-hover:text-primary transition-colors">{f.name}</p>
+                  <p className="text-[10px] text-on-surface-variant/50 mt-1">{f.date}</p>
+                </div>
               </div>
-              <div className="text-center mt-2">
-                <p className="text-sm font-semibold text-on-surface/90 group-hover:text-primary transition-colors">{f.name}</p>
-                <p className="text-[10px] text-on-surface-variant/50 mt-1">{f.date}</p>
-              </div>
+            ))
+          ) : (
+            <div className="w-full h-40 flex flex-col items-center justify-center text-on-surface-variant/50">
+              <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">folder_open</span>
+              <p className="text-sm">No files or folders found.</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>
@@ -585,6 +585,72 @@ function EmptyStateView({ onConnect }: { onConnect: () => void }) {
           Connect Your First Core
         </button>
       </div>
+    </div>
+  );
+}
+
+/* ── Core Management View ────────────────────────────── */
+function CoreManagementView({ cores, onConnect, onRemove }: { cores: Core[]; onConnect: () => void; onRemove: (id: string) => void }) {
+  return (
+    <div className="flex flex-col h-full fade-in pb-16">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-on-surface tracking-tight mb-2">Core Management</h2>
+          <p className="text-sm text-on-surface-variant">Manage your connected Hex Cores.</p>
+        </div>
+        <button 
+          onClick={onConnect}
+          className="px-4 py-2 rounded-xl bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors flex items-center gap-2 text-sm font-semibold"
+        >
+          <span className="material-symbols-outlined text-[18px]">add</span>
+          Add Core
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {cores.map(core => (
+          <div key={core.id} className="glass-panel p-5 rounded-2xl flex flex-col gap-4 border border-white/10 group">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+                  <span className="material-symbols-outlined text-[20px] text-on-surface-variant">dns</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-on-surface">{core.name}</h3>
+                  <p className="text-xs text-on-surface-variant/70 font-mono">{core.host}</p>
+                </div>
+              </div>
+              <div className={`w-2.5 h-2.5 rounded-full ${core.status === 'online' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'}`} />
+            </div>
+            
+            <div className="flex items-center gap-4 text-xs font-semibold text-on-surface-variant/70 mt-2">
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">memory</span>
+                {core.cpu}% CPU
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">dns</span>
+                {core.ram.toFixed(1)}GB RAM
+              </span>
+            </div>
+
+            <div className="mt-auto pt-4 border-t border-white/10 flex justify-end">
+              <button 
+                onClick={() => onRemove(core.id)}
+                className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors text-xs font-semibold flex items-center gap-1.5"
+              >
+                <span className="material-symbols-outlined text-[14px]">delete</span>
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      {cores.length === 0 && (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-on-surface-variant/50">No Cores connected.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -647,9 +713,9 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
             status: n.status,
             cpu: 0,
             ram: 0,
-            ramTotal: 0,
+            ramTotal: 16,
             storage: 0,
-            storageTotal: 0,
+            storageTotal: 256,
             uptime: "—"
           }));
           setCores(mappedCores);
@@ -738,6 +804,19 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
     }
   }, [activeApp, hideAllCoresOption, activeCoreId, cores, isInitialized, isLoadingCores]);
 
+  const handleRemoveCore = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this Core?")) return;
+    try {
+      const res = await fetch(`/api/nodes/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCores(prev => prev.filter(c => c.id !== id));
+        if (activeCoreId === id) setActiveCoreId("all");
+      }
+    } catch (err) {
+      console.error("Failed to remove core", err);
+    }
+  };
+
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
 
@@ -775,7 +854,14 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               {activeApp === "home" && <HomeView panelName={panelName} cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "docker" && <DockerView cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "files" && <FilesView cores={cores} activeCoreId={activeCoreId} />}
-              {activeApp !== "home" && activeApp !== "docker" && activeApp !== "files" && (
+              {activeApp === "core" && (
+                <CoreManagementView 
+                  cores={cores} 
+                  onConnect={() => setIsConnectModalOpen(true)}
+                  onRemove={handleRemoveCore} 
+                />
+              )}
+              {activeApp !== "home" && activeApp !== "docker" && activeApp !== "files" && activeApp !== "core" && (
                 <PlaceholderView activeApp={activeApp} />
               )}
             </>

@@ -41,11 +41,18 @@ export async function getDb() {
       name TEXT NOT NULL,
       ip_address TEXT NOT NULL,
       port INTEGER DEFAULT 8080,
+      protocol TEXT DEFAULT 'https',
       api_key TEXT NOT NULL,
       status TEXT DEFAULT 'offline',
       last_seen DATETIME
     );
   `);
+
+  try {
+    await db.exec(`ALTER TABLE nodes ADD COLUMN protocol TEXT DEFAULT 'https'`);
+  } catch (e) {
+    // Column might already exist
+  }
 
   return db;
 }

@@ -8,12 +8,14 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 export interface CoreNode {
   ip: string;
   port: number;
+  protocol?: string;
   apiKey: string;
 }
 
-export async function checkNodeHealth(node: CoreNode): Promise<boolean> {
+export async function checkNodeHealth(node: CoreNode): Promise<{ success: boolean; error?: string }> {
   try {
-    const url = `https://${node.ip}:${node.port}/health`;
+    const protocol = node.protocol || 'https';
+    const url = `${protocol}://${node.ip}:${node.port}/health`;
     
     // We pass the API Key in the Authorization header as a Bearer token
     // (though Hex Core currently might just check it directly)
@@ -28,13 +30,13 @@ export async function checkNodeHealth(node: CoreNode): Promise<boolean> {
     });
 
     if (response.ok) {
-      return true;
+      return { success: true };
     }
     
     console.warn(`Node ${node.ip} health check failed with status: ${response.status}`);
-    return false;
-  } catch (error) {
+    return { success: false, error: `Health check failed with status: ${response.status}` };
+  } catch (error: any) {
     console.error(`Error connecting to node ${node.ip}:`, error);
-    return false;
+    return { success: false, error: error.message || error.toString() };
   }
 }

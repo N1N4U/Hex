@@ -626,6 +626,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
 
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [coreName, setCoreName] = useState("");
+  const [coreProtocol, setCoreProtocol] = useState("https");
   const [coreIp, setCoreIp] = useState("");
   const [corePort, setCorePort] = useState("8080");
   const [coreToken, setCoreToken] = useState("");
@@ -644,11 +645,11 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
             name: n.name,
             host: `${n.ip_address}:${n.port}`,
             status: n.status,
-            cpu: Math.floor(Math.random() * 40) + 10,
-            ram: Math.floor(Math.random() * 8) + 2,
-            ramTotal: 16,
-            storage: Math.floor(Math.random() * 50) + 10,
-            storageTotal: 256,
+            cpu: 0,
+            ram: 0,
+            ramTotal: 0,
+            storage: 0,
+            storageTotal: 0,
             uptime: "—"
           }));
           setCores(mappedCores);
@@ -700,6 +701,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: coreName,
+          protocol: coreProtocol,
           ip_address: coreIp,
           port: corePort,
           api_key: coreToken
@@ -707,6 +709,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to connect");
+      if (!data.connectionSuccessful) throw new Error("Could not connect to Core. Is it running?");
       
       const newCore: Core = {
         id: data.id.toString(),
@@ -864,13 +867,23 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               <div className="flex gap-3">
                 <div className="flex-1">
                   <label className="text-[10px] uppercase font-bold text-on-surface-variant/70 tracking-wider mb-1.5 block">IP Address</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 127.0.0.1"
-                    className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-on-surface outline-none focus:border-primary transition-colors"
-                    value={coreIp}
-                    onChange={e => setCoreIp(e.target.value)}
-                  />
+                  <div className="flex">
+                    <select
+                      className="bg-black/60 border border-white/10 border-r-0 rounded-l-xl px-3 py-2.5 text-sm text-on-surface-variant outline-none focus:border-primary transition-colors cursor-pointer"
+                      value={coreProtocol}
+                      onChange={e => setCoreProtocol(e.target.value)}
+                    >
+                      <option value="https">https://</option>
+                      <option value="http">http://</option>
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="e.g. 127.0.0.1"
+                      className="w-full bg-black/40 border border-white/10 rounded-r-xl px-4 py-2.5 text-sm text-on-surface outline-none focus:border-primary transition-colors"
+                      value={coreIp}
+                      onChange={e => setCoreIp(e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div className="w-24">
                   <label className="text-[10px] uppercase font-bold text-on-surface-variant/70 tracking-wider mb-1.5 block">Port</label>

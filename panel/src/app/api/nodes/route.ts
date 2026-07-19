@@ -15,27 +15,33 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { name, ip_address, port, api_key } = await request.json();
+    const { name, ip_address, port, protocol, api_key } = await request.json();
 
     if (!name || !ip_address || !api_key) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const portNum = parseInt(port, 10) || 8080;
+    const proto = protocol || 'https';
 
     // Test connection to the core
-    const isHealthy = await checkNodeHealth({
+    const healthResult = await checkNodeHealth({
       ip: ip_address,
       port: portNum,
+      protocol: proto,
       apiKey: api_key
     });
 
-    const status = isHealthy ? 'online' : 'offline';
+    if (!healthResult.success) {
+      return NextResponse.json({ error: `Could not connect to Core: ${healthResult.error}` }, { status: 400 });
+    }
+
+    const status = 'online';
 
     const db = await getDb();
     const result = await db.run(
-      'INSERT INTO nodes (name, ip_address, port, api_key, status, last_seen) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, ip_address, portNum, api_key, status, new Date().toISOString()]
+      'INSERT INTO nodes (name, ip_address, port, protocol, api_key, status, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, ip_address, portNum, proto, api_key, status, new Date().toISOString()]
     );
 
     return NextResponse.json({
@@ -43,8 +49,9 @@ export async function POST(request: Request) {
       name,
       ip_address,
       port: portNum,
+      protocol: proto,
       status,
-      connectionSuccessful: isHealthy
+      connectionSuccessful: true
     }, { status: 201 });
 
   } catch (error) {

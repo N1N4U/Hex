@@ -510,6 +510,48 @@ func NewServer(port int) *Server {
 		w.Write([]byte(out))
 	}))
 
+	// Phase D: Backups & Logs
+	mux.HandleFunc("/system/logs", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		logType := r.URL.Query().Get("type")
+		var out string
+		var err error
+		switch logType {
+		case "journal": out, err = system.GetJournalLogs()
+		case "auth": out, err = system.GetAuthLogs()
+		case "syslog": out, err = system.GetSyslog()
+		default:
+			http.Error(w, "invalid log type", http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte(out))
+	}))
+
+	mux.HandleFunc("/system/backups", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		action := r.URL.Query().Get("action")
+		target := r.URL.Query().Get("target")
+		name := r.URL.Query().Get("name")
+		
+		if r.Method == http.MethodPost {
+			var out string
+			var err error
+			if action == "create" {
+				out, err = system.CreateBackup(target, name)
+			} else if action == "restore" {
+				// in this case target is the destination dir, name is the backup file path
+				out, err = system.RestoreBackup(name, target)
+			}
+			if err != nil {
+				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(`{"success": true}`))
+		}
+	}))
+
 	mux.HandleFunc("/proxy", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var req proxy.ProxyRequest

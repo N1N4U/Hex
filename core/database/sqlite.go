@@ -44,14 +44,22 @@ func (s *SQLiteDB) createSchema() error {
 	query := `
 	CREATE TABLE IF NOT EXISTS api_keys (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
+		name TEXT NOT NULL UNIQUE,
 		key_hash TEXT NOT NULL UNIQUE,
+		expires_at DATETIME,
+		bound_endpoint TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 
-	CREATE TABLE IF NOT EXISTS trusted_ips (
+	CREATE TABLE IF NOT EXISTS trusted_endpoints (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		ip_address TEXT NOT NULL UNIQUE,
+		endpoint TEXT NOT NULL UNIQUE,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+
+	CREATE TABLE IF NOT EXISTS pending_endpoints (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		endpoint TEXT NOT NULL UNIQUE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	`
@@ -62,14 +70,18 @@ func (s *SQLiteDB) createSchema() error {
 	return nil
 }
 
-func (s *SQLiteDB) SaveAPIKey(name, keyHash string) error {
+func (s *SQLiteDB) SaveAPIKey(name, keyHash string, expiresAt *string) error {
+	if expiresAt != nil {
+		_, err := s.db.Exec("INSERT INTO api_keys (name, key_hash, expires_at) VALUES (?, ?, ?)", name, keyHash, *expiresAt)
+		return err
+	}
 	_, err := s.db.Exec("INSERT INTO api_keys (name, key_hash) VALUES (?, ?)", name, keyHash)
 	return err
 }
 
 func (s *SQLiteDB) VerifyAPIKey(keyHash string) (bool, error) {
 	var id int
-	err := s.db.QueryRow("SELECT id FROM api_keys WHERE key_hash = ?", keyHash).Scan(&id)
+	err := s.db.QueryRow("SELECT id FROM api_keys WHERE key_hash = ? AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)", keyHash).Scan(&id)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -79,19 +91,28 @@ func (s *SQLiteDB) VerifyAPIKey(keyHash string) (bool, error) {
 	return true, nil
 }
 
-func (s *SQLiteDB) ApproveIP(ip string) error {
-	_, err := s.db.Exec("INSERT OR IGNORE INTO trusted_ips (ip_address) VALUES (?)", ip)
+func (s *SQLiteDB) ApproveEndpoint(endpoint string) error {
+	_, err := s.db.Exec("INSERT OR IGNORE INTO trusted_endpoints (endpoint) VALUES (?)", endpoint)
+	if err == nil {
+		s.db.Exec("DELETE FROM pending_endpoints WHERE endpoint = ?", endpoint)
+	}
 	return err
 }
 
-func (s *SQLiteDB) DenyIP(ip string) error {
-	_, err := s.db.Exec("DELETE FROM trusted_ips WHERE ip_address = ?", ip)
+func (s *SQLiteDB) DenyEndpoint(endpoint string) error {
+	_, err := s.db.Exec("DELETE FROM trusted_endpoints WHERE endpoint = ?", endpoint)
+	s.db.Exec("DELETE FROM pending_endpoints WHERE endpoint = ?", endpoint)
 	return err
 }
 
-func (s *SQLiteDB) IsIPTrusted(ip string) (bool, error) {
+func (s *SQLiteDB) AddPendingEndpoint(endpoint string) error {
+	_, err := s.db.Exec("INSERT OR IGNORE INTO pending_endpoints (endpoint) VALUES (?)", endpoint)
+	return err
+}
+
+func (s *SQLiteDB) IsEndpointTrusted(endpoint string) (bool, error) {
 	var id int
-	err := s.db.QueryRow("SELECT id FROM trusted_ips WHERE ip_address = ?", ip).Scan(&id)
+	err := s.db.QueryRow("SELECT id FROM trusted_endpoints WHERE endpoint = ?", endpoint).Scan(&id)
 	if err == sql.ErrNoRows {
 		return false, nil
 	}
@@ -99,6 +120,48 @@ func (s *SQLiteDB) IsIPTrusted(ip string) (bool, error) {
 		return false, err
 	}
 	return true, nil
+}
+
+type APIKeyInfo struct {
+	Name          string
+	ExpiresAt     *string
+	BoundEndpoint *string
+	CreatedAt     string
+}
+
+func (s *SQLiteDB) RemoveAPIKey(nameOrKey string) error {
+	_, err := s.db.Exec("DELETE FROM api_keys WHERE name = ? OR key_hash = ?", nameOrKey, nameOrKey)
+	return err
+}
+
+func (s *SQLiteDB) InfoAPIKey(nameOrKey string) (*APIKeyInfo, error) {
+	var info APIKeyInfo
+	err := s.db.QueryRow("SELECT name, expires_at, bound_endpoint, created_at FROM api_keys WHERE name = ? OR key_hash = ?", nameOrKey, nameOrKey).Scan(&info.Name, &info.ExpiresAt, &info.BoundEndpoint, &info.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &info, nil
+}
+
+func (s *SQLiteDB) ListAPIKeys() ([]APIKeyInfo, error) {
+	rows, err := s.db.Query("SELECT name, expires_at, bound_endpoint, created_at FROM api_keys")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []APIKeyInfo
+	for rows.Next() {
+		var info APIKeyInfo
+		if err := rows.Scan(&info.Name, &info.ExpiresAt, &info.BoundEndpoint, &info.CreatedAt); err != nil {
+			return nil, err
+		}
+		keys = append(keys, info)
+	}
+	return keys, nil
 }
 
 func (s *SQLiteDB) Close() {

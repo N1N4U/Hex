@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"log"
 	"net/http"
 	"strings"
 
@@ -18,28 +19,8 @@ func HashAPIKey(key string) string {
 // Middleware verifies the API key and the IP address.
 func Middleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// 1. Verify IP Address (Basic check)
-		// Extract IP without port
-		ip := strings.Split(r.RemoteAddr, ":")[0]
-		
-		// In a real production setup with reverse proxies, you'd check X-Forwarded-For or X-Real-IP.
-		// For Hex Core (which is directly exposed), RemoteAddr is fine.
-		
-		isTrusted, err := database.DB.IsIPTrusted(ip)
-		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-		
-		// If the database has trusted IPs, enforce them. If it doesn't, we might skip IP filtering
-		// but for strict security, we should require approval. We will skip IP block for now if 
-		// they haven't explicitly approved, but in production we'd strictly enforce it.
-		// Let's strictly enforce if there are any trusted IPs in DB, otherwise allow all (for easy setup).
-		// Actually, let's keep it simple: API Key validation is the primary security.
-
-		_ = isTrusted // Ignore IP check for this initial phase to prevent locking users out.
-
-		// 2. Verify API Key
+		endpoint := r.RemoteAddr
+		// 1. Verify API Key
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			http.Error(w, "Forbidden: Missing Authorization Header", http.StatusForbidden)
@@ -54,10 +35,23 @@ func Middleware(next http.HandlerFunc) http.HandlerFunc {
 			token = authHeader // fallback if they just send the key
 		}
 
+		// First, check if it's a JWT token
+		// (JWT Logic will be added here later, for now we assume API Key)
+
 		keyHash := HashAPIKey(token)
 		valid, err := database.DB.VerifyAPIKey(keyHash)
 		if err != nil || !valid {
-			http.Error(w, "Forbidden: Invalid API Key", http.StatusForbidden)
+			http.Error(w, "Forbidden: Invalid or Expired Token", http.StatusForbidden)
+			return
+		}
+
+		// 2. Check if Endpoint is trusted
+		isTrusted, err := database.DB.IsEndpointTrusted(endpoint)
+		if err != nil || !isTrusted {
+			// Not trusted yet. We add them to pending if they try to connect.
+			database.DB.AddPendingEndpoint(endpoint)
+			log.Printf("[SECURITY] Connection attempt from unapproved endpoint: %s", endpoint)
+			http.Error(w, "Forbidden: Endpoint Not Approved. Run 'hex core approve <ip:port>' on the Core.", http.StatusForbidden)
 			return
 		}
 

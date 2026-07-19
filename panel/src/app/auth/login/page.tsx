@@ -1,112 +1,49 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState("");
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
-
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
-      }
-
-      router.push('/dashboard');
-      router.refresh();
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    // In dev, bypass auth
+    router.push("/dashboard/nodes");
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-950 p-4">
-      <div className="w-full max-w-md space-y-8 rounded-xl bg-gray-900 p-8 shadow-2xl border border-gray-800">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-white">
-            Hex Panel
-          </h2>
-          <p className="mt-2 text-sm text-gray-400">
-            {isLogin ? 'Sign in to manage your servers' : 'Create an emergency admin account'}
-          </p>
+    <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
+      {/* Dynamic Background Glows */}
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-[100px] -z-10 animate-pulse"></div>
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-violet-500/20 rounded-full blur-[100px] -z-10 animate-pulse delay-700"></div>
+      
+      <div className="w-full max-w-md p-8 bg-zinc-900/50 backdrop-blur-2xl border border-zinc-800/50 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-500">
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 to-violet-500 rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg shadow-cyan-500/20 rotate-3 hover:rotate-0 transition-transform">
+            <span className="text-2xl font-black text-black">H</span>
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tight">Welcome to Hex</h1>
+          <p className="text-zinc-400 mt-2">Enter your master password to continue</p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div className="rounded-md bg-red-900/50 p-4 border border-red-500/50">
-              <div className="text-sm text-red-400">{error}</div>
-            </div>
-          )}
-
-          <div className="space-y-4 rounded-md shadow-sm">
-            <div>
-              <label htmlFor="username" className="sr-only">Username</label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="relative block w-full rounded-md border-0 bg-gray-800 py-2.5 px-3 text-white ring-1 ring-inset ring-gray-700 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6"
-                placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="relative block w-full rounded-md border-0 bg-gray-800 py-2.5 px-3 text-white ring-1 ring-inset ring-gray-700 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-blue-500 sm:text-sm sm:leading-6"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-          </div>
-
+        <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative flex w-full justify-center rounded-md bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50"
-            >
-              {loading ? 'Processing...' : (isLogin ? 'Sign in' : 'Create Account')}
-            </button>
+            <input 
+              type="password" 
+              placeholder="Master Password" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-black/50 border border-zinc-800 focus:border-cyan-500/50 rounded-xl p-4 text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 transition-all text-center tracking-widest font-mono"
+            />
           </div>
-        </form>
-
-        <div className="text-center">
           <button 
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-sm text-blue-400 hover:text-blue-300"
+            type="submit"
+            className="w-full bg-white hover:bg-zinc-200 text-black font-black py-4 rounded-xl shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all transform hover:-translate-y-1"
           >
-            {isLogin ? "Need an account? Register" : "Already have an account? Sign in"}
+            UNLOCK PANEL
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

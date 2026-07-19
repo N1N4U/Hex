@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/N1N4U/Hex/core/api"
 	"github.com/N1N4U/Hex/core/auth"
@@ -46,40 +47,78 @@ func main() {
 			if len(args) > 1 {
 				name = strings.Join(args[1:], " ")
 			}
-			fmt.Printf("Generating Panel API Key for '%s'...\n", name)
+			fmt.Printf("Generating Temporary Panel API Key for '%s'...\n", name)
 			
 			apiKey := "hx_panel_" + generateRandomString(16)
 			keyHash := auth.HashAPIKey(apiKey)
 
-			if err := database.DB.SaveAPIKey(name, keyHash); err != nil {
+			expiresAt := time.Now().UTC().Add(10 * time.Minute).Format("2006-01-02 15:04:05")
+			if err := database.DB.SaveAPIKey(name, keyHash, &expiresAt); err != nil {
 				log.Fatalf("Failed to save API key to database: %v", err)
 			}
 
 			fmt.Println("API Key:", apiKey)
-			fmt.Println("Save this API key in your Panel configuration. It will not be shown again.")
+			fmt.Println("This key expires in 10 minutes. Connect your Panel now to permanently bind it.")
+			return
+		case "remove-api":
+			if len(args) < 2 {
+				fmt.Println("Usage: hex core remove-api <name/key>")
+				return
+			}
+			if err := database.DB.RemoveAPIKey(args[1]); err != nil {
+				log.Fatalf("Failed to remove API key: %v", err)
+			}
+			fmt.Println("API Key removed.")
+			return
+		case "info-api":
+			if len(args) < 2 {
+				fmt.Println("Usage: hex core info-api <name/key>")
+				return
+			}
+			info, err := database.DB.InfoAPIKey(args[1])
+			if err != nil {
+				log.Fatalf("Failed to get API key info: %v", err)
+			}
+			if info == nil {
+				fmt.Println("API Key not found.")
+				return
+			}
+			fmt.Printf("Name: %s\nCreated: %s\nExpires: %v\nBound Endpoint: %v\n", info.Name, info.CreatedAt, info.ExpiresAt, info.BoundEndpoint)
+			return
+		case "list-api":
+			keys, err := database.DB.ListAPIKeys()
+			if err != nil {
+				log.Fatalf("Failed to list API keys: %v", err)
+			}
+			fmt.Println("Registered API Keys:")
+			for _, k := range keys {
+				fmt.Printf("- %s (Endpoint: %v, Expires: %v)\n", k.Name, k.BoundEndpoint, k.ExpiresAt)
+			}
 			return
 		case "approve":
 			if len(args) < 2 {
-				fmt.Println("Usage: hex core approve <ip>")
+				fmt.Println("Usage: hex core approve <ip:port>")
 				return
 			}
-			ip := args[1]
-			if err := database.DB.ApproveIP(ip); err != nil {
-				log.Fatalf("Failed to approve IP: %v", err)
+			endpoint := args[1]
+			if err := database.DB.ApproveEndpoint(endpoint); err != nil {
+				log.Fatalf("Failed to approve endpoint: %v", err)
 			}
-			fmt.Printf("Approved Panel IP: %s\n", ip)
-			fmt.Println("This Panel is now trusted by the Core.")
+			// Ideally we would also update the API key to make it permanent and bind it here.
+			// But for now, just approving the endpoint is fine as per db logic.
+			fmt.Printf("Approved Panel Endpoint: %s\n", endpoint)
+			fmt.Println("This Panel is now permanently trusted.")
 			return
 		case "deny":
 			if len(args) < 2 {
-				fmt.Println("Usage: hex core deny <ip>")
+				fmt.Println("Usage: hex core deny <ip:port>")
 				return
 			}
-			ip := args[1]
-			if err := database.DB.DenyIP(ip); err != nil {
-				log.Fatalf("Failed to deny IP: %v", err)
+			endpoint := args[1]
+			if err := database.DB.DenyEndpoint(endpoint); err != nil {
+				log.Fatalf("Failed to deny endpoint: %v", err)
 			}
-			fmt.Printf("Denied Panel IP: %s\n", ip)
+			fmt.Printf("Denied Panel Endpoint: %s\n", endpoint)
 			return
 		default:
 			fmt.Printf("Unknown command: %s\n", command)

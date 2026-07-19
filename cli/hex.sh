@@ -12,56 +12,77 @@ print_usage() {
   echo "=========================================================="
   echo "                     Hex CLI Utility                      "
   echo "=========================================================="
-  echo "Service Management:"
-  echo "  hex start [core|panel]"
-  echo "  hex stop [core|panel]"
-  echo "  hex restart [core|panel]"
-  echo "  hex status [core|panel]"
-  echo "  hex logs [core|panel]"
-  echo "  hex enable [core|panel]"
-  echo "  hex disable [core|panel]"
-  echo "  hex reload [core|panel]"
-  echo ""
-  echo "Core Management:"
-  echo "  hex core create-api [name]"
-  echo "  hex core approve <ip>"
-  echo "  hex core deny <ip>"
-  echo ""
-  echo "System Management:"
-  echo "  hex update"
-  echo "  hex uninstall"
-  echo "  hex reinstall"
-  echo "  hex repair"
-  echo "  hex migrate"
-  echo ""
-  echo "Backups:"
-  echo "  hex backup create"
-  echo "  hex backup restore"
-  echo "  hex backup list"
-  echo "  hex backup delete"
-  echo ""
-  echo "Panel Specific:"
-  echo "  hex panel install"
-  echo "  hex panel update"
-  echo "  hex panel restart"
-  echo "  hex panel logs"
-  echo ""
-  echo "Diagnostics & Information:"
-  echo "  hex doctor"
-  echo "  hex check"
-  echo "  hex diagnose"
-  echo "  hex version"
-  echo "  hex info"
-  echo "  hex about"
-  echo ""
-  echo "Maintenance & Developer:"
-  echo "  hex clean"
-  echo "  hex cache clear"
-  echo "  hex reset"
-  echo "  hex dev"
-  echo "  hex debug"
-  echo "  hex trace"
+  echo "Choose Help command Option"
+  echo "[1] Service Management"
+  echo "[2] Core connection Management"
+  echo "[3] System Settings Management"
+  echo "[4] Backups Management"
+  echo "[5] Panel Management"
+  echo "[6] Diagnostics & Information"
+  echo "[7] Maintenance & Developer"
   echo "=========================================================="
+  echo ""
+  read -p "Enter your choice [1-7]: " HELP_MODE
+  
+  case $HELP_MODE in
+    1)
+      echo "Service Management:"
+      echo "  hex start [core|panel]"
+      echo "  hex stop [core|panel]"
+      echo "  hex restart [core|panel]"
+      echo "  hex status [core|panel]"
+      echo "  hex logs [core|panel]"
+      echo "  hex enable [core|panel]"
+      echo "  hex disable [core|panel]"
+      echo "  hex reload [core|panel]"
+      ;;
+    2)
+      echo "Core Management:"
+      echo "  hex core create-api [name]"
+      echo "  hex core remove-api [name]"
+      echo "  hex core info-api [name]"
+      echo "  hex core list-api"
+      echo "  hex core approve <ip:port>"
+      echo "  hex core deny <ip:port>"
+      ;;
+    3)
+      echo "System Management:"
+      echo "  hex update"
+      echo "  hex uninstall"
+      echo "  hex reinstall"
+      echo "  hex repair"
+      ;;
+    4)
+      echo "Backups (In Development):"
+      echo "  hex backup create"
+      echo "  hex backup restore"
+      echo "  hex backup list"
+      echo "  hex backup delete"
+      echo "  hex migrate"
+      ;;
+    5)
+      echo "Panel Specific:"
+      echo "  hex panel install"
+      echo "  hex panel update"
+      echo "  hex panel restart"
+      echo "  hex panel logs"
+      ;;
+    6)
+      echo "Diagnostics & Information:"
+      echo "  hex check"
+      echo "  hex about"
+      ;;
+    7)
+      echo "Maintenance & Developer:"
+      echo "  hex clean"
+      echo "  hex cache clear"
+      echo "  hex debug"
+      echo "  hex trace"
+      ;;
+    *)
+      echo "Invalid option."
+      ;;
+  esac
 }
 
 if [ -z "$COMMAND" ] || [[ "$COMMAND" == "help" ]] || [[ "$COMMAND" == "cmd" ]]; then
@@ -209,7 +230,7 @@ case $COMMAND in
     
   core)
     case $TARGET in
-        create-api|approve|deny)
+        create-api|remove-api|info-api|list-api|approve|deny)
             if [ -x "/var/lib/hex/core/hex-core" ]; then
                 /var/lib/hex/core/hex-core "$TARGET" "$SUBTARGET" "${@:4}"
             else
@@ -254,7 +275,7 @@ case $COMMAND in
     echo "No migrations required at this time."
     ;;
     
-  doctor|check|diagnose)
+  check|diagnose|doctor)
     echo "Running Hex System Diagnostics..."
     echo "---------------------------------"
     echo -n "Hex Core Service: "
@@ -265,8 +286,8 @@ case $COMMAND in
     echo "Diagnostics complete."
     ;;
     
-  version|info|about)
-    echo "Hex Control Panel - CLI Utility v0.1.0"
+  about|version|info)
+    echo "Hex Control Panel - CLI Utility v1.0.0"
     echo "By N1N4U"
     ;;
     
@@ -274,10 +295,6 @@ case $COMMAND in
     echo "Cleaning system cache..."
     docker system prune -f
     echo "Cache cleared."
-    ;;
-    
-  reset)
-    echo "[Info] Developer command '$COMMAND' is not available in production mode."
     ;;
     
   debug|trace)

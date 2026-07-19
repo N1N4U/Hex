@@ -35,6 +35,16 @@ export async function getDb() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS nodes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      ip_address TEXT NOT NULL,
+      port INTEGER DEFAULT 8080,
+      api_key TEXT NOT NULL,
+      status TEXT DEFAULT 'offline',
+      last_seen DATETIME
+    );
   `);
 
   return db;

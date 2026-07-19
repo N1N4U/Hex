@@ -196,6 +196,133 @@ func NewServer(port int) *Server {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
+	mux.HandleFunc("/docker/images", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if dockerClient == nil {
+			http.Error(w, "Docker not available", http.StatusInternalServerError)
+			return
+		}
+		
+		switch r.Method {
+		case http.MethodGet:
+			images, err := dockerClient.ListImages()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(images)
+			
+		case http.MethodDelete:
+			id := r.URL.Query().Get("id")
+			if err := dockerClient.DeleteImage(id); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/docker/networks", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if dockerClient == nil {
+			http.Error(w, "Docker not available", http.StatusInternalServerError)
+			return
+		}
+		
+		switch r.Method {
+		case http.MethodGet:
+			networks, err := dockerClient.ListNetworks()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(networks)
+			
+		case http.MethodDelete:
+			id := r.URL.Query().Get("id")
+			if err := dockerClient.DeleteNetwork(id); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/docker/volumes", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if dockerClient == nil {
+			http.Error(w, "Docker not available", http.StatusInternalServerError)
+			return
+		}
+		
+		switch r.Method {
+		case http.MethodGet:
+			volumes, err := dockerClient.ListVolumes()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(volumes)
+			
+		case http.MethodDelete:
+			id := r.URL.Query().Get("id")
+			if err := dockerClient.DeleteVolume(id); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	mux.HandleFunc("/docker/compose", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		dir := r.URL.Query().Get("dir")
+		if dir == "" {
+			http.Error(w, "dir is required", http.StatusBadRequest)
+			return
+		}
+		
+		switch r.Method {
+		case http.MethodPost:
+			out, err := docker.ComposeUp(dir)
+			if err != nil {
+				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(out))
+			
+		case http.MethodDelete:
+			out, err := docker.ComposeDown(dir)
+			if err != nil {
+				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(out))
+			
+		case http.MethodGet:
+			out, err := docker.ComposeLogs(dir)
+			if err != nil {
+				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
+				return
+			}
+			w.Write([]byte(out))
+			
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
 	mux.HandleFunc("/proxy", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var req proxy.ProxyRequest

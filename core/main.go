@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -103,7 +102,15 @@ func main() {
 					fmt.Println("API Key not found.")
 					return
 				}
-				fmt.Printf("Name: %s\nCreated: %s\nExpires: %v\nBound Endpoint: %v\n", info.Name, info.CreatedAt, info.ExpiresAt, info.BoundEndpoint)
+				expires := "Never"
+				if info.ExpiresAt != nil {
+					expires = *info.ExpiresAt
+				}
+				endpoint := "None"
+				if info.BoundEndpoint != nil {
+					endpoint = *info.BoundEndpoint
+				}
+				fmt.Printf("Name: %s\nCreated: %s\nExpires: %v\nBound Endpoint: %v\n", info.Name, info.CreatedAt, expires, endpoint)
 				return
 			case "list":
 				keys, err := database.DB.ListAPIKeys()
@@ -112,7 +119,15 @@ func main() {
 				}
 				fmt.Println("Registered API Keys:")
 				for _, k := range keys {
-					fmt.Printf("- %s (Endpoint: %v, Expires: %v)\n", k.Name, k.BoundEndpoint, k.ExpiresAt)
+					expires := "Never"
+					if k.ExpiresAt != nil {
+						expires = *k.ExpiresAt
+					}
+					endpoint := "None"
+					if k.BoundEndpoint != nil {
+						endpoint = *k.BoundEndpoint
+					}
+					fmt.Printf("- %s (Endpoint: %v, Expires: %v)\n", k.Name, endpoint, expires)
 				}
 				return
 			case "approve":

@@ -3,8 +3,10 @@ package main
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -77,8 +79,27 @@ func main() {
 				}
 
 				fmt.Println("API Key:", apiKey)
-				fmt.Println("This key expires in 10 minutes. Connect your Panel now to permanently bind it.")
-				return
+				fmt.Println("This key expires in 10 minutes. Waiting for your Panel to connect...")
+
+				// Poll every 2 seconds for 10 minutes to see if it bound
+				ticker := time.NewTicker(2 * time.Second)
+				timeout := time.After(10 * time.Minute)
+				defer ticker.Stop()
+
+				for {
+					select {
+					case <-timeout:
+						fmt.Println("\nTimeout reached. Deleting API Key...")
+						database.DB.RemoveAPIKey(name)
+						return
+					case <-ticker.C:
+						info, _ := database.DB.InfoAPIKey(name)
+						if info != nil && info.BoundEndpoint != nil {
+							fmt.Printf("\nSuccess! Panel successfully authenticated and bound to %s\n", *info.BoundEndpoint)
+							return
+						}
+					}
+				}
 			case "remove":
 				if len(args) < 3 {
 					fmt.Println("Usage: hex api remove <name/key>")
@@ -157,6 +178,12 @@ func main() {
 				fmt.Printf("Unknown api command: %s\n", subcommand)
 				return
 			}
+		case "update":
+			fmt.Println("Checking for updates...")
+			if err := performUpdate(); err != nil {
+				fmt.Printf("Update failed: %v\n", err)
+			}
+			return
 		default:
 			fmt.Printf("Unknown command: %s\n", command)
 			return
@@ -191,4 +218,99 @@ func main() {
 		log.Fatalf("Error during shutdown: %v", err)
 	}
 	fmt.Println("Hex Core gracefully stopped.")
+}
+
+func performUpdate() error {
+	// 1. Fetch latest release info
+	resp, err := http.Get("https://api.github.com/repos/N1N4U/Hex/releases/tags/latest")
+	if err != nil {
+		return fmt.Errorf("failed to contact GitHub API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("github API returned status: %d", resp.StatusCode)
+	}
+
+	var release struct {
+		PublishedAt string `json:"published_at"`
+		Assets      []struct {
+			Name               string `json:"name"`
+			BrowserDownloadUrl string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return fmt.Errorf("failed to parse release info: %w", err)
+	}
+
+	// 2. Check if we have an update file to compare timestamps
+	const timeFile = "/var/lib/hex/core/.last_update"
+	
+	// Create directory if it doesn't exist
+	if _, err := os.Stat("/var/lib/hex/core"); os.IsNotExist(err) {
+		_ = os.MkdirAll("/var/lib/hex/core", 0755)
+	}
+
+	lastUpdate, err := os.ReadFile(timeFile)
+	if err == nil && string(lastUpdate) == release.PublishedAt {
+		fmt.Println("You are already on the latest version! There is no update.")
+		return nil
+	}
+
+	// 3. Find the asset URL
+	var downloadUrl string
+	for _, asset := range release.Assets {
+		if asset.Name == "hex-linux-amd64" {
+			downloadUrl = asset.BrowserDownloadUrl
+			break
+		}
+	}
+
+	if downloadUrl == "" {
+		return fmt.Errorf("could not find hex-linux-amd64 in the latest release")
+	}
+
+	fmt.Println("New update found! Downloading...")
+
+	// 4. Download binary to a temporary file
+	dlResp, err := http.Get(downloadUrl)
+	if err != nil {
+		return fmt.Errorf("failed to download update: %w", err)
+	}
+	defer dlResp.Body.Close()
+
+	if dlResp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download failed with status: %d", dlResp.StatusCode)
+	}
+
+	exePath, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("could not get executable path: %w", err)
+	}
+
+	tmpPath := exePath + ".new"
+	out, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to create temporary file: %w", err)
+	}
+
+	if _, err := io.Copy(out, dlResp.Body); err != nil {
+		out.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to write update: %w", err)
+	}
+	out.Close()
+
+	// 5. Replace the current executable
+	if err := os.Rename(tmpPath, exePath); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("failed to replace executable: %w (Are you running as root?)", err)
+	}
+
+	// 6. Save new timestamp
+	_ = os.WriteFile(timeFile, []byte(release.PublishedAt), 0644)
+
+	fmt.Println("Update successful! Please run 'systemctl restart hex-core' to apply the update.")
+	return nil
 }

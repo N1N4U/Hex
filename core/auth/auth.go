@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 
@@ -20,7 +21,13 @@ func HashAPIKey(key string) string {
 // Middleware verifies the API key and the IP address.
 func Middleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		endpoint := r.RemoteAddr
+		// Extract just the IP address, stripping the ephemeral port.
+		// If it's behind a proxy, we should ideally check X-Forwarded-For, but for now we trust RemoteAddr
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			host = r.RemoteAddr // Fallback
+		}
+		endpoint := host
 		// 1. Verify API Key
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {

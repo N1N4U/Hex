@@ -874,7 +874,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
         {/* Footer */}
         <footer className="flex-shrink-0 flex justify-between items-center px-8 py-.8 border-t border-white/5 text-[10px]">
           <div className="flex items-center gap-3">
-            <span className="text-sm font-bold tracking-tight text-on-surface/80">{panelName}</span>
+            <span className="text-sm font-bold tracking-tight text-on-surface/80">Hex</span>
             <div className="h-3 w-px bg-white/10" />
             <span className="text-on-surface-variant/40 uppercase tracking-wide">Made by <span className="text-on-surface/60">N1N4U</span></span>
           </div>

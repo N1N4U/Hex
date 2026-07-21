@@ -20,6 +20,8 @@ interface Core {
   storage: number;
   storageTotal: number;
   uptime: string;
+  networkSent?: number;
+  networkRecv?: number;
 }
 
 interface DockApp {
@@ -225,6 +227,17 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
   const storagePct = displayCore ? Math.round((displayCore.storage / displayCore.storageTotal) * 100) : 28;
   const storageLabel = displayCore ? `${displayCore.storage} / ${displayCore.storageTotal} GB` : "Multi-disk";
 
+  const networkSent = displayCore ? displayCore.networkSent : onlineCores.reduce((s, c) => s + (c.networkSent || 0), 0);
+  const networkRecv = displayCore ? displayCore.networkRecv : onlineCores.reduce((s, c) => s + (c.networkRecv || 0), 0);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
   return (
     <div className="w-full h-full p-2">
       {/*
@@ -361,9 +374,9 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
           </div>
 
           <div className="flex justify-between text-[10px] text-on-surface-variant/50 mt-1">
-            <span className="text-primary">↓ 850 GB</span>
-            <span>Total: 1.2 TB</span>
-            <span className="text-yellow-400">↑ 350 GB</span>
+            <span className="text-primary">↓ {formatBytes(networkRecv)}/s</span>
+            <span>Total: {formatBytes(networkRecv + networkSent)}/s</span>
+            <span className="text-yellow-400">↑ {formatBytes(networkSent)}/s</span>
           </div>
         </div>
       </div>
@@ -441,7 +454,48 @@ function DockerView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: stri
 
 /* ── Files View ──────────────────────────────────────── */
 function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: string | "all" }) {
-  const folders: { name: string, date: string, icon: string }[] = [];
+  const [currentPath, setCurrentPath] = useState("/");
+  const [items, setItems] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeCoreId === "all") return;
+    
+    async function loadFiles() {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/nodes/${activeCoreId}/files?path=${encodeURIComponent(currentPath)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setItems(data || []);
+        } else {
+          setItems([]);
+        }
+      } catch (e) {
+        console.error("Failed to load files", e);
+        setItems([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadFiles();
+  }, [activeCoreId, currentPath]);
+
+  if (activeCoreId === "all") {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#0c0c0c] rounded-3xl border border-white/5 shadow-2xl text-on-surface-variant/50">
+        <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">dns</span>
+        <p className="text-sm">Please select a specific Core to view files.</p>
+      </div>
+    );
+  }
+
+  const navigateUp = () => {
+    if (currentPath === "/") return;
+    const parts = currentPath.split("/").filter(Boolean);
+    parts.pop();
+    setCurrentPath("/" + parts.join("/"));
+  };
 
   return (
     <div className="w-full h-full flex bg-[#0c0c0c] rounded-3xl border border-white/5 overflow-hidden min-h-[650px] shadow-2xl">
@@ -449,45 +503,19 @@ function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: strin
       <div className="w-56 flex-shrink-0 flex flex-col border-r border-white/5 bg-white/[0.02] py-8">
         <h2 className="text-xl font-bold text-on-surface px-6 mb-6">Files</h2>
         <div className="flex flex-col gap-1 px-3">
-          <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface transition-colors">
+          <button 
+            onClick={() => setCurrentPath("/")}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${currentPath === "/" ? "bg-primary/10 text-primary" : "text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface"}`}
+          >
             <span className="material-symbols-outlined text-[20px] text-blue-300">home</span>
             Root
           </button>
-          <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium bg-primary/10 text-primary transition-colors">
+          <button 
+            onClick={() => setCurrentPath("/var/lib/hex/core")}
+            className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${currentPath.startsWith("/var/lib/hex/core") ? "bg-primary/10 text-primary" : "text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface"}`}
+          >
             <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>database</span>
-            DATA
-          </button>
-          <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[20px] text-blue-400">description</span>
-            Documents
-          </button>
-          <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[20px] text-blue-400">download</span>
-            Downloads
-          </button>
-          <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[20px] text-blue-400">image</span>
-            Gallery
-          </button>
-          <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[20px] text-blue-400">play_circle</span>
-            Media
-          </button>
-        </div>
-
-        <div className="mt-8 px-6 flex justify-between items-center mb-4">
-          <h3 className="text-sm font-bold text-on-surface">Location</h3>
-          <span className="material-symbols-outlined text-[16px] text-on-surface-variant/70 cursor-pointer hover:text-on-surface">add</span>
-        </div>
-
-        <div className="mt-auto px-3 flex flex-col gap-1">
-          <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[20px]">podcasts</span>
-            FilesDrop
-          </button>
-          <button className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-on-surface-variant/70 hover:bg-white/5 hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[20px]">share</span>
-            Shared
+            Hex Data
           </button>
         </div>
       </div>
@@ -497,18 +525,16 @@ function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: strin
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-white/5">
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-on-surface-variant/60 cursor-pointer hover:text-on-surface transition-colors font-medium">Root</span>
-            <span className="material-symbols-outlined text-[16px] text-on-surface-variant/30">chevron_right</span>
-            <span className="font-bold text-on-surface tracking-wide">DATA</span>
+            <button onClick={navigateUp} className="text-on-surface-variant/60 hover:text-on-surface transition-colors flex items-center">
+              <span className="material-symbols-outlined text-[20px]">arrow_upward</span>
+            </button>
+            <span className="text-on-surface-variant/60">Path:</span>
+            <span className="font-bold text-on-surface tracking-wide">{currentPath}</span>
           </div>
           <div className="flex items-center gap-4">
             <button className="flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-black text-xs font-bold hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]">
               <span className="material-symbols-outlined text-[14px]">upload</span>
-              Upload or create
-            </button>
-            <div className="w-px h-4 bg-white/20" />
-            <button className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
-              <span className="material-symbols-outlined text-[20px]">close</span>
+              Upload
             </button>
           </div>
         </div>
@@ -516,34 +542,48 @@ function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: strin
         {/* Subheader */}
         <div className="flex items-center justify-between mt-6 mb-8">
           <div className="flex items-center gap-3">
-            <div className="w-4 h-4 rounded-full border border-white/20 hover:border-white/40 cursor-pointer transition-colors" />
-            <span className="text-xs font-medium text-on-surface-variant/60">Total 5 items</span>
+            <div className="w-4 h-4 rounded-full border border-white/20" />
+            <span className="text-xs font-medium text-on-surface-variant/60">Total {items.length} items</span>
           </div>
-          <button className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
-            <span className="material-symbols-outlined text-[22px]">grid_view</span>
-          </button>
+          <div className="text-xs text-primary animate-pulse">{isLoading ? "Loading..." : ""}</div>
         </div>
 
         {/* Grid */}
         <div className="flex flex-wrap gap-10 overflow-y-auto pb-8">
-          {folders.length > 0 ? (
-            folders.map(f => (
-              <div key={f.name} className="flex flex-col items-center gap-3 group cursor-pointer w-28">
+          {items.length > 0 ? (
+            items.map(f => (
+              <div 
+                key={f.name} 
+                onClick={() => {
+                  if (f.isDir) {
+                    setCurrentPath(currentPath === "/" ? `/${f.name}` : `${currentPath}/${f.name}`);
+                  }
+                }}
+                className="flex flex-col items-center gap-3 group cursor-pointer w-28"
+              >
                 <div className="relative w-24 h-20 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-blue-500 text-[90px] drop-shadow-xl group-hover:-translate-y-2 transition-transform duration-300" style={{ fontVariationSettings: "'FILL' 1" }}>folder</span>
-                  <span className="material-symbols-outlined text-white/95 text-[34px] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 group-hover:-translate-y-2 transition-transform duration-300 drop-shadow-md">{f.icon}</span>
+                  {f.isDir ? (
+                    <>
+                      <span className="material-symbols-outlined text-blue-500 text-[90px] drop-shadow-xl group-hover:-translate-y-2 transition-transform duration-300" style={{ fontVariationSettings: "'FILL' 1" }}>folder</span>
+                      <span className="material-symbols-outlined text-white/95 text-[34px] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 group-hover:-translate-y-2 transition-transform duration-300 drop-shadow-md"></span>
+                    </>
+                  ) : (
+                    <span className="material-symbols-outlined text-on-surface-variant text-[70px] drop-shadow-xl group-hover:-translate-y-2 transition-transform duration-300" style={{ fontVariationSettings: "'FILL' 1" }}>description</span>
+                  )}
                 </div>
                 <div className="text-center mt-2">
-                  <p className="text-sm font-semibold text-on-surface/90 group-hover:text-primary transition-colors">{f.name}</p>
-                  <p className="text-[10px] text-on-surface-variant/50 mt-1">{f.date}</p>
+                  <p className="text-sm font-semibold text-on-surface/90 group-hover:text-primary transition-colors truncate w-full px-1" title={f.name}>{f.name}</p>
+                  <p className="text-[10px] text-on-surface-variant/50 mt-1">{f.sizeBytes ? (f.sizeBytes / 1024).toFixed(1) + ' KB' : ''}</p>
                 </div>
               </div>
             ))
           ) : (
-            <div className="w-full h-40 flex flex-col items-center justify-center text-on-surface-variant/50">
-              <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">folder_open</span>
-              <p className="text-sm">No files or folders found.</p>
-            </div>
+            !isLoading && (
+              <div className="w-full h-40 flex flex-col items-center justify-center text-on-surface-variant/50">
+                <span className="material-symbols-outlined text-[48px] mb-2 opacity-50">folder_open</span>
+                <p className="text-sm">Directory is empty.</p>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -885,14 +925,14 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectError, setConnectError] = useState("");
 
-  // Fetch Cores
+  // Fetch Cores and Stats
   useEffect(() => {
     async function loadCores() {
       try {
         const res = await fetch('/api/nodes');
         if (res.ok) {
           const data = await res.json();
-          const mappedCores: Core[] = data.map((n: any) => ({
+          let mappedCores: Core[] = data.map((n: any) => ({
             id: n.id.toString(),
             name: n.name,
             host: `${n.ip_address}:${n.port}`,
@@ -902,9 +942,15 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
             ramTotal: 16,
             storage: 0,
             storageTotal: 256,
-            uptime: "—"
+            uptime: "—",
+            networkSent: 0,
+            networkRecv: 0
           }));
           setCores(mappedCores);
+          
+          // Initial stats fetch
+          mappedCores = await fetchAllStats(mappedCores);
+          setCores([...mappedCores]);
         }
       } catch (err) {
         console.error("Failed to load cores", err);
@@ -912,7 +958,45 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
         setIsLoadingCores(false);
       }
     }
+
+    async function fetchAllStats(currentCores: Core[]) {
+      const updatedCores = [...currentCores];
+      for (let i = 0; i < updatedCores.length; i++) {
+        const core = updatedCores[i];
+        if (core.status === 'offline') continue;
+        
+        try {
+          const statsRes = await fetch(`/api/nodes/${core.id}/stats`);
+          if (statsRes.ok) {
+            const stats = await statsRes.json();
+            updatedCores[i] = {
+              ...core,
+              cpu: stats.cpu_usage || 0,
+              ram: Number(((stats.mem_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
+              ramTotal: Number(((stats.mem_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
+              storage: Number(((stats.disk_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
+              storageTotal: Number(((stats.disk_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
+              networkSent: stats.net_sent || 0,
+              networkRecv: stats.net_recv || 0
+            };
+          }
+        } catch (e) {
+          console.error(`Failed to fetch stats for core ${core.id}`, e);
+        }
+      }
+      return updatedCores;
+    }
+
     loadCores();
+
+    const interval = setInterval(async () => {
+      setCores(prev => {
+        fetchAllStats(prev).then(updated => setCores(updated));
+        return prev;
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
   
   const ALL_DOCK_APPS = [...DEFAULT_DOCK, ...customApps];

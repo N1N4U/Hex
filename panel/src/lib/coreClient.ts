@@ -48,3 +48,22 @@ export async function checkNodeHealth(node: CoreNode): Promise<{ success: boolea
     return { success: false, error: error.message || error.toString() };
   }
 }
+
+export async function coreFetch(node: CoreNode, path: string, options?: RequestInit): Promise<Response> {
+  const protocol = node.protocol || 'https';
+  // Ensure path starts with a slash
+  if (!path.startsWith('/')) {
+    path = '/' + path;
+  }
+  const url = `${protocol}://${node.ip}:${node.port}${path}`;
+  
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...options?.headers,
+      'Authorization': `Bearer ${node.apiKey}`,
+    },
+    // Don't want the UI hanging forever
+    signal: options?.signal || AbortSignal.timeout(10000)
+  });
+}

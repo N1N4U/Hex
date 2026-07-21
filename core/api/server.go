@@ -64,6 +64,20 @@ func NewServer(port int) *Server {
 	monitorMgr := monitor.NewManager()
 	fileMgr := files.NewManager()
 
+	mux.HandleFunc("/stats", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		stats, err := monitorMgr.GetStats(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(stats)
+	}))
+
 	mux.HandleFunc("/files", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Query().Get("path")
 		if path == "" {

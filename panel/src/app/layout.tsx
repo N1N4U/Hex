@@ -15,11 +15,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" suppressHydrationWarning>
       <head>
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=block" rel="stylesheet" />
       </head>
-      <body className={`${inter.className} bg-surface text-on-surface font-body-base selection:bg-primary/30 min-h-screen overflow-hidden relative antialiased`}>
+      <body suppressHydrationWarning className={`${inter.className} bg-surface text-on-surface font-body-base selection:bg-primary/30 min-h-screen overflow-hidden relative antialiased`}>
         {children}
       </body>
     </html>

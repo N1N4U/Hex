@@ -2,6 +2,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import CircularGauge from "../../components/CircularGauge";
 import ProgressBar from "../../components/ProgressBar";
+import PreferencesModal from "./PreferencesModal";
+import AccountModal from "./AccountModal";
 
 /* ── Types ─────────────────────────────────────────── */
 type AppId = string;
@@ -654,6 +656,188 @@ function CoreManagementView({ cores, onConnect, onRemove }: { cores: Core[]; onC
     </div>
   );
 }
+/* ── Preferences View ──────────────────────────────────── */
+function PreferencesView() {
+  return (
+    <div className="flex flex-col h-full fade-in pb-16 max-w-4xl mx-auto w-full">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-on-surface tracking-tight mb-2">Preferences</h2>
+        <p className="text-sm text-on-surface-variant">Manage your panel settings and display preferences.</p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Appearance */}
+        <div className="glass-panel rounded-2xl border border-white/5 p-6">
+          <h3 className="text-lg font-bold text-on-surface mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-primary">palette</span>
+            Appearance
+          </h3>
+          <div className="flex items-center justify-between py-3 border-b border-white/5">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Dark Mode</p>
+              <p className="text-xs text-on-surface-variant">Toggle dark/light theme (currently forced dark)</p>
+            </div>
+            <div className="w-11 h-6 bg-primary rounded-full relative cursor-pointer">
+              <div className="absolute right-1 top-1 w-4 h-4 bg-black rounded-full" />
+            </div>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b border-white/5 mt-2">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Wallpaper</p>
+              <p className="text-xs text-on-surface-variant">Choose your dashboard background</p>
+            </div>
+            <select className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-on-surface outline-none focus:border-primary">
+              <option>Default Space</option>
+              <option>Hexagon Grid</option>
+              <option>Solid Color</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Localization */}
+        <div className="glass-panel rounded-2xl border border-white/5 p-6">
+          <h3 className="text-lg font-bold text-on-surface mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-primary">language</span>
+            Localization
+          </h3>
+          <div className="flex items-center justify-between py-3 border-b border-white/5">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Time Zone</p>
+              <p className="text-xs text-on-surface-variant">Local timezone for logs and metrics</p>
+            </div>
+            <select className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-on-surface outline-none focus:border-primary">
+              <option>Automatic (UTC+5:30)</option>
+              <option>UTC</option>
+            </select>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b border-white/5 mt-2">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Time Format</p>
+              <p className="text-xs text-on-surface-variant">12 Hour or 24 Hour clock</p>
+            </div>
+            <div className="flex bg-black/40 rounded-xl p-1 border border-white/10">
+              <button className="px-3 py-1.5 rounded-lg bg-white/10 text-on-surface text-xs font-semibold">12 Hour</button>
+              <button className="px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-on-surface text-xs font-semibold transition-colors">24 Hour</button>
+            </div>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b border-white/5 mt-2">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Date Format</p>
+              <p className="text-xs text-on-surface-variant">Display format for dates</p>
+            </div>
+            <select className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-sm text-on-surface outline-none focus:border-primary">
+              <option>MM/DD/YYYY</option>
+              <option>DD/MM/YYYY</option>
+              <option>YYYY-MM-DD</option>
+            </select>
+          </div>
+        </div>
+
+        {/* System */}
+        <div className="glass-panel rounded-2xl border border-white/5 p-6">
+          <h3 className="text-lg font-bold text-on-surface mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-primary">memory</span>
+            System Details
+          </h3>
+          <div className="flex items-center justify-between py-3 border-b border-white/5">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Panel Uptime</p>
+              <p className="text-xs text-on-surface-variant">How long the panel process has been running</p>
+            </div>
+            <p className="text-sm font-mono text-on-surface">14 days, 3 hrs, 22 mins</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Account View ───────────────────────────────────── */
+function AccountView() {
+  return (
+    <div className="flex flex-col h-full fade-in pb-16 max-w-4xl mx-auto w-full">
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold text-on-surface tracking-tight mb-2">Account</h2>
+        <p className="text-sm text-on-surface-variant">Manage your profile, security, and activity.</p>
+      </div>
+
+      <div className="space-y-6">
+        {/* Profile */}
+        <div className="glass-panel rounded-2xl border border-white/5 p-6 flex items-center gap-6">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center text-black text-3xl font-bold">
+            N
+          </div>
+          <div className="flex-1">
+            <h3 className="text-xl font-bold text-on-surface mb-1">Nandu</h3>
+            <p className="text-sm text-on-surface-variant mb-3">Administrator</p>
+            <button className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-on-surface transition-colors flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">edit</span>
+              Edit Profile
+            </button>
+          </div>
+        </div>
+
+        {/* Activity & History */}
+        <div className="glass-panel rounded-2xl border border-white/5 p-6">
+          <h3 className="text-lg font-bold text-on-surface mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-primary">history</span>
+            Recent History
+          </h3>
+          <div className="space-y-4">
+            {[
+              { action: "Logged in via Web", time: "2 mins ago", ip: "192.168.78.1" },
+              { action: "Connected new Core 'dev'", time: "4 hours ago", ip: "192.168.78.129" },
+              { action: "Updated Settings", time: "1 day ago", ip: "192.168.78.1" }
+            ].map((log, i) => (
+              <div key={i} className="flex items-center justify-between py-2 border-b border-white/5 last:border-0 last:pb-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-white/20" />
+                  <p className="text-sm text-on-surface">{log.action}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-on-surface-variant">{log.time}</p>
+                  <p className="text-[10px] text-on-surface-variant/50 font-mono mt-0.5">{log.ip}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* About */}
+        <div className="glass-panel rounded-2xl border border-white/5 p-6">
+          <h3 className="text-lg font-bold text-on-surface mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[20px] text-primary">info</span>
+            About Hex
+          </h3>
+          <div className="flex items-center justify-between py-3 border-b border-white/5">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Version</p>
+            </div>
+            <p className="text-sm font-mono text-on-surface">v1.0.0-beta</p>
+          </div>
+          <div className="flex items-center justify-between py-3 border-b border-white/5">
+            <div>
+              <p className="text-sm font-semibold text-on-surface">Documentation</p>
+              <p className="text-xs text-on-surface-variant">View guides and API references</p>
+            </div>
+            <a href="https://github.com/N1N4U/Hex" target="_blank" rel="noreferrer" className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-on-surface transition-colors flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px]">open_in_new</span>
+              View Docs
+            </a>
+          </div>
+        </div>
+
+        {/* Danger Zone */}
+        <div className="pt-6 border-t border-red-500/20">
+          <button className="px-6 py-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-500 text-sm font-bold transition-colors flex items-center gap-2 w-full justify-center">
+            <span className="material-symbols-outlined text-[18px]">logout</span>
+            Log Out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ── Main Page ───────────────────────────────────────── */
 export default function DashboardPageClient({ panelName, links }: { panelName: string; links: { discord: string; github: string; feedback: string } }) {
@@ -691,6 +875,8 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
   const [isLoadingCores, setIsLoadingCores] = useState(true);
 
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [coreName, setCoreName] = useState("");
   const [coreProtocol, setCoreProtocol] = useState("https");
   const [coreIp, setCoreIp] = useState("");
@@ -729,7 +915,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
     loadCores();
   }, []);
   
-  const ALL_DOCK_APPS = [...DEFAULT_DOCK, ...customApps, { id: "add", label: "Add App", icon: "add", iconColor: "text-on-surface-variant" }];
+  const ALL_DOCK_APPS = [...DEFAULT_DOCK, ...customApps];
 
   const handleDockSelect = (app: DockApp) => {
     if (app.id === "add") {
@@ -831,10 +1017,18 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button className="w-10 h-10 rounded-[14px] glass-panel hover:bg-white/10 transition-all text-on-surface-variant flex items-center justify-center" title="Preferences">
+          <button 
+            onClick={() => setIsPreferencesModalOpen(true)}
+            className="w-10 h-10 rounded-[14px] transition-all flex items-center justify-center glass-panel hover:bg-white/10 text-on-surface-variant"
+            title="Preferences"
+          >
             <span className="material-symbols-outlined text-[22px]">settings</span>
           </button>
-          <button className="w-10 h-10 rounded-[14px] glass-panel hover:bg-white/10 transition-all text-on-surface-variant flex items-center justify-center" title="Account">
+          <button 
+            onClick={() => setIsAccountModalOpen(true)}
+            className="w-10 h-10 rounded-[14px] transition-all flex items-center justify-center glass-panel hover:bg-white/10 text-on-surface-variant"
+            title="Account"
+          >
             <span className="material-symbols-outlined text-[22px]">person</span>
           </button>
         </div>
@@ -1024,6 +1218,9 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
         </div>
       )}
 
+      {/* Modals */}
+      {isPreferencesModalOpen && <PreferencesModal onClose={() => setIsPreferencesModalOpen(false)} />}
+      {isAccountModalOpen && <AccountModal onClose={() => setIsAccountModalOpen(false)} />}
     </div>
   );
 }

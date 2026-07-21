@@ -222,6 +222,9 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
     return () => clearInterval(t);
   }, []);
 
+  const displayCore = activeCoreId === "all" ? null : cores.find(c => c.id === activeCoreId) ?? null;
+  const onlineCores = cores.filter(c => c.status !== "offline");
+
   useEffect(() => {
     if (displayCore && displayCore.host) {
       const ip = displayCore.host.split(":")[0];
@@ -242,13 +245,10 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
           });
       }
     }
-  }, [displayCore?.host]);
+  }, [displayCore?.host, locationCache]);
 
   const formattedTime = time ? time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "00:00";
   const formattedDate = time ? time.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }) : "";
-
-  const displayCore = activeCoreId === "all" ? null : cores.find(c => c.id === activeCoreId) ?? null;
-  const onlineCores = cores.filter(c => c.status !== "offline");
 
   // Aggregate stats
   const totalCPU = Math.round(onlineCores.reduce((s, c) => s + c.cpu, 0) / (onlineCores.length || 1));
@@ -264,8 +264,8 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
   const storagePct = displayCore ? Math.round((displayCore.storage / displayCore.storageTotal) * 100) : 28;
   const storageLabel = displayCore ? `${displayCore.storage} / ${displayCore.storageTotal} GB` : "Multi-disk";
 
-  const networkSent = displayCore ? displayCore.networkSent : onlineCores.reduce((s, c) => s + (c.networkSent || 0), 0);
-  const networkRecv = displayCore ? displayCore.networkRecv : onlineCores.reduce((s, c) => s + (c.networkRecv || 0), 0);
+  const networkSent = displayCore ? (displayCore.networkSent || 0) : onlineCores.reduce((s, c) => s + (c.networkSent || 0), 0);
+  const networkRecv = displayCore ? (displayCore.networkRecv || 0) : onlineCores.reduce((s, c) => s + (c.networkRecv || 0), 0);
 
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
@@ -1058,6 +1058,12 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
 
   // Load from local storage on mount
   useEffect(() => {
+    const token = localStorage.getItem("hex_token");
+    if (!token) {
+      window.location.href = "/auth/login";
+      return;
+    }
+
     const savedApp = localStorage.getItem("hex_activeApp");
     const savedCore = localStorage.getItem("hex_activeCoreId");
     if (savedApp) setActiveApp(savedApp as AppId);

@@ -138,19 +138,19 @@ case $COMMAND in
     
     echo "Checking for updates..."
     
-    LATEST_JSON=$(curl -s https://api.github.com/repos/N1N4U/Hex/releases/tags/latest)
-    PUBLISHED_AT=$(echo "$LATEST_JSON" | grep '"published_at"' | head -n 1 | cut -d '"' -f 4)
+    LATEST_COMMIT=$(curl -s https://api.github.com/repos/N1N4U/Hex/commits/main | grep '"sha"' | head -n 1 | cut -d '"' -f 4)
     
     LAST_UPDATE_FILE="/var/lib/hex/core/.last_update"
-    if [ -f "$LAST_UPDATE_FILE" ]; then
+    if [ "$TARGET" != "--force" ] && [ -f "$LAST_UPDATE_FILE" ]; then
         LAST_UPDATE=$(cat "$LAST_UPDATE_FILE")
-        if [ "$LAST_UPDATE" == "$PUBLISHED_AT" ] && [ -n "$PUBLISHED_AT" ]; then
+        if [ "$LAST_UPDATE" == "$LATEST_COMMIT" ] && [ -n "$LATEST_COMMIT" ]; then
             echo "You are already on the latest version! There is no update."
             exit 0
         fi
     fi
 
     echo "New update found! Downloading..."
+    LATEST_JSON=$(curl -s https://api.github.com/repos/N1N4U/Hex/releases/tags/latest)
     DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep '"browser_download_url"' | grep "hex-linux-$HEX_ARCH" | head -n 1 | cut -d '"' -f 4)
     if [ -z "$DOWNLOAD_URL" ]; then
         # Fallback if jq/grep fails
@@ -163,8 +163,8 @@ case $COMMAND in
         systemctl stop hex-core || true
         mv /tmp/hex-core-update /var/lib/hex/core/hex-core
         systemctl start hex-core
-        if [ -n "$PUBLISHED_AT" ]; then
-            echo "$PUBLISHED_AT" > "$LAST_UPDATE_FILE"
+        if [ -n "$LATEST_COMMIT" ]; then
+            echo "$LATEST_COMMIT" > "$LAST_UPDATE_FILE"
         fi
         echo "Hex Core updated successfully."
     else

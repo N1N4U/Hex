@@ -64,6 +64,11 @@ func NewServer(port int) *Server {
 	dbMgr := database.NewManager()
 	monitorMgr := monitor.NewManager()
 	fileMgr := files.NewManager()
+	wsMgr := NewWSManager()
+
+	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		wsMgr.HandleWS(w, r, monitorMgr)
+	})
 
 	mux.HandleFunc("/stats", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {

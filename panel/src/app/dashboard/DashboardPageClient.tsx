@@ -1085,9 +1085,12 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectError, setConnectError] = useState("");
 
-  // Fetch Cores and Setup SSE
+  // Fetch Cores and Setup WebSocket
   useEffect(() => {
-    const eventSources: EventSource[] = [];
+    let ws: WebSocket;
+    let reconnectTimeout: NodeJS.Timeout;
+    let reconnectAttempts = 0;
+    let pingInterval: NodeJS.Timeout;
 
     async function loadCores() {
       try {
@@ -1115,59 +1118,104 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
           }));
           setCores(mappedCores);
           
-          // Setup SSE for online cores
-          mappedCores.forEach(core => {
-            if (core.status === 'offline') return;
+          
+          // Setup WebSocket Connection to Panel BFF
+          const connectWs = () => {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
 
-            const es = new EventSource(`/api/nodes/${core.id}/stream`);
-            eventSources.push(es);
+            ws.onopen = () => {
+              console.log('[WS] Connected to Panel');
+              reconnectAttempts = 0;
+              
+              // Authenticate (using a placeholder token for now, replace with actual session JWT)
+              ws.send(JSON.stringify({
+                id: `req_${Date.now()}`,
+                type: 'auth',
+                token: 'bypass' // Or get from localStorage
+              }));
 
-            es.onmessage = (event) => {
+              // Setup Ping
+              pingInterval = setInterval(() => {
+                if (ws.readyState === WebSocket.OPEN) {
+                  ws.send(JSON.stringify({ id: `ping_${Date.now()}`, type: 'ping' }));
+                }
+              }, 20000);
+
+              // Subscribe to all online cores
+              mappedCores.forEach(core => {
+                if (core.status !== 'offline') {
+                  ws.send(JSON.stringify({
+                    id: `req_sub_${core.id}`,
+                    type: 'stats.subscribe',
+                    target_core_id: core.id
+                  }));
+                }
+              });
+            };
+
+            ws.onmessage = (event) => {
               try {
-                const stats = JSON.parse(event.data);
+                const data = JSON.parse(event.data);
                 
-                const formatUptime = (seconds: number) => {
-                  if (!seconds) return "—";
-                  const d = Math.floor(seconds / 86400);
-                  const h = Math.floor((seconds % 86400) / 3600);
-                  const m = Math.floor((seconds % 3600) / 60);
-                  if (d > 0) return `${d}d ${h}h`;
-                  if (h > 0) return `${h}h ${m}m`;
-                  return `${m}m`;
-                };
+                if (data.type === 'stats.update' && data.core_id) {
+                  const stats = data.payload || data; // handle unwrapping
+                  
+                  const formatUptime = (seconds: number) => {
+                    if (!seconds) return "—";
+                    const d = Math.floor(seconds / 86400);
+                    const h = Math.floor((seconds % 86400) / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    if (d > 0) return `${d}d ${h}h`;
+                    if (h > 0) return `${h}h ${m}m`;
+                    return `${m}m`;
+                  };
 
-                setCores(prev => prev.map(c => {
-                  if (c.id === core.id) {
-                    return {
-                      ...c,
-                      cpu: stats.cpu_usage || 0,
-                      ram: Number(((stats.mem_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
-                      ramTotal: Number(((stats.mem_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
-                      storage: Number(((stats.disk_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
-                      storageTotal: Number(((stats.disk_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
-                      networkSent: stats.net_sent || 0,
-                      networkRecv: stats.net_recv || 0,
-                      netTotalSent: stats.net_total_sent || 0,
-                      netTotalRecv: stats.net_total_recv || 0,
-                      uptime: formatUptime(stats.uptime),
-                      osName: stats.os_name || c.osName,
-                      cpuModel: stats.cpu_model || c.cpuModel,
-                      cpuCores: stats.cpu_cores || c.cpuCores,
-                      partitions: stats.partitions || []
-                    };
-                  }
-                  return c;
-                }));
+                  setCores(prev => prev.map(c => {
+                    if (c.id === data.core_id) {
+                      return {
+                        ...c,
+                        cpu: stats.cpu_usage || 0,
+                        ram: Number(((stats.mem_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
+                        ramTotal: Number(((stats.mem_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
+                        storage: Number(((stats.disk_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
+                        storageTotal: Number(((stats.disk_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
+                        networkSent: stats.net_sent || 0,
+                        networkRecv: stats.net_recv || 0,
+                        netTotalSent: stats.net_total_sent || 0,
+                        netTotalRecv: stats.net_total_recv || 0,
+                        uptime: formatUptime(stats.uptime),
+                        osName: stats.os_name || c.osName,
+                        cpuModel: stats.cpu_model || c.cpuModel,
+                        cpuCores: stats.cpu_cores || c.cpuCores,
+                        partitions: stats.partitions || []
+                      };
+                    }
+                    return c;
+                  }));
+                }
               } catch (e) {
-                console.error("Error parsing SSE data", e);
+                console.error("Error parsing WS data", e);
               }
             };
 
-            es.onerror = (err) => {
-              console.error(`SSE error for core ${core.id}`, err);
-              es.close();
+            ws.onclose = () => {
+              console.log('[WS] Disconnected from Panel');
+              clearInterval(pingInterval);
+              
+              // Exponential backoff reconnect
+              const backoff = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+              reconnectAttempts++;
+              console.log(`[WS] Reconnecting in ${backoff}ms...`);
+              reconnectTimeout = setTimeout(connectWs, backoff);
             };
-          });
+
+            ws.onerror = (err) => {
+              console.error('[WS] Error', err);
+            };
+          };
+
+          connectWs();
         }
       } catch (err) {
         console.error("Failed to load cores", err);
@@ -1179,7 +1227,9 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
     loadCores();
 
     return () => {
-      eventSources.forEach(es => es.close());
+      clearTimeout(reconnectTimeout);
+      clearInterval(pingInterval);
+      if (ws) ws.close();
     };
   }, []);
   

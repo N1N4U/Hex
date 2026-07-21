@@ -1,9 +1,9 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import CircularGauge from "../components/CircularGauge";
-import ProgressBar from "../components/ProgressBar";
-import PreferencesModal from "./dashboard/PreferencesModal";
-import AccountModal from "./dashboard/AccountModal";
+import CircularGauge from "../../components/CircularGauge";
+import ProgressBar from "../../components/ProgressBar";
+import PreferencesModal from "./PreferencesModal";
+import AccountModal from "./AccountModal";
 
 /* ── Types ─────────────────────────────────────────── */
 type AppId = string;

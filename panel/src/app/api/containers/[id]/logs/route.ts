@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/../database';
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { searchParams } = new URL(request.url);
   const nodeId = searchParams.get('nodeId');
   if (!nodeId) return new Response('nodeId required', { status: 400 });
@@ -10,7 +10,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
   const node = await db.get('SELECT * FROM nodes WHERE id = ?', [nodeId]);
   if (!node) return new Response('Node not found', { status: 404 });
 
-  const url = `https://${node.ip_address}:${node.port}/docker/logs?id=${params.id}&token=${node.api_key}`;
+  const { id } = await params;
+  const url = `https://${node.ip_address}:${node.port}/docker/logs?id=${id}&token=${node.api_key}`;
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
   
   const res = await fetch(url, {

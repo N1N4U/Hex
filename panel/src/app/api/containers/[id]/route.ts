@@ -18,7 +18,7 @@ async function fetchCore(nodeId: number, path: string, method: string = 'GET') {
   return res.json();
 }
 
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const body = await request.json();
     const { nodeId, action } = body;
@@ -27,7 +27,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return NextResponse.json({ error: 'nodeId and action required' }, { status: 400 });
     }
 
-    const data = await fetchCore(parseInt(nodeId), `/docker/action?id=${params.id}&action=${action}`, 'POST');
+    const { id } = await params;
+    const data = await fetchCore(parseInt(nodeId), `/docker/action?id=${id}&action=${action}`, 'POST');
     return NextResponse.json(data);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

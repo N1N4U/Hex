@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"time"
 
 	"github.com/N1N4U/Hex/core/auth"
@@ -76,6 +77,36 @@ func NewServer(port int) *Server {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(stats)
+	}))
+
+	mux.HandleFunc("/stats/stream", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Connection", "keep-alive")
+
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		ctx := r.Context()
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				stats, err := monitorMgr.GetStats(ctx)
+				if err == nil {
+					data, _ := json.Marshal(stats)
+					fmt.Fprintf(w, "data: %s\n\n", data)
+					flusher.Flush()
+				}
+			}
+		}
 	}))
 
 	mux.HandleFunc("/files", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
@@ -806,6 +837,45 @@ func NewServer(port int) *Server {
 			}
 		}
 	})
+
+	mux.HandleFunc("/system/reboot", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		go func() {
+			time.Sleep(2 * time.Second)
+			exec.Command("reboot").Run()
+		}()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	}))
+
+	mux.HandleFunc("/system/shutdown", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		go func() {
+			time.Sleep(2 * time.Second)
+			exec.Command("shutdown", "-h", "now").Run()
+		}()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	}))
+
+	mux.HandleFunc("/system/update", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		go func() {
+			time.Sleep(2 * time.Second)
+			exec.Command("hex", "update").Run()
+		}()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	}))
 
 	return &Server{
 		port: port,

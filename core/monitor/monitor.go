@@ -7,6 +7,7 @@ import (
 
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
+	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/net"
 )
@@ -18,10 +19,25 @@ type SystemStats struct {
 	MemUsage    float64 `json:"mem_usage"` // percentage
 	DiskTotal   uint64  `json:"disk_total"`
 	DiskUsed    uint64  `json:"disk_used"`
-	DiskUsage   float64 `json:"disk_usage"` // percentage
-	NetSent     uint64  `json:"net_sent"`   // bytes/sec (calculated)
-	NetRecv     uint64  `json:"net_recv"`   // bytes/sec (calculated)
-	Timestamp   string  `json:"timestamp"`
+	DiskUsage   float64          `json:"disk_usage"` // percentage
+	Partitions  []PartitionStats `json:"partitions"`
+	NetSent     uint64           `json:"net_sent"`   // bytes/sec (calculated)
+	NetRecv     uint64           `json:"net_recv"`   // bytes/sec (calculated)
+	NetTotalSent uint64          `json:"net_total_sent"`
+	NetTotalRecv uint64          `json:"net_total_recv"`
+	Timestamp   string           `json:"timestamp"`
+	Uptime      uint64           `json:"uptime"`
+	OSName      string           `json:"os_name"`
+	CPUModel    string           `json:"cpu_model"`
+	CPUCores    int              `json:"cpu_cores"`
+}
+
+type PartitionStats struct {
+	Device      string  `json:"device"`
+	Mountpoint  string  `json:"mountpoint"`
+	Total       uint64  `json:"total"`
+	Used        uint64  `json:"used"`
+	UsedPercent float64 `json:"used_percent"`
 }
 
 type Manager struct {
@@ -55,12 +71,27 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 		stats.MemUsage = math.Round(vmStat.UsedPercent*100) / 100
 	}
 
-	// Disk (root partition)
-	diskStat, err := disk.UsageWithContext(ctx, "/")
+	// Disk (root partition + others)
+	stats.Partitions = make([]PartitionStats, 0)
+	partitions, err := disk.PartitionsWithContext(ctx, false)
 	if err == nil {
-		stats.DiskTotal = diskStat.Total
-		stats.DiskUsed = diskStat.Used
-		stats.DiskUsage = math.Round(diskStat.UsedPercent*100) / 100
+		for _, p := range partitions {
+			diskStat, err := disk.UsageWithContext(ctx, p.Mountpoint)
+			if err == nil {
+				stats.Partitions = append(stats.Partitions, PartitionStats{
+					Device:      p.Device,
+					Mountpoint:  p.Mountpoint,
+					Total:       diskStat.Total,
+					Used:        diskStat.Used,
+					UsedPercent: math.Round(diskStat.UsedPercent*100) / 100,
+				})
+				if p.Mountpoint == "/" {
+					stats.DiskTotal = diskStat.Total
+					stats.DiskUsed = diskStat.Used
+					stats.DiskUsage = math.Round(diskStat.UsedPercent*100) / 100
+				}
+			}
+		}
 	}
 
 	// Network
@@ -68,6 +99,8 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	if err == nil && len(netStats) > 0 {
 		currentSent := netStats[0].BytesSent
 		currentRecv := netStats[0].BytesRecv
+		stats.NetTotalSent = currentSent
+		stats.NetTotalRecv = currentRecv
 		now := time.Now()
 		
 		elapsed := now.Sub(m.lastNetTime).Seconds()
@@ -83,6 +116,23 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 		m.lastNetSent = currentSent
 		m.lastNetRecv = currentRecv
 		m.lastNetTime = now
+	}
+
+	// Host Info
+	hostInfo, err := host.InfoWithContext(ctx)
+	if err == nil {
+		stats.Uptime = hostInfo.Uptime
+		stats.OSName = hostInfo.Platform + " " + hostInfo.PlatformVersion
+	}
+
+	// CPU Info
+	cpuInfo, err := cpu.InfoWithContext(ctx)
+	if err == nil && len(cpuInfo) > 0 {
+		stats.CPUModel = cpuInfo[0].ModelName
+	}
+	cpuCores, err := cpu.CountsWithContext(ctx, true)
+	if err == nil {
+		stats.CPUCores = cpuCores
 	}
 
 	return stats, nil

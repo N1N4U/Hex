@@ -22,6 +22,12 @@ interface Core {
   uptime: string;
   networkSent?: number;
   networkRecv?: number;
+  netTotalSent?: number;
+  netTotalRecv?: number;
+  osName?: string;
+  cpuModel?: string;
+  cpuCores?: number;
+  partitions?: any[];
 }
 
 interface DockApp {
@@ -40,6 +46,7 @@ const DEFAULT_DOCK: DockApp[] = [
   { id: "docker", label: "Docker", imgSrc: "https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" },
   { id: "files", label: "Files", icon: "folder", iconColor: "text-blue-400" },
   { id: "nginx", label: "Nginx", icon: "public", iconColor: "text-green-500" },
+  { id: "firewall", label: "Firewall", icon: "security", iconColor: "text-red-400" },
   { id: "terminal", label: "Terminal", icon: "terminal", iconColor: "text-blue-300" },
   { id: "core", label: "Cores", icon: "dns", iconColor: "text-purple-400" },
   { id: "settings", label: "Settings", icon: "settings", iconColor: "text-on-surface-variant" },
@@ -199,13 +206,36 @@ function MacDock({ apps, activeApp, onSelect }: { apps: DockApp[]; activeApp: Ap
 }
 
 /* ── Home View ──────────────────────────────────────── */
-function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores: Core[]; activeCoreId: string | "all" }) {
   const [time, setTime] = useState<Date | null>(null);
+  const [locationCache, setLocationCache] = useState<Record<string, string>>({});
+
   useEffect(() => {
     setTime(new Date());
     const t = setInterval(() => setTime(new Date()), 10000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (displayCore && displayCore.host) {
+      const ip = displayCore.host.split(":")[0];
+      if (ip && !locationCache[ip]) {
+        // Try to fetch location based on IP
+        fetch(`https://ipapi.co/${ip}/json/`)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.city && data.country_name) {
+              setLocationCache(prev => ({ ...prev, [ip]: `${data.city}, ${data.country_name}` }));
+            } else if (data && data.error) {
+              setLocationCache(prev => ({ ...prev, [ip]: "Local Network" }));
+            }
+          })
+          .catch(err => {
+            console.error("Location fetch failed", err);
+            setLocationCache(prev => ({ ...prev, [ip]: "Unknown Location" }));
+          });
+      }
+    }
+  }, [displayCore?.host]);
 
   const formattedTime = time ? time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "00:00";
   const formattedDate = time ? time.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" }) : "";
@@ -238,8 +268,24 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const handleExecuteAction = async () => {
+    if (!displayCore || !confirmAction) return;
+    setIsExecutingAction(true);
+    try {
+      const res = await fetch(`/api/nodes/${displayCore.id}/${confirmAction}`, { method: 'POST' });
+      if (!res.ok) throw new Error("Action failed");
+      // Could show a success toast here
+    } catch (e) {
+      console.error(e);
+      alert("Failed to execute action.");
+    } finally {
+      setIsExecutingAction(false);
+      setConfirmAction(null);
+    }
+  };
+
   return (
-    <div className="w-full h-full p-2">
+    <div className="w-full h-full p-2 relative">
       {/*
         Layout:
         [  CPU   ] [ Time / Uptime / Hostname / Specs ] [  RAM    ]
@@ -254,7 +300,7 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">CPU</p>
             <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
           </div>
-          <CircularGauge label="" percentage={cpuPct} subText={displayCore ? "8 Cores" : `Avg · ${onlineCores.length} cores`} />
+          <CircularGauge label="" percentage={cpuPct} subText={displayCore ? `${displayCore.cpuCores || '?'} Cores` : `Avg · ${onlineCores.length} cores`} />
         </div>
 
         {/* CENTER — tall info card spanning 2 rows */}
@@ -289,21 +335,27 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">memory</span>
             <span className="text-xs text-on-surface-variant/60">CPU</span>
-            <span className="text-xs text-on-surface font-semibold ml-auto">Intel Xeon E5</span>
+            <span className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px]" title={displayCore?.cpuModel || "Mixed CPUs"}>
+              {displayCore ? displayCore.cpuModel || "Unknown CPU" : "Mixed CPUs"}
+            </span>
           </div>
 
-          {/* RAM spec */}
+          {/* Location spec */}
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">sim_card</span>
-            <span className="text-xs text-on-surface-variant/60">RAM</span>
-            <span className="text-xs text-on-surface font-semibold ml-auto">{ramUsed.toFixed(1)} / {ramTotal} GB</span>
+            <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">location_on</span>
+            <span className="text-xs text-on-surface-variant/60">Location</span>
+            <span className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px]">
+              {displayCore ? (locationCache[displayCore.host.split(":")[0]] || "Fetching...") : "Multiple Locations"}
+            </span>
           </div>
 
           {/* OS */}
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">terminal</span>
             <span className="text-xs text-on-surface-variant/60">OS</span>
-            <span className="text-xs text-on-surface font-semibold ml-auto">Ubuntu 22.04</span>
+            <span className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px]" title={displayCore?.osName || "Mixed OS"}>
+              {displayCore ? displayCore.osName || "Unknown OS" : "Mixed OS"}
+            </span>
           </div>
 
           <div className="border-t border-white/5 my-1" />
@@ -312,12 +364,23 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
           <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Quick Actions</p>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { icon: "refresh",            label: "Reboot" },
-              { icon: "download",           label: "Update" },
-              { icon: "monitoring",         label: "Logs" },
-              { icon: "power_settings_new", label: "Shut Down" },
+              { icon: "refresh",            label: "Reboot",   action: "reboot" },
+              { icon: "download",           label: "Update",   action: "update" },
+              { icon: "monitoring",         label: "Logs",     action: "logs" },
+              { icon: "power_settings_new", label: "Shut Down",action: "shutdown" },
             ].map(a => (
-              <button key={a.icon} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 border border-white/5 transition-colors">
+              <button 
+                key={a.icon} 
+                onClick={() => {
+                  if (activeCoreId === "all") {
+                    alert("Please select a specific Core first.");
+                    return;
+                  }
+                  if (a.action === "logs") setIsLogsModalOpen(true);
+                  else setConfirmAction(a.action as any);
+                }}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 border border-white/5 transition-colors"
+              >
                 <span className="material-symbols-outlined text-on-surface-variant text-[16px]">{a.icon}</span>
                 <span className="text-[11px] text-on-surface-variant/70">{a.label}</span>
               </button>
@@ -349,6 +412,22 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
             <span>{displayCore ? `${displayCore.storage.toFixed(1)} GB` : "Used"}</span>
             <span>{displayCore ? `${displayCore.storageTotal} GB` : "Total"}</span>
           </div>
+
+          {displayCore?.partitions && displayCore.partitions.length > 0 && (
+            <div className="mt-2 flex flex-col gap-2 max-h-24 overflow-y-auto pr-1 no-scrollbar border-t border-white/5 pt-2">
+              {displayCore.partitions.map((p, idx) => (
+                <div key={idx} className="flex flex-col gap-1">
+                  <div className="flex justify-between text-[9px] text-on-surface-variant/60">
+                    <span className="truncate max-w-[80px]" title={p.mountpoint}>{p.mountpoint}</span>
+                    <span>{formatBytes(p.used)} / {formatBytes(p.total)}</span>
+                  </div>
+                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div className="h-full bg-primary/70" style={{ width: `${p.used_percent}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Network — bottom right */}
@@ -378,8 +457,89 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
             <span>Total: {formatBytes(networkRecv + networkSent)}/s</span>
             <span className="text-yellow-400">↑ {formatBytes(networkSent)}/s</span>
           </div>
+
+          <div className="mt-2 border-t border-white/5 pt-3 grid grid-cols-3 gap-2">
+            <div className="flex flex-col items-center p-1.5 rounded-lg bg-black/20">
+              <span className="text-[9px] uppercase tracking-wider text-on-surface-variant/50 font-bold mb-1">Upload</span>
+              <span className="text-[11px] font-semibold text-yellow-400/90 truncate w-full text-center" title={formatBytes(displayCore?.netTotalSent || 0)}>
+                {formatBytes(displayCore?.netTotalSent || 0)}
+              </span>
+            </div>
+            <div className="flex flex-col items-center p-1.5 rounded-lg bg-black/20">
+              <span className="text-[9px] uppercase tracking-wider text-on-surface-variant/50 font-bold mb-1">Download</span>
+              <span className="text-[11px] font-semibold text-primary/90 truncate w-full text-center" title={formatBytes(displayCore?.netTotalRecv || 0)}>
+                {formatBytes(displayCore?.netTotalRecv || 0)}
+              </span>
+            </div>
+            <div className="flex flex-col items-center p-1.5 rounded-lg bg-black/20 border border-white/5 shadow-inner">
+              <span className="text-[9px] uppercase tracking-wider text-on-surface-variant/50 font-bold mb-1">Total</span>
+              <span className="text-[11px] font-semibold text-on-surface/90 truncate w-full text-center" title={formatBytes((displayCore?.netTotalSent || 0) + (displayCore?.netTotalRecv || 0))}>
+                {formatBytes((displayCore?.netTotalSent || 0) + (displayCore?.netTotalRecv || 0))}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Action Confirmation Modal */}
+      {confirmAction && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl">
+          <div className="glass-panel w-96 rounded-2xl p-6 shadow-2xl border border-white/10">
+            <h3 className="text-xl font-bold text-on-surface mb-2 capitalize">{confirmAction} Core</h3>
+            <p className="text-sm text-on-surface-variant/70 mb-6">
+              Are you sure you want to {confirmAction} <strong>{displayCore?.name}</strong>? This action will impact running services.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setConfirmAction(null)} className="px-4 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-white/10 transition-colors">
+                Cancel
+              </button>
+              <button 
+                onClick={handleExecuteAction}
+                disabled={isExecutingAction}
+                className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors flex items-center gap-2"
+              >
+                {isExecutingAction ? "Executing..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Logs Modal */}
+      {isLogsModalOpen && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6">
+          <div className="glass-panel w-full h-full max-w-4xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
+              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">monitoring</span>
+                System Logs - {displayCore?.name}
+              </h3>
+              <button onClick={() => setIsLogsModalOpen(false)} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="flex px-6 py-2 gap-4 border-b border-white/5 overflow-x-auto no-scrollbar">
+              {["Docker", "Nginx", "Firewall", "Core", "Panel"].map(tab => (
+                <button 
+                  key={tab} 
+                  onClick={() => setActiveLogTab(tab as any)}
+                  className={`text-sm font-medium pb-2 border-b-2 transition-colors ${activeLogTab === tab ? "border-primary text-primary" : "border-transparent text-on-surface-variant/60 hover:text-on-surface"}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 p-4 bg-black/40 font-mono text-xs text-on-surface-variant/80 overflow-y-auto">
+              {/* Mock Logs for now, to be wired later */}
+              <p className="opacity-50 italic">Waiting for {activeLogTab} log stream from {displayCore?.name}...</p>
+              <br/>
+              <p className="text-green-400">[OK] Log subsystem initialized.</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -925,8 +1085,10 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectError, setConnectError] = useState("");
 
-  // Fetch Cores and Stats
+  // Fetch Cores and Setup SSE
   useEffect(() => {
+    const eventSources: EventSource[] = [];
+
     async function loadCores() {
       try {
         const res = await fetch('/api/nodes');
@@ -944,13 +1106,68 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
             storageTotal: 256,
             uptime: "—",
             networkSent: 0,
-            networkRecv: 0
+            networkRecv: 0,
+            netTotalSent: 0,
+            netTotalRecv: 0,
+            osName: "Unknown",
+            cpuModel: "Unknown",
+            cpuCores: 0
           }));
           setCores(mappedCores);
           
-          // Initial stats fetch
-          mappedCores = await fetchAllStats(mappedCores);
-          setCores([...mappedCores]);
+          // Setup SSE for online cores
+          mappedCores.forEach(core => {
+            if (core.status === 'offline') return;
+
+            const es = new EventSource(`/api/nodes/${core.id}/stream`);
+            eventSources.push(es);
+
+            es.onmessage = (event) => {
+              try {
+                const stats = JSON.parse(event.data);
+                
+                const formatUptime = (seconds: number) => {
+                  if (!seconds) return "—";
+                  const d = Math.floor(seconds / 86400);
+                  const h = Math.floor((seconds % 86400) / 3600);
+                  const m = Math.floor((seconds % 3600) / 60);
+                  if (d > 0) return `${d}d ${h}h`;
+                  if (h > 0) return `${h}h ${m}m`;
+                  return `${m}m`;
+                };
+
+                setCores(prev => prev.map(c => {
+                  if (c.id === core.id) {
+                    return {
+                      ...c,
+                      cpu: stats.cpu_usage || 0,
+                      ram: Number(((stats.mem_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
+                      ramTotal: Number(((stats.mem_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
+                      storage: Number(((stats.disk_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
+                      storageTotal: Number(((stats.disk_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
+                      networkSent: stats.net_sent || 0,
+                      networkRecv: stats.net_recv || 0,
+                      netTotalSent: stats.net_total_sent || 0,
+                      netTotalRecv: stats.net_total_recv || 0,
+                      uptime: formatUptime(stats.uptime),
+                      osName: stats.os_name || c.osName,
+                      cpuModel: stats.cpu_model || c.cpuModel,
+                      cpuCores: stats.cpu_cores || c.cpuCores,
+                      partitions: stats.partitions || []
+                    };
+                  }
+                  return c;
+                }));
+              } catch (e) {
+                console.error("Error parsing SSE data", e);
+              }
+            };
+
+            es.onerror = (err) => {
+              console.error(`SSE error for core ${core.id}`, err);
+              es.close();
+            };
+          });
         }
       } catch (err) {
         console.error("Failed to load cores", err);
@@ -959,44 +1176,11 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
       }
     }
 
-    async function fetchAllStats(currentCores: Core[]) {
-      const updatedCores = [...currentCores];
-      for (let i = 0; i < updatedCores.length; i++) {
-        const core = updatedCores[i];
-        if (core.status === 'offline') continue;
-        
-        try {
-          const statsRes = await fetch(`/api/nodes/${core.id}/stats`);
-          if (statsRes.ok) {
-            const stats = await statsRes.json();
-            updatedCores[i] = {
-              ...core,
-              cpu: stats.cpu_usage || 0,
-              ram: Number(((stats.mem_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
-              ramTotal: Number(((stats.mem_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
-              storage: Number(((stats.disk_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
-              storageTotal: Number(((stats.disk_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
-              networkSent: stats.net_sent || 0,
-              networkRecv: stats.net_recv || 0
-            };
-          }
-        } catch (e) {
-          console.error(`Failed to fetch stats for core ${core.id}`, e);
-        }
-      }
-      return updatedCores;
-    }
-
     loadCores();
 
-    const interval = setInterval(async () => {
-      setCores(prev => {
-        fetchAllStats(prev).then(updated => setCores(updated));
-        return prev;
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
+    return () => {
+      eventSources.forEach(es => es.close());
+    };
   }, []);
   
   const ALL_DOCK_APPS = [...DEFAULT_DOCK, ...customApps];

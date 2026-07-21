@@ -22,22 +22,51 @@ export default function LockScreenClient({ envConfig }: { envConfig: EnvConfig }
   useEffect(() => {
     setTime(new Date());
     const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+    
+    // Check if user is already logged in
+    const token = localStorage.getItem('hex_token');
+    if (token) {
+      fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token })
+      }).then(res => res.json()).then(data => {
+        if (data.valid) {
+          router.push('/');
+        } else {
+          localStorage.removeItem('hex_token');
+        }
+      }).catch(() => localStorage.removeItem('hex_token'));
+    }
 
-  const handleLogin = (e: React.FormEvent) => {
+    return () => clearInterval(timer);
+  }, [router]);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === envConfig.ownerUsername && password === envConfig.ownerPassword) {
-      // Create a smooth transition effect
-      document.body.style.opacity = "0";
-      setTimeout(() => {
-        router.push("/dashboard");
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      const data = await res.json();
+      
+      if (data.success && data.token) {
+        localStorage.setItem('hex_token', data.token);
+        // Create a smooth transition effect
+        document.body.style.opacity = "0";
         setTimeout(() => {
-          document.body.style.opacity = "1";
-        }, 100);
-      }, 500);
-    } else if (username.trim() !== "" && password.trim() !== "") {
-       alert("Invalid credentials.");
+          router.push("/");
+          setTimeout(() => {
+            document.body.style.opacity = "1";
+          }, 100);
+        }, 500);
+      } else {
+        alert("Invalid credentials.");
+      }
+    } catch (err) {
+      alert("Login failed.");
     }
   };
 

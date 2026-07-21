@@ -1,34 +1,28 @@
 import { NextResponse } from 'next/server';
-import bcrypt from 'bcrypt';
-import { getDb } from '@/../database';
-import { createSession } from '@/lib/session';
+import { SignJWT } from 'jose';
 
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
 
-    if (!username || !password) {
-      return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
+    const expectedUsername = process.env.OWNER_USERNAME || 'admin';
+    const expectedPassword = process.env.OWNER_PASSWORD || 'admin';
+
+    if (username === expectedUsername && password === expectedPassword) {
+      // Sign with the dynamically generated RUNTIME_SECRET
+      const secret = new TextEncoder().encode(process.env.RUNTIME_SECRET || 'fallback_secret_change_in_production');
+      
+      const token = await new SignJWT({ user: 'admin' })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('24h') // or whatever you like
+        .sign(secret);
+
+      return NextResponse.json({ success: true, token });
     }
 
-    const db = await getDb();
-    const user = await db.get('SELECT * FROM users WHERE username = ?', [username]);
-
-    if (!user) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-    }
-
-    const match = await bcrypt.compare(password, user.password_hash);
-    if (!match) {
-      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
-    }
-
-    // Set HttpOnly secure cookie via jose JWT
-    await createSession(user.id, user.role);
-
-    return NextResponse.json({ success: true, role: user.role });
+    return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

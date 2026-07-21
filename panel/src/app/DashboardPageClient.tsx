@@ -1,9 +1,9 @@
 "use client";
 import { useState, useEffect, useRef, useCallback } from "react";
-import CircularGauge from "../../components/CircularGauge";
-import ProgressBar from "../../components/ProgressBar";
-import PreferencesModal from "./PreferencesModal";
-import AccountModal from "./AccountModal";
+import CircularGauge from "../components/CircularGauge";
+import ProgressBar from "../components/ProgressBar";
+import PreferencesModal from "./dashboard/PreferencesModal";
+import AccountModal from "./dashboard/AccountModal";
 
 /* ── Types ─────────────────────────────────────────── */
 type AppId = string;
@@ -1135,11 +1135,17 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               console.log('[WS] Connected to Panel');
               reconnectAttempts = 0;
               
-              // Authenticate (using a placeholder token for now, replace with actual session JWT)
+              // Authenticate using the JWT from localStorage
+              const token = localStorage.getItem('hex_token');
+              if (!token) {
+                window.location.href = '/auth/login';
+                return;
+              }
+
               ws.send(JSON.stringify({
                 id: `req_${Date.now()}`,
                 type: 'auth',
-                token: 'bypass' // Or get from localStorage
+                token: token
               }));
 
               // Setup Ping
@@ -1165,6 +1171,14 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               try {
                 const data = JSON.parse(event.data);
                 
+                // Handle auth failure (server restarted, invalid token, etc.)
+                if (data.type === 'auth' && data.error) {
+                  console.error('WS Auth Failed:', data.error);
+                  localStorage.removeItem('hex_token');
+                  window.location.href = '/auth/login';
+                  return;
+                }
+
                 if (data.type === 'stats.update' && data.core_id) {
                   const stats = data.payload || data; // handle unwrapping
                   

@@ -3,6 +3,12 @@ import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer } from 'ws';
 import { setupBrowserWebSocketServer } from './browser';
+import { randomBytes } from 'crypto';
+
+// Generate an in-memory secret on every restart for JWTs
+if (!process.env.RUNTIME_SECRET) {
+  process.env.RUNTIME_SECRET = randomBytes(32).toString('hex');
+}
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });

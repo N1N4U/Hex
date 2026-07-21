@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/session';
-import { coreClient } from '@/lib/coreClient';
+import { coreFetch as coreClient } from '@/lib/coreClient';
 
 export async function GET(
   request: Request,

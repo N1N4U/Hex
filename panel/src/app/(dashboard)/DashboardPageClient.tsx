@@ -260,8 +260,8 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
   const cpuPct = displayCore ? displayCore.cpu : totalCPU;
   const ramUsed = displayCore ? displayCore.ram : totalRAM;
   const ramTotal = displayCore ? displayCore.ramTotal : totalRAMMax;
-  const ramPercent = displayCore ? Math.round((displayCore.ram / displayCore.ramTotal) * 100) : ramPct;
-  const storagePct = displayCore ? Math.round((displayCore.storage / displayCore.storageTotal) * 100) : 28;
+  const ramPercent = displayCore ? (displayCore.ramTotal ? Math.round((displayCore.ram / displayCore.ramTotal) * 100) : 0) : ramPct;
+  const storagePct = displayCore ? (displayCore.storageTotal ? Math.round((displayCore.storage / displayCore.storageTotal) * 100) : 0) : 28;
   const storageLabel = displayCore ? `${displayCore.storage} / ${displayCore.storageTotal} GB` : "Multi-disk";
 
   const networkSent = displayCore ? (displayCore.networkSent || 0) : onlineCores.reduce((s, c) => s + (c.networkSent || 0), 0);
@@ -420,9 +420,9 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
             <span>{displayCore ? `${displayCore.storageTotal} GB` : "Total"}</span>
           </div>
 
-          {displayCore?.partitions && displayCore.partitions.length > 0 && (
+          {displayCore?.partitions && Array.isArray(displayCore.partitions) && displayCore.partitions.length > 0 && (
             <div className="mt-2 flex flex-col gap-2 max-h-24 overflow-y-auto pr-1 no-scrollbar border-t border-white/5 pt-2">
-              {displayCore.partitions.map((p, idx) => (
+              {displayCore.partitions.map((p: any, idx: number) => (
                 <div key={idx} className="flex flex-col gap-1">
                   <div className="flex justify-between text-[9px] text-on-surface-variant/60">
                     <span className="truncate max-w-[80px]" title={p.mountpoint}>{p.mountpoint}</span>

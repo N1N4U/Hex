@@ -206,8 +206,15 @@ function MacDock({ apps, activeApp, onSelect }: { apps: DockApp[]; activeApp: Ap
 }
 
 /* ── Home View ──────────────────────────────────────── */
+function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores: Core[]; activeCoreId: string | "all" }) {
   const [time, setTime] = useState<Date | null>(null);
   const [locationCache, setLocationCache] = useState<Record<string, string>>({});
+
+  // Modals state
+  const [confirmAction, setConfirmAction] = useState<"reboot" | "update" | "shutdown" | null>(null);
+  const [isExecutingAction, setIsExecutingAction] = useState(false);
+  const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
+  const [activeLogTab, setActiveLogTab] = useState<"Docker" | "Nginx" | "Firewall" | "Core" | "Panel">("Core");
 
   useEffect(() => {
     setTime(new Date());

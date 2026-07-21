@@ -3,18 +3,19 @@ import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer } from 'ws';
 import { setupBrowserWebSocketServer } from './browser';
-import { randomBytes } from 'crypto';
-
-// Generate an in-memory secret on every restart for JWTs
-if (!process.env.RUNTIME_SECRET) {
-  process.env.RUNTIME_SECRET = randomBytes(32).toString('hex');
-}
+import { getDb } from '../../database';
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
 const handle = app.getRequestHandler();
 
-app.prepare().then(() => {
+async function main() {
+  // Initialize DB first — this loads the persistent JWT_SECRET so tokens
+  // stay valid across server restarts / hot-reloads during development.
+  await getDb();
+
+  await app.prepare();
+
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     handle(req, res, parsedUrl);
@@ -40,7 +41,9 @@ app.prepare().then(() => {
   server.listen(PORT, () => {
     console.log(`> Ready on http://localhost:${PORT}`);
   });
-}).catch(err => {
-  console.error("Error starting Next.js custom server:", err);
+}
+
+main().catch(err => {
+  console.error("Fatal error starting server:", err);
   process.exit(1);
 });

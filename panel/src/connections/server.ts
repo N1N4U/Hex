@@ -26,12 +26,14 @@ async function main() {
   server.on('upgrade', (request, socket, head) => {
     const parsedUrl = parse(request.url!, true);
     if (parsedUrl.pathname === '/ws') {
+      // Our custom WebSocket for browser ↔ panel communication
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
       });
-    } else {
-      socket.destroy();
     }
+    // For all other paths (Next.js HMR at /_next/webpack-hmr, etc.)
+    // do NOT destroy the socket — Next.js attaches its own upgrade listener
+    // to handle those connections internally.
   });
 
   // Attach Browser WS Logic

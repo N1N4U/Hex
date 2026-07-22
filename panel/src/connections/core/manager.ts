@@ -19,17 +19,18 @@ class CoreConnectionManager {
   private async connectToCore(coreId: string): Promise<WebSocket | null> {
     try {
       const db = await getDb();
-      const node = await db.get('SELECT ip_address, port, protocol, api_key FROM nodes WHERE id = ?', [coreId]);
+      const node = await db.get('SELECT name, ip_address, port, protocol, api_key FROM nodes WHERE id = ?', [coreId]);
       if (!node) return null;
 
       const wsProtocol = node.protocol === 'https' ? 'wss' : 'ws';
       const coreUrl = `${wsProtocol}://${node.ip_address}:${node.port}/ws`;
+      const coreName = node.name || coreId;
       
       const coreWs = new WebSocket(coreUrl);
 
       return new Promise((resolve) => {
         coreWs.on('open', () => {
-          console.log(`[BFF -> Core] Connected to Core ${coreId} at ${coreUrl}`);
+          console.log(`[BFF -> Core] Connected to Core "${coreName}" at ${coreUrl}`);
           this.connections.set(coreId, coreWs);
           
           // Authenticate with core
@@ -45,17 +46,17 @@ class CoreConnectionManager {
 
         coreWs.on('message', (msg: Buffer) => {
           const messageStr = msg.toString();
-          console.log(`[Core -> BFF] Received message from Core ${coreId}:`, messageStr.length > 200 ? messageStr.substring(0, 200) + '...' : messageStr);
+          console.log(`[Core -> BFF] Received message from Core "${coreName}":`, messageStr.length > 200 ? messageStr.substring(0, 200) + '...' : messageStr);
           this.handleCoreMessage(coreId, messageStr);
         });
 
         coreWs.on('close', () => {
-          console.log(`[BFF -> Core] Disconnected from Core ${coreId}`);
+          console.log(`[BFF -> Core] Disconnected from Core "${coreName}"`);
           this.connections.delete(coreId);
         });
 
         coreWs.on('error', (err) => {
-          console.error(`[BFF -> Core] Error on Core ${coreId}:`, err.message);
+          console.error(`[BFF -> Core] Error on Core "${coreName}":`, err.message);
           resolve(null);
         });
       });

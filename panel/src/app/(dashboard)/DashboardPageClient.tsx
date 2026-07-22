@@ -1144,7 +1144,8 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               // Authenticate using the JWT from localStorage
               const token = localStorage.getItem('hex_token');
               if (!token) {
-                window.location.href = '/auth/login';
+                // No token — just close the WS, don't redirect (HTTP auth check handles that)
+                ws.close();
                 return;
               }
 
@@ -1179,9 +1180,11 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
                 
                 // Handle auth failure (server restarted, invalid token, etc.)
                 if (data.type === 'auth' && data.error) {
-                  console.error('WS Auth Failed:', data.error);
-                  localStorage.removeItem('hex_token');
-                  window.location.href = '/auth/login';
+                  // WS auth failed — this does NOT mean the user is logged out.
+                  // The HTTP session is still valid. Just close the WS and
+                  // the reconnect logic will retry. Do NOT clear the token!
+                  console.warn('[WS] Auth failed, will retry on reconnect:', data.error);
+                  ws.close();
                   return;
                 }
 

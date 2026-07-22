@@ -1,17 +1,7 @@
 import WebSocket from 'ws';
-import { open } from 'sqlite';
-import sqlite3 from 'sqlite3';
-import path from 'path';
+import { getDb } from '../../database';
 import { browserManager } from '../browser/manager';
 import { WSMessage } from '../protocol/types';
-
-// Helper to get SQLite DB to lookup cores
-async function getDb() {
-  return open({
-    filename: path.join(process.cwd(), 'database.sqlite'),
-    driver: sqlite3.Database
-  });
-}
 
 class CoreConnectionManager {
   private connections: Map<string, WebSocket> = new Map();
@@ -39,7 +29,7 @@ class CoreConnectionManager {
 
       return new Promise((resolve) => {
         coreWs.on('open', () => {
-          console.log(`[WS] Connected to Core ${coreId}`);
+          console.log(`[BFF -> Core] Connected to Core ${coreId} at ${coreUrl}`);
           this.connections.set(coreId, coreWs);
           
           // Authenticate with core
@@ -52,16 +42,18 @@ class CoreConnectionManager {
         });
 
         coreWs.on('message', (msg: Buffer) => {
-          this.handleCoreMessage(coreId, msg.toString());
+          const messageStr = msg.toString();
+          console.log(`[Core -> BFF] Received message from Core ${coreId}:`, messageStr.length > 200 ? messageStr.substring(0, 200) + '...' : messageStr);
+          this.handleCoreMessage(coreId, messageStr);
         });
 
         coreWs.on('close', () => {
-          console.log(`[WS] Disconnected from Core ${coreId}`);
+          console.log(`[BFF -> Core] Disconnected from Core ${coreId}`);
           this.connections.delete(coreId);
         });
 
         coreWs.on('error', (err) => {
-          console.error(`[WS] Error on Core ${coreId}:`, err.message);
+          console.error(`[BFF -> Core] Error on Core ${coreId}:`, err.message);
           resolve(null);
         });
       });

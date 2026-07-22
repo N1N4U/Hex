@@ -4,10 +4,12 @@ import { authenticateBrowserClient } from './auth';
 import { coreManager } from '../core/manager';
 
 export async function handleBrowserMessage(client: BrowserClient, rawMessage: string) {
+  console.log(`[Browser -> BFF] Received:`, rawMessage.length > 200 ? rawMessage.substring(0, 200) + '...' : rawMessage);
   let msg: WSMessage;
   try {
     msg = JSON.parse(rawMessage);
   } catch (e) {
+    console.error(`[Browser -> BFF] Error parsing message:`, rawMessage);
     client.ws.send(JSON.stringify({ error: 'Invalid JSON' }));
     return;
   }
@@ -39,16 +41,19 @@ export async function handleBrowserMessage(client: BrowserClient, rawMessage: st
   // Route requests to specific cores based on target_core_id
   if (msg.target_core_id) {
     const coreId = msg.target_core_id.toString();
+    console.log(`[BFF] Routing message to Core ${coreId}...`);
     
     // Core Manager handles auto-connecting to the core if necessary
     const coreWs = await coreManager.getOrConnectCore(coreId);
     
     if (!coreWs) {
+      console.log(`[BFF] Failed to connect to Core ${coreId}`);
       client.ws.send(JSON.stringify({ id: msg.id, error: `Could not connect to Core ${coreId}` }));
       return;
     }
 
     // Forward to Core
+    console.log(`[BFF -> Core ${coreId}] Forwarding raw message.`);
     coreWs.send(rawMessage);
   } else {
     // Panel-level requests

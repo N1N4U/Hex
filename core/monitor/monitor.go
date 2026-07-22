@@ -2,7 +2,10 @@ package monitor
 
 import (
 	"context"
+	"io"
 	"math"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -30,6 +33,7 @@ type SystemStats struct {
 	OSName      string           `json:"os_name"`
 	CPUModel    string           `json:"cpu_model"`
 	CPUCores    int              `json:"cpu_cores"`
+	HostIP      string           `json:"host_ip"`
 }
 
 type PartitionStats struct {
@@ -44,17 +48,36 @@ type Manager struct {
 	lastNetSent uint64
 	lastNetRecv uint64
 	lastNetTime time.Time
+	hostIP      string
 }
 
 func NewManager() *Manager {
-	return &Manager{
+	m := &Manager{
 		lastNetTime: time.Now(),
+		hostIP:      "Unknown",
 	}
+	
+	// Fetch public IP in background
+	go func() {
+		client := http.Client{Timeout: 5 * time.Second}
+		resp, err := client.Get("https://api.ipify.org")
+		if err == nil {
+			defer resp.Body.Close()
+			if body, err := io.ReadAll(resp.Body); err == nil {
+				ip := strings.TrimSpace(string(body))
+				if ip != "" {
+					m.hostIP = ip
+				}
+			}
+		}
+	}()
+	return m
 }
 
 func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	stats := &SystemStats{
 		Timestamp: time.Now().Format(time.RFC3339),
+		HostIP:    m.hostIP,
 	}
 
 	// CPU

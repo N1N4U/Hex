@@ -336,7 +336,7 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
             <span className="text-xs text-on-surface-variant/60">Host IP</span>
             <div className="ml-auto flex items-center gap-2">
               <span className={`text-xs font-semibold truncate max-w-[120px] transition-all duration-300 ${showHostIP ? 'text-on-surface' : 'text-transparent bg-on-surface-variant/30 select-none rounded blur-sm'}`}>
-                {displayCore ? displayCore.host.split(":")[0] : panelName}
+                {displayCore ? (displayCore.stats?.host_ip || displayCore.host.split(":")[0]) : panelName}
               </span>
               <button 
                 onClick={() => setShowHostIP(!showHostIP)}

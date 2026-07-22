@@ -35,7 +35,9 @@ class CoreConnectionManager {
           // Authenticate with core
           coreWs.send(JSON.stringify({
             type: 'auth',
-            token: node.api_key
+            payload: {
+              token: node.api_key
+            }
           }));
 
           resolve(coreWs);

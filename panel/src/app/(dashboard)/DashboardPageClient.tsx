@@ -28,6 +28,7 @@ interface Core {
   cpuModel?: string;
   cpuCores?: number;
   partitions?: any[];
+  stats?: any;
 }
 
 interface DockApp {

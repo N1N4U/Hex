@@ -1,5 +1,5 @@
 import WebSocket from 'ws';
-import { getDb } from '../../database';
+import { getDb } from '../../../database';
 import { browserManager } from '../browser/manager';
 import { WSMessage } from '../protocol/types';
 

@@ -215,6 +215,7 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
   const [isExecutingAction, setIsExecutingAction] = useState(false);
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
   const [activeLogTab, setActiveLogTab] = useState<"Docker" | "Nginx" | "Firewall" | "Core" | "Panel">("Core");
+  const [showHostIP, setShowHostIP] = useState(false);
 
   useEffect(() => {
     setTime(new Date());
@@ -329,13 +330,24 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
             </span>
           </div>
 
-          {/* Hostname */}
+          {/* Host IP */}
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">computer</span>
-            <span className="text-xs text-on-surface-variant/60">Hostname</span>
-            <span className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[90px]">
-              {displayCore ? displayCore.host.split(":")[0] : panelName}
-            </span>
+            <span className="text-xs text-on-surface-variant/60">Host IP</span>
+            <div className="ml-auto flex items-center gap-2">
+              <span className={`text-xs font-semibold truncate max-w-[120px] transition-all duration-300 ${showHostIP ? 'text-on-surface' : 'text-transparent bg-on-surface-variant/30 select-none rounded blur-sm'}`}>
+                {displayCore ? displayCore.host.split(":")[0] : panelName}
+              </span>
+              <button 
+                onClick={() => setShowHostIP(!showHostIP)}
+                className="text-on-surface-variant/50 hover:text-on-surface transition-colors flex items-center justify-center p-1 rounded-md hover:bg-white/5"
+                title={showHostIP ? "Hide IP" : "Show IP"}
+              >
+                <span className="material-symbols-outlined text-[14px]">
+                  {showHostIP ? 'visibility_off' : 'visibility'}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* CPU type spec */}

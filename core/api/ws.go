@@ -11,6 +11,7 @@ import (
 
 	"github.com/N1N4U/Hex/core/auth"
 	"github.com/N1N4U/Hex/core/database"
+	"github.com/N1N4U/Hex/core/monitor"
 	"github.com/gorilla/websocket"
 )
 
@@ -124,11 +125,12 @@ func (m *WSManager) streamStats(conn *websocket.Conn, monitorMgr interface{}, re
 	
 	// Check if monitorMgr has GetStats method
 	type StatGetter interface {
-		GetStats(context.Context) (interface{}, error)
+		GetStats(context.Context) (*monitor.SystemStats, error)
 	}
 
 	getter, ok := monitorMgr.(StatGetter)
 	if !ok {
+		log.Println("WS Error: monitorMgr does not implement StatGetter")
 		return
 	}
 

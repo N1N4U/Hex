@@ -1162,21 +1162,28 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
                 }
               }, 20000);
 
-              // Subscribe to all online cores
-              mappedCores.forEach(core => {
-                if (core.status !== 'offline') {
-                  ws.send(JSON.stringify({
-                    id: `req_sub_${core.id}`,
-                    type: 'stats.subscribe',
-                    target_core_id: core.id
-                  }));
-                }
-              });
+              // Note: We don't subscribe to cores here anymore.
+              // We wait for the 'auth' success message in onmessage
+              // before sending the subscriptions, otherwise we hit a race condition.
             };
 
             ws.onmessage = (event) => {
               try {
                 const data = JSON.parse(event.data);
+                
+                if (data.type === 'auth' && data.success) {
+                  console.log('[WS] Auth successful, subscribing to cores...');
+                  // Subscribe to all online cores now that we are authenticated
+                  mappedCores.forEach(core => {
+                    if (core.status !== 'offline') {
+                      ws.send(JSON.stringify({
+                        id: `req_sub_${core.id}`,
+                        type: 'stats.subscribe',
+                        target_core_id: core.id
+                      }));
+                    }
+                  });
+                }
                 
                 // Handle auth failure (server restarted, invalid token, etc.)
                 if (data.type === 'auth' && data.error) {

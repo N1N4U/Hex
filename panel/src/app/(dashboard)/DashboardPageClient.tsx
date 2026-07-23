@@ -235,6 +235,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
   const displayCore = activeCoreId === "all" ? null : cores.find(c => c.id === activeCoreId) ?? null;
   const onlineCores = cores.filter(c => c.status !== "offline");
 
+  useEffect(() => {
     if (displayCore && displayCore.host) {
       const ip = displayCore.host.split(":")[0];
       if (ip && !locationCache[ip] && locationCache[ip] !== "Fetching..." && locationCache[ip] !== "Error") {

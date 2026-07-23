@@ -1,0 +1,59 @@
+name: Build Core
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'core/**'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'core/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Core for Linux and Windows
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.22'
+
+    - name: Build Linux amd64
+      env:
+        GOOS: linux
+        GOARCH: amd64
+      run: |
+        cd core
+        go build -v -o hex-core-linux-amd64 main.go
+
+    - name: Build Linux arm64
+      env:
+        GOOS: linux
+        GOARCH: arm64
+      run: |
+        cd core
+        go build -v -o hex-core-linux-arm64 main.go
+
+    - name: Build Windows amd64
+      env:
+        GOOS: windows
+        GOARCH: amd64
+      run: |
+        cd core
+        go build -v -o hex-core-windows-amd64.exe main.go
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: hex-core-binaries
+        path: |
+          core/hex-core-linux-amd64
+          core/hex-core-linux-arm64
+          core/hex-core-windows-amd64.exe
+        retention-days: 7

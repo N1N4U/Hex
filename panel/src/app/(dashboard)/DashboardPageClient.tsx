@@ -209,7 +209,7 @@ function MacDock({ apps, activeApp, onSelect }: { apps: DockApp[]; activeApp: Ap
 }
 
 /* ── Home View ──────────────────────────────────────── */
-function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores: Core[]; activeCoreId: string | "all" }) {
+function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelName: string; cores: Core[]; activeCoreId: string | "all"; wsPing: number | null; apiPing: number | null }) {
   const [time, setTime] = useState<Date | null>(null);
   const [locationCache, setLocationCache] = useState<Record<string, string>>({});
 
@@ -221,8 +221,6 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
   const [showHostIP, setShowHostIP] = useState(false);
   const [showCoreLogs, setShowCoreLogs] = useState(false);
   const [showCpuModal, setShowCpuModal] = useState(false);
-  const [wsPing, setWsPing] = useState<number | null>(null);
-  const [apiPing, setApiPing] = useState<number | null>(null);
   const [networkHistory, setNetworkHistory] = useState<{up: number, down: number, max: number}[]>(Array(20).fill({up:0, down:0, max:1}));
   const [showProcessesModal, setShowProcessesModal] = useState(false);
 
@@ -230,11 +228,6 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
     setTime(new Date());
     const t = setInterval(() => {
       setTime(new Date());
-      // API Ping test
-      const start = Date.now();
-      fetch('/api/nodes').then(res => {
-        if (res.ok) setApiPing(Date.now() - start);
-      }).catch(() => setApiPing(null));
     }, 10000);
     return () => clearInterval(t);
   }, []);
@@ -1194,6 +1187,19 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
   
   const [cores, setCores] = useState<Core[]>([]);
   const [isLoadingCores, setIsLoadingCores] = useState(true);
+  const [wsPing, setWsPing] = useState<number | null>(null);
+  const [apiPing, setApiPing] = useState<number | null>(null);
+
+  // Setup periodic API Ping
+  useEffect(() => {
+    const t = setInterval(() => {
+      const start = Date.now();
+      fetch('/api/nodes').then(res => {
+        if (res.ok) setApiPing(Date.now() - start);
+      }).catch(() => setApiPing(null));
+    }, 10000);
+    return () => clearInterval(t);
+  }, []);
 
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
@@ -1514,7 +1520,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
             <EmptyStateView onConnect={() => setIsConnectModalOpen(true)} />
           ) : (
             <>
-              {activeApp === "home" && <HomeView panelName={panelName} cores={cores} activeCoreId={activeCoreId} />}
+              {activeApp === "home" && <HomeView panelName={panelName} cores={cores} activeCoreId={activeCoreId} wsPing={wsPing} apiPing={apiPing} />}
               {activeApp === "docker" && <DockerView cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "files" && <FilesView cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "core" && (

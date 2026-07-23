@@ -106,13 +106,9 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 
 	// Disk (root partition + others)
 	stats.Partitions = make([]PartitionStats, 0)
-	partitions, err := disk.PartitionsWithContext(ctx, true) // Changed to true to get all
+	partitions, err := disk.PartitionsWithContext(ctx, false) // Back to false to hide /sys, /proc, /dev, etc
 	if err == nil {
 		for _, p := range partitions {
-			// Skip loops, snaps, etc
-			if strings.HasPrefix(p.Mountpoint, "/snap") || strings.HasPrefix(p.Mountpoint, "/loop") || strings.HasPrefix(p.Device, "tmpfs") || strings.HasPrefix(p.Device, "devtmpfs") {
-				continue
-			}
 			diskStat, err := disk.UsageWithContext(ctx, p.Mountpoint)
 			if err == nil {
 				stats.Partitions = append(stats.Partitions, PartitionStats{

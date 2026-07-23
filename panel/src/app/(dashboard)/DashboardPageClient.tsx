@@ -235,23 +235,24 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
   const displayCore = activeCoreId === "all" ? null : cores.find(c => c.id === activeCoreId) ?? null;
   const onlineCores = cores.filter(c => c.status !== "offline");
 
-  useEffect(() => {
     if (displayCore && displayCore.host) {
       const ip = displayCore.host.split(":")[0];
-      if (ip && !locationCache[ip]) {
-        // Try to fetch location based on IP
-        fetch(`https://ipapi.co/${ip}/json/`)
+      if (ip && !locationCache[ip] && locationCache[ip] !== "Fetching..." && locationCache[ip] !== "Error") {
+        // Mark as fetching to avoid rapid duplicates
+        setLocationCache(prev => ({ ...prev, [ip]: "Fetching..." }));
+        
+        fetch(`http://ip-api.com/json/${ip}`)
           .then(res => res.json())
           .then(data => {
-            if (data && data.city && data.country_name) {
-              setLocationCache(prev => ({ ...prev, [ip]: `${data.city}, ${data.country_name}` }));
-            } else if (data && data.error) {
+            if (data && data.city && data.country) {
+              setLocationCache(prev => ({ ...prev, [ip]: `${data.city}, ${data.country}` }));
+            } else {
               setLocationCache(prev => ({ ...prev, [ip]: "Local Network" }));
             }
           })
-          .catch(err => {
-            console.error("Location fetch failed", err);
-            setLocationCache(prev => ({ ...prev, [ip]: "Unknown Location" }));
+          .catch(() => {
+            // Silently fail if blocked by adblocker or no internet
+            setLocationCache(prev => ({ ...prev, [ip]: "Error" }));
           });
       }
     }
@@ -386,7 +387,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">location_on</span>
             <span className="text-xs text-on-surface-variant/60">Location</span>
             <span className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px]">
-              {displayCore ? (locationCache[displayCore.host.split(":")[0]] || "Fetching...") : "Multiple Locations"}
+              {displayCore ? (locationCache[displayCore.host.split(":")[0]] === "Error" ? "Unknown" : (locationCache[displayCore.host.split(":")[0]] || "Fetching...")) : "Multiple Locations"}
             </span>
           </div>
 
@@ -480,13 +481,46 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Network</p>
           <svg className="w-full h-14 overflow-visible" viewBox="0 0 100 30" preserveAspectRatio="none">
-            {/* Download Area fill & Line */}
-            <path d={`M0,30 ${networkHistory.map((h, i) => `L${(i / 19) * 100},${30 - (h.down / h.max) * 25}`).join(' ')} L100,30 Z`} fill="currentColor" className="text-primary opacity-10" />
-            <path d={`M${networkHistory.map((h, i) => `${(i / 19) * 100},${30 - (h.down / h.max) * 25}`).join(' L')}`} fill="transparent" stroke="currentColor" strokeWidth="2" className="text-primary opacity-80" />
-            
-            {/* Upload Area fill & Line */}
-            <path d={`M0,30 ${networkHistory.map((h, i) => `L${(i / 19) * 100},${30 - (h.up / h.max) * 25}`).join(' ')} L100,30 Z`} fill="currentColor" className="text-yellow-400 opacity-10" />
-            <path d={`M${networkHistory.map((h, i) => `${(i / 19) * 100},${30 - (h.up / h.max) * 25}`).join(' L')}`} fill="transparent" stroke="currentColor" strokeWidth="1.5" className="text-yellow-400 opacity-80" />
+            {/* Smooth Curve Function generator via SVG commands */}
+            {(() => {
+              const generateSmoothPath = (points: {x:number, y:number}[]) => {
+                if (points.length === 0) return "";
+                let path = `M ${points[0].x},${points[0].y} `;
+                for (let i = 0; i < points.length - 1; i++) {
+                  const p0 = i > 0 ? points[i - 1] : points[i];
+                  const p1 = points[i];
+                  const p2 = points[i + 1];
+                  const p3 = i !== points.length - 2 ? points[i + 2] : p2;
+                  
+                  const cp1x = p1.x + (p2.x - p0.x) / 6;
+                  const cp1y = p1.y + (p2.y - p0.y) / 6;
+                  
+                  const cp2x = p2.x - (p3.x - p1.x) / 6;
+                  const cp2y = p2.y - (p3.y - p1.y) / 6;
+                  
+                  path += `C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.x},${p2.y} `;
+                }
+                return path;
+              };
+
+              const downPoints = networkHistory.map((h, i) => ({ x: (i / 19) * 100, y: 30 - (h.down / h.max) * 25 }));
+              const upPoints = networkHistory.map((h, i) => ({ x: (i / 19) * 100, y: 30 - (h.up / h.max) * 25 }));
+              
+              const downLine = generateSmoothPath(downPoints);
+              const upLine = generateSmoothPath(upPoints);
+
+              return (
+                <>
+                  {/* Download Area fill & Line */}
+                  <path d={`${downLine} L100,30 L0,30 Z`} fill="currentColor" className="text-primary opacity-10" />
+                  <path d={downLine} fill="transparent" stroke="currentColor" strokeWidth="2" className="text-primary opacity-80" />
+                  
+                  {/* Upload Area fill & Line */}
+                  <path d={`${upLine} L100,30 L0,30 Z`} fill="currentColor" className="text-yellow-400 opacity-10" />
+                  <path d={upLine} fill="transparent" stroke="currentColor" strokeWidth="1.5" className="text-yellow-400 opacity-80" />
+                </>
+              );
+            })()}
           </svg>
           
           {/* Dual Progress Bar */}
@@ -1345,7 +1379,8 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
                         osName: stats.os_name || c.osName,
                         cpuModel: stats.cpu_model || c.cpuModel,
                         cpuCores: stats.cpu_cores || c.cpuCores,
-                        partitions: stats.partitions || []
+                        partitions: stats.partitions || [],
+                        stats: stats
                       };
                     }
                     return c;

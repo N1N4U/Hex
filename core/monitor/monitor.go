@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/net"
+	"github.com/shirou/gopsutil/v3/process"
 )
 
 type SystemStats struct {
@@ -32,8 +34,16 @@ type SystemStats struct {
 	Uptime      uint64           `json:"uptime"`
 	OSName      string           `json:"os_name"`
 	CPUModel    string           `json:"cpu_model"`
-	CPUCores    int              `json:"cpu_cores"`
-	HostIP      string           `json:"host_ip"`
+	CPUCores     int              `json:"cpu_cores"`
+	HostIP       string           `json:"host_ip"`
+	TopProcesses []ProcessStat    `json:"top_processes"`
+}
+
+type ProcessStat struct {
+	PID         int32   `json:"pid"`
+	Name        string  `json:"name"`
+	CPUPercent  float64 `json:"cpu_percent"`
+	MemoryBytes uint64  `json:"memory_bytes"`
 }
 
 type PartitionStats struct {
@@ -96,9 +106,13 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 
 	// Disk (root partition + others)
 	stats.Partitions = make([]PartitionStats, 0)
-	partitions, err := disk.PartitionsWithContext(ctx, false)
+	partitions, err := disk.PartitionsWithContext(ctx, true) // Changed to true to get all
 	if err == nil {
 		for _, p := range partitions {
+			// Skip loops, snaps, etc
+			if strings.HasPrefix(p.Mountpoint, "/snap") || strings.HasPrefix(p.Mountpoint, "/loop") || strings.HasPrefix(p.Device, "tmpfs") || strings.HasPrefix(p.Device, "devtmpfs") {
+				continue
+			}
 			diskStat, err := disk.UsageWithContext(ctx, p.Mountpoint)
 			if err == nil {
 				stats.Partitions = append(stats.Partitions, PartitionStats{
@@ -115,6 +129,18 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 				}
 			}
 		}
+	}
+
+	// Add SWAP as a pseudo-partition
+	swapStat, err := mem.SwapMemoryWithContext(ctx)
+	if err == nil && swapStat.Total > 0 {
+		stats.Partitions = append(stats.Partitions, PartitionStats{
+			Device:      "swap",
+			Mountpoint:  "[SWAP]",
+			Total:       swapStat.Total,
+			Used:        swapStat.Used,
+			UsedPercent: math.Round(swapStat.UsedPercent*100) / 100,
+		})
 	}
 
 	// Network
@@ -156,6 +182,45 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	cpuCores, err := cpu.CountsWithContext(ctx, true)
 	if err == nil {
 		stats.CPUCores = cpuCores
+	}
+
+	// Top Processes
+	procs, err := process.ProcessesWithContext(ctx)
+	if err == nil {
+		var procStats []ProcessStat
+		for _, p := range procs {
+			name, err := p.NameWithContext(ctx)
+			if err != nil {
+				continue
+			}
+			cpuP, _ := p.CPUPercentWithContext(ctx)
+			memInfo, err := p.MemoryInfoWithContext(ctx)
+			memB := uint64(0)
+			if err == nil {
+				memB = memInfo.RSS
+			}
+
+			if cpuP > 0 || memB > 0 {
+				procStats = append(procStats, ProcessStat{
+					PID:         p.Pid,
+					Name:        name,
+					CPUPercent:  math.Round(cpuP*100) / 100,
+					MemoryBytes: memB,
+				})
+			}
+		}
+
+		// Sort by CPU usage descending
+		sort.Slice(procStats, func(i, j int) bool {
+			return procStats[i].CPUPercent > procStats[j].CPUPercent
+		})
+
+		// Take top 10
+		if len(procStats) > 10 {
+			stats.TopProcesses = procStats[:10]
+		} else {
+			stats.TopProcesses = procStats
+		}
 	}
 
 	return stats, nil

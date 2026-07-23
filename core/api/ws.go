@@ -69,8 +69,7 @@ func (m *WSManager) HandleWS(w http.ResponseWriter, r *http.Request, monitorMgr 
 			break
 		}
 
-		// Reset deadline on read
-		conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		// Wait for next message (no deadline after auth)
 
 		var msg WSMessage
 		if err := json.Unmarshal(msgData, &msg); err != nil {

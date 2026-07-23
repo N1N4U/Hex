@@ -46,7 +46,9 @@ class CoreConnectionManager {
 
         coreWs.on('message', (msg: Buffer) => {
           const messageStr = msg.toString();
-          console.log(`[Core -> BFF] Received message from Core "${coreName}":`, messageStr.length > 200 ? messageStr.substring(0, 200) + '...' : messageStr);
+          if (!messageStr.includes('"type":"stats.update"')) {
+            console.log(`[Core -> BFF] Received message from Core "${coreName}":`, messageStr.length > 200 ? messageStr.substring(0, 200) + '...' : messageStr);
+          }
           this.handleCoreMessage(coreId, messageStr);
         });
 

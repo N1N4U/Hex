@@ -6,11 +6,13 @@ import PreferencesModal from "./PreferencesModal";
 import AccountModal from "./AccountModal";
 
 /* ── Types ─────────────────────────────────────────── */
+
 type AppId = string;
 type CoreStatus = "online" | "busy" | "offline";
 
+
 interface Core {
-  id: string;
+  id: string;                                 
   name: string;
   host: string;
   status: CoreStatus;
@@ -217,10 +219,23 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
   const [isLogsModalOpen, setIsLogsModalOpen] = useState(false);
   const [activeLogTab, setActiveLogTab] = useState<"Docker" | "Nginx" | "Firewall" | "Core" | "Panel">("Core");
   const [showHostIP, setShowHostIP] = useState(false);
+  const [showCoreLogs, setShowCoreLogs] = useState(false);
+  const [showCpuModal, setShowCpuModal] = useState(false);
+  const [wsPing, setWsPing] = useState<number | null>(null);
+  const [apiPing, setApiPing] = useState<number | null>(null);
+  const [networkHistory, setNetworkHistory] = useState<{up: number, down: number, max: number}[]>(Array(20).fill({up:0, down:0, max:1}));
+  const [showProcessesModal, setShowProcessesModal] = useState(false);
 
   useEffect(() => {
     setTime(new Date());
-    const t = setInterval(() => setTime(new Date()), 10000);
+    const t = setInterval(() => {
+      setTime(new Date());
+      // API Ping test
+      const start = Date.now();
+      fetch('/api/nodes').then(res => {
+        if (res.ok) setApiPing(Date.now() - start);
+      }).catch(() => setApiPing(null));
+    }, 10000);
     return () => clearInterval(t);
   }, []);
 
@@ -269,6 +284,15 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
   const networkSent = displayCore ? (displayCore.networkSent || 0) : onlineCores.reduce((s, c) => s + (c.networkSent || 0), 0);
   const networkRecv = displayCore ? (displayCore.networkRecv || 0) : onlineCores.reduce((s, c) => s + (c.networkRecv || 0), 0);
 
+  // Update Network History
+  useEffect(() => {
+    setNetworkHistory(prev => {
+      const maxVal = Math.max(...prev.map(p => p.up + p.down), networkSent + networkRecv, 1024); // at least 1KB max for scale
+      const newEntry = { up: networkSent, down: networkRecv, max: maxVal };
+      return [...prev.slice(1), newEntry];
+    });
+  }, [networkSent, networkRecv]);
+
   const formatBytes = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -304,7 +328,7 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
       <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr 1fr", gridTemplateRows: "1fr 1fr auto" }}>
 
         {/* CPU — top left */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors">
+        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowProcessesModal(true)}>
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">CPU</p>
             <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
@@ -355,7 +379,11 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
           <div className="flex items-center gap-2">
             <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">memory</span>
             <span className="text-xs text-on-surface-variant/60">CPU</span>
-            <span className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px]" title={displayCore?.cpuModel || "Mixed CPUs"}>
+            <span 
+              className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px] cursor-pointer hover:text-primary transition-colors" 
+              title={displayCore?.cpuModel || "Mixed CPUs"}
+              onClick={() => setShowCpuModal(true)}
+            >
               {displayCore ? displayCore.cpuModel || "Unknown CPU" : "Mixed CPUs"}
             </span>
           </div>
@@ -406,13 +434,18 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
               </button>
             ))}
           </div>
+          
+          <div className="flex justify-between items-center mt-2 px-1 text-[10px] text-on-surface-variant/50 font-medium">
+            <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${wsPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> WS: {wsPing !== null ? `${wsPing}ms` : '---'}</span>
+            <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${apiPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> API: {apiPing !== null ? `${apiPing}ms` : '---'}</span>
+          </div>
         </div>
 
         {/* RAM — top right */}
         <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors">
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">RAM</p>
-            <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
+            <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors" onClick={(e) => { e.stopPropagation(); setShowProcessesModal(true); }}>chevron_right</span>
           </div>
           <CircularGauge label="" percentage={ramPercent} subText={`${ramUsed.toFixed(1)} / ${ramTotal} GB`} />
         </div>
@@ -455,21 +488,21 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
           <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Network</p>
           <svg className="w-full h-14 overflow-visible" viewBox="0 0 100 30" preserveAspectRatio="none">
             {/* Download Area fill & Line */}
-            <path d="M0,30 L0,25 Q10,20 20,25 T40,15 T60,20 T80,5 T100,10 L100,30 Z" fill="currentColor" className="text-primary opacity-10" />
-            <path d="M0,25 Q10,20 20,25 T40,15 T60,20 T80,5 T100,10" fill="transparent" stroke="currentColor" strokeWidth="2" className="text-primary opacity-80" />
+            <path d={`M0,30 ${networkHistory.map((h, i) => `L${(i / 19) * 100},${30 - (h.down / h.max) * 25}`).join(' ')} L100,30 Z`} fill="currentColor" className="text-primary opacity-10" />
+            <path d={`M${networkHistory.map((h, i) => `${(i / 19) * 100},${30 - (h.down / h.max) * 25}`).join(' L')}`} fill="transparent" stroke="currentColor" strokeWidth="2" className="text-primary opacity-80" />
             
             {/* Upload Area fill & Line */}
-            <path d="M0,30 L0,28 Q10,26 20,28 T40,24 T60,26 T80,18 T100,20 L100,30 Z" fill="currentColor" className="text-yellow-400 opacity-10" />
-            <path d="M0,28 Q10,26 20,28 T40,24 T60,26 T80,18 T100,20" fill="transparent" stroke="currentColor" strokeWidth="1.5" className="text-yellow-400 opacity-80" />
+            <path d={`M0,30 ${networkHistory.map((h, i) => `L${(i / 19) * 100},${30 - (h.up / h.max) * 25}`).join(' ')} L100,30 Z`} fill="currentColor" className="text-yellow-400 opacity-10" />
+            <path d={`M${networkHistory.map((h, i) => `${(i / 19) * 100},${30 - (h.up / h.max) * 25}`).join(' L')}`} fill="transparent" stroke="currentColor" strokeWidth="1.5" className="text-yellow-400 opacity-80" />
           </svg>
           
           {/* Dual Progress Bar */}
           <div className="w-full h-1.5 bg-white/5 rounded-full relative overflow-hidden flex">
             {/* Download side (Left to Middle) max width 50% */}
-            <div className="h-full bg-primary" style={{ width: '35%' }} />
+            <div className="h-full bg-primary transition-all duration-300" style={{ width: `${Math.min(50, (networkRecv / (networkHistory[networkHistory.length - 1].max || 1)) * 50)}%` }} />
             <div className="h-full bg-transparent flex-1" />
-            {/* Upload side (Right to Middle) max width 50%, visually we align it to the right of the container, growing leftwards towards middle */}
-            <div className="h-full bg-yellow-400" style={{ width: '20%' }} />
+            {/* Upload side (Right to Middle) max width 50% */}
+            <div className="h-full bg-yellow-400 transition-all duration-300" style={{ width: `${Math.min(50, (networkSent / (networkHistory[networkHistory.length - 1].max || 1)) * 50)}%` }} />
           </div>
 
           <div className="flex justify-between text-[10px] text-on-surface-variant/50 mt-1">
@@ -521,6 +554,68 @@ function HomeView({ panelName, cores, activeCoreId }: { panelName: string; cores
                 {isExecutingAction ? "Executing..." : "Confirm"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Processes Modal */}
+      {showProcessesModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6">
+          <div className="glass-panel w-full h-full max-w-2xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
+              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">memory</span>
+                Top Processes - {displayCore?.name || "All Cores"}
+              </h3>
+              <button onClick={() => setShowProcessesModal(false)} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="flex-1 p-4 overflow-y-auto">
+              <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
+                <div className="col-span-2">PID</div>
+                <div className="col-span-6">Name</div>
+                <div className="col-span-2 text-right">CPU</div>
+                <div className="col-span-2 text-right">RAM</div>
+              </div>
+              {displayCore?.stats?.top_processes ? displayCore.stats.top_processes.map((p: any, i: number) => {
+                const isDocker = p.name.includes('docker') || p.name.includes('containerd');
+                return (
+                  <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-on-surface items-center border-b border-white/5 hover:bg-white/5 transition-colors">
+                    <div className="col-span-2 text-on-surface-variant/50">{p.pid}</div>
+                    <div className="col-span-6 flex items-center gap-2 truncate">
+                      {isDocker ? (
+                        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4 object-contain" alt="Docker" />
+                      ) : (
+                        <span className="material-symbols-outlined text-[16px] text-primary">terminal</span>
+                      )}
+                      <span className="truncate" title={p.name}>{p.name}</span>
+                    </div>
+                    <div className="col-span-2 text-right font-mono text-yellow-400">{p.cpu_percent}%</div>
+                    <div className="col-span-2 text-right font-mono text-primary">{formatBytes(p.memory_bytes)}</div>
+                  </div>
+                );
+              }) : (
+                <div className="p-8 text-center text-on-surface-variant/50 text-sm">No process data available for this core. Make sure your Hex Core is updated.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CPU Name Modal */}
+      {showCpuModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setShowCpuModal(false)}>
+          <div className="glass-panel max-w-md w-full rounded-2xl p-6 shadow-2xl border border-white/10 text-center flex flex-col gap-4 items-center" onClick={e => e.stopPropagation()}>
+            <span className="material-symbols-outlined text-[48px] text-primary">memory</span>
+            <h3 className="text-xl font-bold text-on-surface">Processor Information</h3>
+            <p className="text-sm font-mono bg-black/30 p-3 rounded-xl border border-white/5 text-primary break-words w-full select-all">
+              {displayCore?.cpuModel || "Unknown"}
+            </p>
+            <button onClick={() => setShowCpuModal(false)} className="mt-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-on-surface rounded-xl text-sm font-semibold transition-colors">
+              Close
+            </button>
           </div>
         </div>
       )}
@@ -1180,10 +1275,16 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               // before sending the subscriptions, otherwise we hit a race condition.
             };
 
-            ws.onmessage = (event) => {
+              ws.onmessage = (event) => {
               try {
                 const data = JSON.parse(event.data);
                 
+                if (data.type === 'pong' && data.id?.startsWith('ping_')) {
+                  const pingTime = parseInt(data.id.split('_')[1]);
+                  setWsPing(Date.now() - pingTime);
+                  return;
+                }
+
                 if (data.type === 'auth' && data.success) {
                   console.log('[WS] Auth successful, subscribing to cores...');
                   // Subscribe to all online cores now that we are authenticated

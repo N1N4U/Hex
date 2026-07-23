@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shirou/gopsutil/v3/cpu"
@@ -59,6 +60,9 @@ type Manager struct {
 	lastNetRecv uint64
 	lastNetTime time.Time
 	hostIP      string
+	
+	cachedProcesses []ProcessStat
+	processMu       sync.Mutex
 }
 
 func NewManager() *Manager {
@@ -81,6 +85,51 @@ func NewManager() *Manager {
 			}
 		}
 	}()
+
+	// Fetch top processes in background every 10 seconds to save CPU
+	go func() {
+		for {
+			procs, err := process.Processes()
+			if err == nil {
+				var procStats []ProcessStat
+				for _, p := range procs {
+					name, err := p.Name()
+					if err != nil {
+						continue
+					}
+					cpuP, _ := p.CPUPercent()
+					memInfo, err := p.MemoryInfo()
+					memB := uint64(0)
+					if err == nil {
+						memB = memInfo.RSS
+					}
+
+					if cpuP > 0 || memB > 0 {
+						procStats = append(procStats, ProcessStat{
+							PID:         p.Pid,
+							Name:        name,
+							CPUPercent:  math.Round(cpuP*100) / 100,
+							MemoryBytes: memB,
+						})
+					}
+				}
+
+				sort.Slice(procStats, func(i, j int) bool {
+					return procStats[i].CPUPercent > procStats[j].CPUPercent
+				})
+
+				if len(procStats) > 10 {
+					procStats = procStats[:10]
+				}
+
+				m.processMu.Lock()
+				m.cachedProcesses = procStats
+				m.processMu.Unlock()
+			}
+			time.Sleep(10 * time.Second)
+		}
+	}()
+
 	return m
 }
 
@@ -181,43 +230,9 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	}
 
 	// Top Processes
-	procs, err := process.ProcessesWithContext(ctx)
-	if err == nil {
-		var procStats []ProcessStat
-		for _, p := range procs {
-			name, err := p.NameWithContext(ctx)
-			if err != nil {
-				continue
-			}
-			cpuP, _ := p.CPUPercentWithContext(ctx)
-			memInfo, err := p.MemoryInfoWithContext(ctx)
-			memB := uint64(0)
-			if err == nil {
-				memB = memInfo.RSS
-			}
-
-			if cpuP > 0 || memB > 0 {
-				procStats = append(procStats, ProcessStat{
-					PID:         p.Pid,
-					Name:        name,
-					CPUPercent:  math.Round(cpuP*100) / 100,
-					MemoryBytes: memB,
-				})
-			}
-		}
-
-		// Sort by CPU usage descending
-		sort.Slice(procStats, func(i, j int) bool {
-			return procStats[i].CPUPercent > procStats[j].CPUPercent
-		})
-
-		// Take top 10
-		if len(procStats) > 10 {
-			stats.TopProcesses = procStats[:10]
-		} else {
-			stats.TopProcesses = procStats
-		}
-	}
+	m.processMu.Lock()
+	stats.TopProcesses = m.cachedProcesses
+	m.processMu.Unlock()
 
 	return stats, nil
 }

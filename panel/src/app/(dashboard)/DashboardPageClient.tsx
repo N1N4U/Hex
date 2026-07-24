@@ -55,6 +55,15 @@ const DEFAULT_DOCK: DockApp[] = [
   { id: "settings", label: "Settings", icon: "settings", iconColor: "text-on-surface-variant" },
 ];
 
+/* ── Utils ─────────────────────────────────────────── */
+const formatBytes = (bytes: number) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
 /* ── Core Selector Strip ────────────────────────────── */
 function CoreSelector({
   cores,
@@ -288,13 +297,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
     });
   }, [networkSent, networkRecv]);
 
-  const formatBytes = (bytes: number) => {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+
 
   const handleExecuteAction = async () => {
     if (!displayCore || !confirmAction) return;
@@ -450,7 +453,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         </div>
 
         {/* Storage — bottom left */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors">
+        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowProcessesModal("storage")}>
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Storage</p>
             <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
@@ -486,7 +489,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         </div>
 
         {/* Network — bottom right */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors">
+        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowProcessesModal("network")}>
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Network</p>
             <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>

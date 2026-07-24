@@ -114,16 +114,46 @@ func NewManager() *Manager {
 					}
 				}
 
+				// Sort by CPU
 				sort.Slice(procStats, func(i, j int) bool {
 					return procStats[i].CPUPercent > procStats[j].CPUPercent
 				})
+				
+				var topCpu []ProcessStat
+				if len(procStats) > 15 {
+					topCpu = append([]ProcessStat(nil), procStats[:15]...)
+				} else {
+					topCpu = append([]ProcessStat(nil), procStats...)
+				}
 
-				if len(procStats) > 10 {
-					procStats = procStats[:10]
+				// Sort by RAM
+				sort.Slice(procStats, func(i, j int) bool {
+					return procStats[i].MemoryBytes > procStats[j].MemoryBytes
+				})
+
+				var topRam []ProcessStat
+				if len(procStats) > 15 {
+					topRam = append([]ProcessStat(nil), procStats[:15]...)
+				} else {
+					topRam = append([]ProcessStat(nil), procStats...)
+				}
+
+				// Deduplicate
+				mergedMap := make(map[int32]ProcessStat)
+				for _, p := range topCpu {
+					mergedMap[p.PID] = p
+				}
+				for _, p := range topRam {
+					mergedMap[p.PID] = p
+				}
+
+				var finalProcs []ProcessStat
+				for _, p := range mergedMap {
+					finalProcs = append(finalProcs, p)
 				}
 
 				m.processMu.Lock()
-				m.cachedProcesses = procStats
+				m.cachedProcesses = finalProcs
 				m.processMu.Unlock()
 			}
 			time.Sleep(10 * time.Second)

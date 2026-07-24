@@ -222,7 +222,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
   const [showCoreLogs, setShowCoreLogs] = useState(false);
   const [showCpuModal, setShowCpuModal] = useState(false);
   const [networkHistory, setNetworkHistory] = useState<{up: number, down: number, max: number}[]>(Array(20).fill({up:0, down:0, max:1}));
-  const [showProcessesModal, setShowProcessesModal] = useState(false);
+  const [showProcessesModal, setShowProcessesModal] = useState<"cpu" | "ram" | null>(null);
 
   useEffect(() => {
     setTime(new Date());
@@ -323,7 +323,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
       <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr 1fr", gridTemplateRows: "1fr 1fr auto" }}>
 
         {/* CPU — top left */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowProcessesModal(true)}>
+        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowProcessesModal("cpu")}>
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">CPU</p>
             <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
@@ -437,10 +437,10 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         </div>
 
         {/* RAM — top right */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors">
+        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowProcessesModal("ram")}>
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">RAM</p>
-            <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors" onClick={(e) => { e.stopPropagation(); setShowProcessesModal(true); }}>chevron_right</span>
+            <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
           </div>
           <CircularGauge label="" percentage={ramPercent} subText={`${ramUsed.toFixed(1)} / ${ramTotal} GB`} />
         </div>
@@ -588,14 +588,14 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
 
       {/* Top Processes Modal */}
       {showProcessesModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6">
-          <div className="glass-panel w-full h-full max-w-2xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setShowProcessesModal(null)}>
+          <div className="glass-panel w-full max-w-2xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden max-h-full" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
               <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">memory</span>
-                Top Processes - {displayCore?.name || "All Cores"}
+                Top Processes by {showProcessesModal.toUpperCase()} - {displayCore?.name || "All Cores"}
               </h3>
-              <button onClick={() => setShowProcessesModal(false)} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
+              <button onClick={() => setShowProcessesModal(null)} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
@@ -607,7 +607,10 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                 <div className="col-span-2 text-right">CPU</div>
                 <div className="col-span-2 text-right">RAM</div>
               </div>
-              {displayCore?.stats?.top_processes ? displayCore.stats.top_processes.map((p: any, i: number) => {
+              {displayCore?.stats?.top_processes ? [...displayCore.stats.top_processes].sort((a: any, b: any) => {
+                if (showProcessesModal === "ram") return b.memory_bytes - a.memory_bytes;
+                return b.cpu_percent - a.cpu_percent;
+              }).map((p: any, i: number) => {
                 const isDocker = p.name.includes('docker') || p.name.includes('containerd');
                 return (
                   <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-on-surface items-center border-b border-white/5 hover:bg-white/5 transition-colors">
@@ -702,6 +705,13 @@ function DockerView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: stri
 
   return (
     <div className="w-full flex flex-col gap-4">
+      <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400/90 px-4 py-3 rounded-xl text-sm flex items-start gap-3">
+        <span className="material-symbols-outlined text-[18px] mt-0.5">construction</span>
+        <div>
+          <p className="font-bold">Work in Progress</p>
+          <p className="text-xs opacity-80 mt-1">This Docker area is currently displaying sample mock data to showcase the UI design. We will connect this to the real Docker daemon running on your Hex Core in the next phase of development!</p>
+        </div>
+      </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" alt="Docker" className="w-7 h-7" />
@@ -979,7 +989,18 @@ function CoreManagementView({ cores, onConnect, onRemove }: { cores: Core[]; onC
               </span>
             </div>
 
-            <div className="mt-auto pt-4 border-t border-white/10 flex justify-end">
+            <div className="mt-auto pt-4 border-t border-white/10 flex justify-between items-center">
+              <label className="flex items-center gap-2 cursor-pointer group/toggle">
+                <div className="relative">
+                  <input type="checkbox" className="sr-only" checked={core.status !== 'offline'} readOnly />
+                  <div className={`block w-8 h-5 rounded-full transition-colors ${core.status !== 'offline' ? 'bg-primary' : 'bg-white/10'}`}></div>
+                  <div className={`absolute left-1 top-1 bg-black w-3 h-3 rounded-full transition-transform ${core.status !== 'offline' ? 'translate-x-3' : 'translate-x-0'}`}></div>
+                </div>
+                <span className="text-[10px] font-semibold text-on-surface-variant/70 group-hover/toggle:text-on-surface transition-colors uppercase tracking-wider">
+                  {core.status !== 'offline' ? 'Connected' : 'Disconnected'}
+                </span>
+              </label>
+
               <button 
                 onClick={() => onRemove(core.id)}
                 className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors text-xs font-semibold flex items-center gap-1.5"

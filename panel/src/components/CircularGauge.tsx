@@ -33,7 +33,7 @@ export default function CircularGauge({ label, percentage, subText }: { label?: 
           ></circle>
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-3xl font-bold text-on-surface tracking-tighter">{percentage}%</span>
+          <span className="text-2xl font-bold text-on-surface tracking-tighter">{percentage}%</span>
         </div>
       </div>
       <div className="text-xs text-on-surface-variant/80 font-medium w-full text-center mt-3">{subText}</div>

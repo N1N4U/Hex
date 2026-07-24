@@ -4,7 +4,9 @@ import { authenticateBrowserClient } from './auth';
 import { coreManager } from '../core/manager';
 
 export async function handleBrowserMessage(client: BrowserClient, rawMessage: string) {
-  console.log(`[Browser -> BFF] Received:`, rawMessage.length > 200 ? rawMessage.substring(0, 200) + '...' : rawMessage);
+  if (!rawMessage.includes('"type":"ping"')) {
+    console.log(`[Browser -> BFF] Received:`, rawMessage.length > 200 ? rawMessage.substring(0, 200) + '...' : rawMessage);
+  }
   let msg: WSMessage;
   try {
     msg = JSON.parse(rawMessage);

@@ -13,7 +13,7 @@ export async function GET(
     const action = url.searchParams.get('action') || 'list';
 
     const db = await getDb();
-    const nodeRow = await db.get('SELECT ip_address, port, protocol, api_key FROM nodes WHERE id = ?', [id]);
+    const nodeRow = await db.get('SELECT ip_address, port, protocol, api_key FROM nodes WHERE id = ?', [Number(id)]);
 
     if (!nodeRow) {
       return NextResponse.json({ error: 'Node not found' }, { status: 404 });
@@ -61,7 +61,7 @@ export async function POST(
     }
 
     const db = await getDb();
-    const nodeRow = await db.get('SELECT ip_address, port, protocol, api_key FROM nodes WHERE id = ?', [id]);
+    const nodeRow = await db.get('SELECT ip_address, port, protocol, api_key FROM nodes WHERE id = ?', [Number(id)]);
 
     if (!nodeRow) {
       return NextResponse.json({ error: 'Node not found' }, { status: 404 });

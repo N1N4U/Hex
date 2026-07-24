@@ -593,7 +593,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
               <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary">memory</span>
-                Top Processes by {showProcessesModal.toUpperCase()} - {displayCore?.name || "All Cores"}
+                Top Processes by {showProcessesModal.toUpperCase()} Usage - {displayCore?.name || "All Cores"}
               </h3>
               <button onClick={() => setShowProcessesModal(null)} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
                 <span className="material-symbols-outlined">close</span>
@@ -692,26 +692,12 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
 
 /* ── Docker View ─────────────────────────────────────── */
 function DockerView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: string | "all" }) {
-  const allContainers = [
-    { coreId: "core-01", name: "ubuntu-server-01", status: "Running", cpu: "2.1%", ram: "121 MB", uptime: "3d 12h" },
-    { coreId: "core-01", name: "nginx-proxy", status: "Running", cpu: "0.4%", ram: "48 MB", uptime: "7d 1h" },
-    { coreId: "core-01", name: "postgres-db", status: "Running", cpu: "1.1%", ram: "256 MB", uptime: "1d 8h" },
-    { coreId: "core-02", name: "ubuntu-server-02", status: "Running", cpu: "2.2%", ram: "122 MB", uptime: "2d 4h" },
-    { coreId: "core-02", name: "redis-cache", status: "Stopped", cpu: "0.0%", ram: "0 MB", uptime: "—" },
-    { coreId: "core-02", name: "ubuntu-server-03", status: "Running", cpu: "2.3%", ram: "123 MB", uptime: "5h 20m" },
-  ];
+  const allContainers: any[] = [];
   const filtered = activeCoreId === "all" ? allContainers : allContainers.filter(c => c.coreId === activeCoreId);
   const coreName = (id: string) => cores.find(c => c.id === id)?.name ?? id;
 
   return (
     <div className="w-full flex flex-col gap-4">
-      <div className="bg-yellow-500/10 border border-yellow-500/20 text-yellow-400/90 px-4 py-3 rounded-xl text-sm flex items-start gap-3">
-        <span className="material-symbols-outlined text-[18px] mt-0.5">construction</span>
-        <div>
-          <p className="font-bold">Work in Progress</p>
-          <p className="text-xs opacity-80 mt-1">This Docker area is currently displaying sample mock data to showcase the UI design. We will connect this to the real Docker daemon running on your Hex Core in the next phase of development!</p>
-        </div>
-      </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" alt="Docker" className="w-7 h-7" />
@@ -945,7 +931,7 @@ function EmptyStateView({ onConnect }: { onConnect: () => void }) {
 }
 
 /* ── Core Management View ────────────────────────────── */
-function CoreManagementView({ cores, onConnect, onRemove }: { cores: Core[]; onConnect: () => void; onRemove: (id: string) => void }) {
+function CoreManagementView({ cores, setCores, onConnect, onRemove }: { cores: Core[]; setCores: any; onConnect: () => void; onRemove: (id: string) => void }) {
   return (
     <div className="flex flex-col h-full fade-in pb-16">
       <div className="flex items-center justify-between mb-8">
@@ -992,7 +978,16 @@ function CoreManagementView({ cores, onConnect, onRemove }: { cores: Core[]; onC
             <div className="mt-auto pt-4 border-t border-white/10 flex justify-between items-center">
               <label className="flex items-center gap-2 cursor-pointer group/toggle">
                 <div className="relative">
-                  <input type="checkbox" className="sr-only" checked={core.status !== 'offline'} readOnly />
+                  <input 
+                    type="checkbox" 
+                    className="sr-only" 
+                    checked={core.status !== 'offline'} 
+                    onChange={(e) => {
+                      // Optimistic UI update for mockup purposes
+                      const newStatus = e.target.checked ? 'online' : 'offline';
+                      setCores((prev: any) => prev.map((c: any) => c.id === core.id ? { ...c, status: newStatus } : c));
+                    }}
+                  />
                   <div className={`block w-8 h-5 rounded-full transition-colors ${core.status !== 'offline' ? 'bg-primary' : 'bg-white/10'}`}></div>
                   <div className={`absolute left-1 top-1 bg-black w-3 h-3 rounded-full transition-transform ${core.status !== 'offline' ? 'translate-x-3' : 'translate-x-0'}`}></div>
                 </div>
@@ -1250,7 +1245,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
   useEffect(() => {
     const t = setInterval(() => {
       const start = Date.now();
-      fetch('/api/nodes').then(res => {
+      fetch('/favicon.ico').then(res => {
         if (res.ok) setApiPing(Date.now() - start);
       }).catch(() => setApiPing(null));
     }, 10000);
@@ -1582,7 +1577,8 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               {activeApp === "files" && <FilesView cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "core" && (
                 <CoreManagementView 
-                  cores={cores} 
+                  cores={cores}
+                  setCores={setCores}
                   onConnect={() => setIsConnectModalOpen(true)}
                   onRemove={handleRemoveCore} 
                 />

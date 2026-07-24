@@ -617,6 +617,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             
             <div className="flex-1 p-4 overflow-y-auto">
               {showProcessesModal === "storage" ? (
+              {showProcessesModal === "storage" ? (
                 <div className="flex flex-col gap-3">
                   {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5">
@@ -636,28 +637,19 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     <div className="text-center p-8 text-on-surface-variant/50">No partition data available</div>
                   )}
                 </div>
-              ) : showProcessesModal === "network" ? (
-                <div className="flex flex-col items-center justify-center h-64 opacity-90">
-                  <span className="material-symbols-outlined text-5xl mb-3 text-primary">lan</span>
-                  <p className="font-semibold text-on-surface text-lg">Network Activity</p>
-                  <div className="flex gap-6 mt-6 w-full max-w-sm">
-                    <div className="flex-1 glass-panel rounded-xl p-4 text-center border border-white/5 bg-black/20">
-                      <p className="text-[10px] uppercase font-bold text-on-surface-variant/50 mb-1">Total Sent</p>
-                      <p className="text-lg font-mono text-yellow-400">{formatBytes(displayCore?.netTotalSent || 0)}</p>
-                    </div>
-                    <div className="flex-1 glass-panel rounded-xl p-4 text-center border border-white/5 bg-black/20">
-                      <p className="text-[10px] uppercase font-bold text-on-surface-variant/50 mb-1">Total Received</p>
-                      <p className="text-lg font-mono text-primary">{formatBytes(displayCore?.netTotalRecv || 0)}</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-on-surface-variant/40 mt-8 max-w-sm text-center">Linux kernel does not track bandwidth per-process natively. Use a tool like <span className="font-mono text-white/60">nethogs</span> for advanced process network tracing.</p>
-                </div>
               ) : (
                 <>
                   <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
                     <div className="col-span-2">PID</div>
-                    <div className="col-span-7">Name</div>
-                    <div className="col-span-3 text-right">{showProcessesModal === "cpu" ? "CPU" : "RAM"}</div>
+                    <div className="col-span-5">Name</div>
+                    {showProcessesModal === "network" ? (
+                      <>
+                        <div className="col-span-2 text-right">Net In</div>
+                        <div className="col-span-3 text-right">Net Out</div>
+                      </>
+                    ) : (
+                      <div className="col-span-5 text-right">{showProcessesModal === "cpu" ? "CPU" : "RAM"}</div>
+                    )}
                   </div>
               {displayCore?.stats?.top_processes ? [...displayCore.stats.top_processes].sort((a: any, b: any) => {
                 if (showProcessesModal === "ram") return b.memory_bytes - a.memory_bytes;
@@ -667,7 +659,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                 return (
                   <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-on-surface items-center border-b border-white/5 hover:bg-white/5 transition-colors">
                     <div className="col-span-2 text-on-surface-variant/50">{p.pid}</div>
-                    <div className="col-span-7 flex items-center gap-2 truncate">
+                    <div className="col-span-5 flex items-center gap-2 truncate">
                       {isDocker ? (
                         <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4 object-contain" alt="Docker" />
                       ) : (
@@ -675,10 +667,18 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                       )}
                       <span className="truncate" title={p.name}>{p.name}</span>
                     </div>
-                    {showProcessesModal === "cpu" ? (
-                      <div className="col-span-3 text-right font-mono text-yellow-400">{p.cpu_percent}%</div>
+                    {showProcessesModal === "network" ? (
+                      <>
+                        <div className="col-span-2 text-right font-mono text-primary group relative">
+                          0 B/s
+                          <div className="absolute hidden group-hover:block bottom-full right-0 mb-2 w-48 p-2 bg-black/90 border border-white/10 rounded text-[10px] text-white z-50">Requires nethogs kernel module for live stats</div>
+                        </div>
+                        <div className="col-span-3 text-right font-mono text-yellow-400">0 B/s</div>
+                      </>
+                    ) : showProcessesModal === "cpu" ? (
+                      <div className="col-span-5 text-right font-mono text-yellow-400">{p.cpu_percent}%</div>
                     ) : (
-                      <div className="col-span-3 text-right font-mono text-primary">{formatBytes(p.memory_bytes)}</div>
+                      <div className="col-span-5 text-right font-mono text-primary">{formatBytes(p.memory_bytes)}</div>
                     )}
                   </div>
                 );
@@ -999,8 +999,15 @@ function TerminalView({ activeCoreId }: { activeCoreId: string | "all" }) {
       term.writeln('\x1b[32m[Hex Terminal Proxy] Connected to Core\x1b[0m');
     };
 
-    ws.onmessage = (event) => {
-      term.write(event.data);
+    ws.onmessage = async (event) => {
+      if (typeof event.data === 'string') {
+        term.write(event.data);
+      } else if (event.data instanceof Blob) {
+        const text = await event.data.text();
+        term.write(text);
+      } else {
+        term.write(new Uint8Array(event.data));
+      }
     };
 
     ws.onclose = () => {
@@ -1018,7 +1025,9 @@ function TerminalView({ activeCoreId }: { activeCoreId: string | "all" }) {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      ws.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
       term.dispose();
     };
   }, [activeCoreId]);
@@ -1171,6 +1180,7 @@ function FirewallView({ activeCoreId }: { activeCoreId: string | "all" }) {
                 <th className="px-6 py-4">Target (Port)</th>
                 <th className="px-6 py-4">Action</th>
                 <th className="px-6 py-4">From</th>
+                <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Manage</th>
               </tr>
             </thead>
@@ -1181,6 +1191,24 @@ function FirewallView({ activeCoreId }: { activeCoreId: string | "all" }) {
                   <td className="px-6 py-4 font-mono font-bold text-on-surface">{rule.port}</td>
                   <td className="px-6 py-4 text-on-surface-variant/70">{rule.action}</td>
                   <td className="px-6 py-4 text-on-surface-variant/70">{rule.from}</td>
+                  <td className="px-6 py-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <div className="relative">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only" 
+                          checked={true} // UFW only returns active rules. If it's in the list, it's active. 
+                          onChange={(e) => {
+                            if (!e.target.checked) {
+                              deleteRule(rule.port);
+                            }
+                          }}
+                        />
+                        <div className={`block w-8 h-4 rounded-full transition-colors bg-primary`}></div>
+                        <div className={`absolute left-0.5 top-0.5 bg-black w-3 h-3 rounded-full transition-transform translate-x-4`}></div>
+                      </div>
+                    </label>
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <button 
                       onClick={() => deleteRule(rule.port)}

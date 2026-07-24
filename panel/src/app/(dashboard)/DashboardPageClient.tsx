@@ -603,9 +603,8 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             <div className="flex-1 p-4 overflow-y-auto">
               <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
                 <div className="col-span-2">PID</div>
-                <div className="col-span-6">Name</div>
-                <div className="col-span-2 text-right">CPU</div>
-                <div className="col-span-2 text-right">RAM</div>
+                <div className="col-span-7">Name</div>
+                <div className="col-span-3 text-right">{showProcessesModal === "cpu" ? "CPU" : "RAM"}</div>
               </div>
               {displayCore?.stats?.top_processes ? [...displayCore.stats.top_processes].sort((a: any, b: any) => {
                 if (showProcessesModal === "ram") return b.memory_bytes - a.memory_bytes;
@@ -615,7 +614,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                 return (
                   <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-on-surface items-center border-b border-white/5 hover:bg-white/5 transition-colors">
                     <div className="col-span-2 text-on-surface-variant/50">{p.pid}</div>
-                    <div className="col-span-6 flex items-center gap-2 truncate">
+                    <div className="col-span-7 flex items-center gap-2 truncate">
                       {isDocker ? (
                         <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4 object-contain" alt="Docker" />
                       ) : (
@@ -623,8 +622,11 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                       )}
                       <span className="truncate" title={p.name}>{p.name}</span>
                     </div>
-                    <div className="col-span-2 text-right font-mono text-yellow-400">{p.cpu_percent}%</div>
-                    <div className="col-span-2 text-right font-mono text-primary">{formatBytes(p.memory_bytes)}</div>
+                    {showProcessesModal === "cpu" ? (
+                      <div className="col-span-3 text-right font-mono text-yellow-400">{p.cpu_percent}%</div>
+                    ) : (
+                      <div className="col-span-3 text-right font-mono text-primary">{formatBytes(p.memory_bytes)}</div>
+                    )}
                   </div>
                 );
               }) : (

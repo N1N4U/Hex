@@ -602,8 +602,10 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           <div className="glass-panel w-full max-w-2xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden max-h-full" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
               <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">memory</span>
-                Top Processes by {showProcessesModal.toUpperCase()} Usage - {displayCore?.name || "All Cores"}
+                <span className="material-symbols-outlined text-primary">
+                  {showProcessesModal === "storage" ? "hard_drive" : showProcessesModal === "network" ? "language" : "memory"}
+                </span>
+                {showProcessesModal === "storage" ? "Storage Details" : showProcessesModal === "network" ? "Network Details" : `Top Processes by ${showProcessesModal.toUpperCase()} Usage`} - {displayCore?.name || "All Cores"}
               </h3>
               <button onClick={() => setShowProcessesModal(null)} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
                 <span className="material-symbols-outlined">close</span>
@@ -611,11 +613,18 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             </div>
             
             <div className="flex-1 p-4 overflow-y-auto">
-              <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
-                <div className="col-span-2">PID</div>
-                <div className="col-span-7">Name</div>
-                <div className="col-span-3 text-right">{showProcessesModal === "cpu" ? "CPU" : "RAM"}</div>
-              </div>
+              {showProcessesModal === "storage" || showProcessesModal === "network" ? (
+                <div className="flex flex-col items-center justify-center h-48 opacity-50">
+                  <span className="material-symbols-outlined text-4xl mb-2">construction</span>
+                  <p>Detailed {showProcessesModal} view is coming in the next update.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
+                    <div className="col-span-2">PID</div>
+                    <div className="col-span-7">Name</div>
+                    <div className="col-span-3 text-right">{showProcessesModal === "cpu" ? "CPU" : "RAM"}</div>
+                  </div>
               {displayCore?.stats?.top_processes ? [...displayCore.stats.top_processes].sort((a: any, b: any) => {
                 if (showProcessesModal === "ram") return b.memory_bytes - a.memory_bytes;
                 return b.cpu_percent - a.cpu_percent;
@@ -641,6 +650,8 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                 );
               }) : (
                 <div className="p-8 text-center text-on-surface-variant/50 text-sm">No process data available for this core. Make sure your Hex Core is updated.</div>
+              )}
+                </>
               )}
             </div>
           </div>
@@ -690,7 +701,24 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             </div>
 
             <div className="flex-1 p-4 bg-black/40 font-mono text-xs text-on-surface-variant/80 overflow-y-auto">
-              <p className="opacity-50 italic">Waiting for {activeLogTab} log stream from {displayCore?.name || "the selected Core"}...</p>
+              {activeLogTab === 'Panel' ? (
+                <>
+                  <p className="text-on-surface-variant/60">[BFF] Starting Hex Panel Background Services...</p>
+                  <p className="text-on-surface-variant/60">[BFF] Loaded 1 active core configurations.</p>
+                  <p className="text-on-surface-variant/60">[BFF] Next.js Router initialized on port 3000.</p>
+                  <p className="text-green-400">[BFF] Successfully connected to Core "Test".</p>
+                  <p className="text-on-surface-variant/60">[WS] Client connected from 192.168.1.5</p>
+                </>
+              ) : activeLogTab === 'Core' ? (
+                <>
+                  <p className="text-on-surface-variant/60">[HexCore] Initializing Daemon...</p>
+                  <p className="text-on-surface-variant/60">[HexCore] Loading plugins: Docker, Network, SysStats</p>
+                  <p className="text-on-surface-variant/60">[HexCore] Starting WebSocket server on 0.0.0.0:8080</p>
+                  <p className="text-green-400">[HexCore] Daemon is ready and accepting connections.</p>
+                </>
+              ) : (
+                <p className="opacity-50 italic">Waiting for {activeLogTab} log stream from {displayCore?.name || "the selected Core"}...</p>
+              )}
             </div>
           </div>
         </div>
@@ -899,6 +927,165 @@ function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: strin
   );
 }
 
+/* ── Terminal View (Mockup) ──────────────────────────── */
+function TerminalView() {
+  const [input, setInput] = useState("");
+  const [logs, setLogs] = useState<string[]>([
+    "Hex Terminal Proxy v1.0.0",
+    "Connecting to Hex Core...",
+    "Connected.",
+    ""
+  ]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [askingPassword, setAskingPassword] = useState(false);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      if (!isAuthenticated) {
+        if (!askingPassword) {
+          setLogs(prev => [...prev, `login: ${input}`, "Password: "]);
+          setAskingPassword(true);
+        } else {
+          setLogs(prev => [...prev, "Login incorrect", "", "login: "]);
+          setAskingPassword(false);
+        }
+      } else {
+        setLogs(prev => [...prev, `root@hex-core:~# ${input}`, "bash: command not found"]);
+      }
+      setInput("");
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col p-8 overflow-hidden bg-black fade-in h-full relative">
+      <div className="absolute inset-0 bg-black/50 pointer-events-none" />
+      <div className="z-10 flex flex-col h-full bg-[#1e1e1e] rounded-xl border border-white/10 shadow-2xl overflow-hidden font-mono text-sm">
+        <div className="bg-[#2d2d2d] px-4 py-2 flex items-center gap-2 border-b border-white/5">
+          <div className="w-3 h-3 rounded-full bg-red-500" />
+          <div className="w-3 h-3 rounded-full bg-yellow-500" />
+          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <span className="ml-4 text-xs text-white/50 tracking-wider">root@hex-core: ~</span>
+        </div>
+        <div className="flex-1 p-4 overflow-y-auto text-green-400">
+          {logs.map((log, i) => (
+            <div key={i} className="min-h-[1.5rem] whitespace-pre-wrap">{log}</div>
+          ))}
+          <div className="flex items-center">
+            <span>{!isAuthenticated ? (askingPassword ? "" : "login: ") : "root@hex-core:~# "}</span>
+            <input 
+              type={askingPassword ? "password" : "text"} 
+              autoFocus
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="bg-transparent outline-none flex-1 ml-2 text-green-400"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Firewall View (Mockup) ──────────────────────────── */
+function FirewallView() {
+  const [firewallEnabled, setFirewallEnabled] = useState(true);
+  const [rules, setRules] = useState([
+    { id: 1, port: 80, protocol: 'TCP', type: 'Allow', status: 'Active' },
+    { id: 2, port: 443, protocol: 'TCP', type: 'Allow', status: 'Active' },
+    { id: 3, port: 22, protocol: 'TCP', type: 'Allow', status: 'Inactive' },
+  ]);
+
+  return (
+    <div className="flex flex-col h-full fade-in p-8 pb-24">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-on-surface tracking-tight mb-2">Firewall Management</h2>
+          <p className="text-sm text-on-surface-variant">Configure iptables and security rules.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="text-sm font-semibold text-on-surface-variant">Master Switch</span>
+          <label className="flex items-center gap-2 cursor-pointer group/toggle">
+            <div className="relative">
+              <input 
+                type="checkbox" 
+                className="sr-only" 
+                checked={firewallEnabled} 
+                onChange={(e) => setFirewallEnabled(e.target.checked)}
+              />
+              <div className={`block w-10 h-6 rounded-full transition-colors ${firewallEnabled ? 'bg-primary' : 'bg-white/10'}`}></div>
+              <div className={`absolute left-1 top-1 bg-black w-4 h-4 rounded-full transition-transform ${firewallEnabled ? 'translate-x-4' : 'translate-x-0'}`}></div>
+            </div>
+            <span className={`text-xs font-bold uppercase ${firewallEnabled ? 'text-primary' : 'text-on-surface-variant/50'}`}>
+              {firewallEnabled ? 'Enabled' : 'Disabled'}
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div className="glass-panel rounded-2xl flex flex-col border border-white/10 overflow-hidden">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-white/[0.02]">
+          <h3 className="text-lg font-bold text-on-surface">Whitelisted Ports</h3>
+          <button className="px-4 py-1.5 rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors flex items-center gap-2 text-xs font-semibold">
+            <span className="material-symbols-outlined text-[16px]">add</span>
+            Add Rule
+          </button>
+        </div>
+        <div className="flex-1 p-0">
+          <table className="w-full text-left text-sm">
+            <thead className="text-xs uppercase text-on-surface-variant/50 bg-white/[0.01] border-b border-white/5">
+              <tr>
+                <th className="px-6 py-4">Port</th>
+                <th className="px-6 py-4">Protocol</th>
+                <th className="px-6 py-4">Action</th>
+                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 text-right">Manage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rules.map(rule => (
+                <tr key={rule.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td className="px-6 py-4 font-mono font-bold text-on-surface">{rule.port}</td>
+                  <td className="px-6 py-4 text-on-surface-variant/70">{rule.protocol}</td>
+                  <td className="px-6 py-4 text-on-surface-variant/70">{rule.type}</td>
+                  <td className="px-6 py-4">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <div className="relative">
+                        <input 
+                          type="checkbox" 
+                          className="sr-only" 
+                          checked={rule.status === 'Active'} 
+                          onChange={(e) => setRules(prev => prev.map(r => r.id === rule.id ? { ...r, status: e.target.checked ? 'Active' : 'Inactive' } : r))}
+                        />
+                        <div className={`block w-8 h-4 rounded-full transition-colors ${rule.status === 'Active' ? 'bg-primary' : 'bg-white/10'}`}></div>
+                        <div className={`absolute left-0.5 top-0.5 bg-black w-3 h-3 rounded-full transition-transform ${rule.status === 'Active' ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                      </div>
+                    </label>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <button 
+                      onClick={() => setRules(prev => prev.filter(r => r.id !== rule.id))}
+                      className="text-red-400/50 hover:text-red-400 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {rules.length === 0 && (
+            <div className="p-12 text-center text-on-surface-variant/50">
+              <span className="material-symbols-outlined text-4xl mb-2 opacity-50">security</span>
+              <p>No firewall rules configured.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Placeholder ────────────────────────────────────── */
 function PlaceholderView({ activeApp }: { activeApp: string }) {
   const fullAppsList = [...DEFAULT_DOCK, { id: "add", label: "Add App", icon: "add", iconColor: "text-on-surface-variant" }];
@@ -940,7 +1127,9 @@ function EmptyStateView({ onConnect }: { onConnect: () => void }) {
 }
 
 /* ── Core Management View ────────────────────────────── */
-function CoreManagementView({ cores, setCores, onConnect, onRemove }: { cores: Core[]; setCores: any; onConnect: () => void; onRemove: (id: string) => void }) {
+function CoreManagementView({ cores, setCores, onToggle, onConnect, onRemove }: { cores: Core[]; setCores: any; onToggle: (id: string, status: string) => void; onConnect: () => void; onRemove: (id: string) => void }) {
+  const [showIp, setShowIp] = useState<Record<string, boolean>>({});
+
   return (
     <div className="flex flex-col h-full fade-in pb-16">
       <div className="flex items-center justify-between mb-8">
@@ -967,7 +1156,12 @@ function CoreManagementView({ cores, setCores, onConnect, onRemove }: { cores: C
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-on-surface">{core.name}</h3>
-                  <p className="text-xs text-on-surface-variant/70 font-mono">{core.host}</p>
+                  <button 
+                    onClick={() => setShowIp(prev => ({ ...prev, [core.id]: !prev[core.id] }))}
+                    className="text-xs text-on-surface-variant/70 font-mono hover:text-on-surface transition-colors cursor-pointer"
+                  >
+                    {showIp[core.id] ? core.host : "Click to show IP"}
+                  </button>
                 </div>
               </div>
               <div className={`w-2.5 h-2.5 rounded-full ${core.status === 'online' ? 'bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]'}`} />
@@ -982,6 +1176,14 @@ function CoreManagementView({ cores, setCores, onConnect, onRemove }: { cores: C
                 <span className="material-symbols-outlined text-[14px]">dns</span>
                 {core.ram.toFixed(1)}GB RAM
               </span>
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">hard_drive</span>
+                {core.storage.toFixed(1)}GB Storage
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">language</span>
+                {formatBytes(core.networkSent + core.networkRecv)}/s
+              </span>
             </div>
 
             <div className="mt-auto pt-4 border-t border-white/10 flex justify-between items-center">
@@ -992,9 +1194,8 @@ function CoreManagementView({ cores, setCores, onConnect, onRemove }: { cores: C
                     className="sr-only" 
                     checked={core.status !== 'offline'} 
                     onChange={(e) => {
-                      // Optimistic UI update for mockup purposes
                       const newStatus = e.target.checked ? 'online' : 'offline';
-                      setCores((prev: any) => prev.map((c: any) => c.id === core.id ? { ...c, status: newStatus } : c));
+                      onToggle(core.id, newStatus);
                     }}
                   />
                   <div className={`block w-8 h-5 rounded-full transition-colors ${core.status !== 'offline' ? 'bg-primary' : 'bg-white/10'}`}></div>
@@ -1261,6 +1462,19 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
     return () => clearInterval(t);
   }, []);
 
+  const wsRef = useRef<WebSocket | null>(null);
+
+  const handleToggleCore = (coreId: string, status: string) => {
+    setCores(prev => prev.map(c => c.id === coreId ? { ...c, status: status as any } : c));
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      if (status === 'offline') {
+        wsRef.current.send(JSON.stringify({ type: 'stats.unsubscribe', target_core_id: coreId }));
+      } else {
+        wsRef.current.send(JSON.stringify({ id: `req_sub_${coreId}`, type: 'stats.subscribe', target_core_id: coreId }));
+      }
+    }
+  };
+
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -1310,6 +1524,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
           const connectWs = () => {
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws`);
+            wsRef.current = ws;
 
             ws.onopen = () => {
               console.log('[WS] Connected to Panel');
@@ -1383,9 +1598,11 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
                     const d = Math.floor(seconds / 86400);
                     const h = Math.floor((seconds % 86400) / 3600);
                     const m = Math.floor((seconds % 3600) / 60);
-                    if (d > 0) return `${d}d ${h}h`;
-                    if (h > 0) return `${h}h ${m}m`;
-                    return `${m}m`;
+                    const s = Math.floor(seconds % 60);
+                    if (d > 0) return `${d}d ${h}h ${m}m ${s}s`;
+                    if (h > 0) return `${h}h ${m}m ${s}s`;
+                    if (m > 0) return `${m}m ${s}s`;
+                    return `${s}s`;
                   };
 
                   setCores(prev => prev.map(c => {
@@ -1584,15 +1801,18 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               {activeApp === "home" && <HomeView panelName={panelName} cores={cores} activeCoreId={activeCoreId} wsPing={wsPing} apiPing={apiPing} />}
               {activeApp === "docker" && <DockerView cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "files" && <FilesView cores={cores} activeCoreId={activeCoreId} />}
+              {activeApp === "terminal" && <TerminalView />}
+              {activeApp === "firewall" && <FirewallView />}
               {activeApp === "core" && (
                 <CoreManagementView 
                   cores={cores}
                   setCores={setCores}
+                  onToggle={handleToggleCore}
                   onConnect={() => setIsConnectModalOpen(true)}
                   onRemove={handleRemoveCore} 
                 />
               )}
-              {activeApp !== "home" && activeApp !== "docker" && activeApp !== "files" && activeApp !== "core" && (
+              {activeApp !== "home" && activeApp !== "docker" && activeApp !== "files" && activeApp !== "terminal" && activeApp !== "firewall" && activeApp !== "core" && (
                 <PlaceholderView activeApp={activeApp} />
               )}
             </>

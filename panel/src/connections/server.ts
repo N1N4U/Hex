@@ -3,6 +3,7 @@ import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer } from 'ws';
 import { setupBrowserWebSocketServer } from './browser';
+import { setupTerminalWebSocketServer } from './terminal';
 import { getDb } from '../../database';
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -22,22 +23,24 @@ async function main() {
   });
 
   const wss = new WebSocketServer({ noServer: true });
+  const terminalWss = new WebSocketServer({ noServer: true });
 
   server.on('upgrade', (request, socket, head) => {
     const parsedUrl = parse(request.url!, true);
     if (parsedUrl.pathname === '/ws') {
-      // Our custom WebSocket for browser ↔ panel communication
       wss.handleUpgrade(request, socket, head, (ws) => {
         wss.emit('connection', ws, request);
       });
+    } else if (parsedUrl.pathname === '/ws/terminal') {
+      terminalWss.handleUpgrade(request, socket, head, (ws) => {
+        terminalWss.emit('connection', ws, request);
+      });
     }
-    // For all other paths (Next.js HMR at /_next/webpack-hmr, etc.)
-    // do NOT destroy the socket — Next.js attaches its own upgrade listener
-    // to handle those connections internally.
   });
 
-  // Attach Browser WS Logic
+  // Attach Handlers
   setupBrowserWebSocketServer(wss);
+  setupTerminalWebSocketServer(terminalWss);
 
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {

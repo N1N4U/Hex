@@ -231,7 +231,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
   const [showCoreLogs, setShowCoreLogs] = useState(false);
   const [showCpuModal, setShowCpuModal] = useState(false);
   const [networkHistory, setNetworkHistory] = useState<{up: number, down: number, max: number}[]>(Array(20).fill({up:0, down:0, max:1}));
-  const [showProcessesModal, setShowProcessesModal] = useState<"cpu" | "ram" | null>(null);
+  const [showProcessesModal, setShowProcessesModal] = useState<"cpu" | "ram" | "storage" | "network" | null>(null);
 
   useEffect(() => {
     setTime(new Date());
@@ -616,10 +616,41 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             </div>
             
             <div className="flex-1 p-4 overflow-y-auto">
-              {showProcessesModal === "storage" || showProcessesModal === "network" ? (
-                <div className="flex flex-col items-center justify-center h-48 opacity-50">
-                  <span className="material-symbols-outlined text-4xl mb-2">construction</span>
-                  <p>Detailed {showProcessesModal} view is coming in the next update.</p>
+              {showProcessesModal === "storage" ? (
+                <div className="flex flex-col gap-3">
+                  {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
+                    <div key={idx} className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">hard_drive</span> {p.mountpoint}</span>
+                        <span className="font-mono text-on-surface-variant">{formatBytes(p.used)} / {formatBytes(p.total)}</span>
+                      </div>
+                      <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden mt-1">
+                        <div className={`h-full ${p.used_percent > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${p.used_percent}%` }} />
+                      </div>
+                      <div className="flex justify-between text-xs text-on-surface-variant/50">
+                        <span>Device: {p.device}</span>
+                        <span>{p.used_percent.toFixed(1)}% Used</span>
+                      </div>
+                    </div>
+                  )) : (
+                    <div className="text-center p-8 text-on-surface-variant/50">No partition data available</div>
+                  )}
+                </div>
+              ) : showProcessesModal === "network" ? (
+                <div className="flex flex-col items-center justify-center h-64 opacity-90">
+                  <span className="material-symbols-outlined text-5xl mb-3 text-primary">lan</span>
+                  <p className="font-semibold text-on-surface text-lg">Network Activity</p>
+                  <div className="flex gap-6 mt-6 w-full max-w-sm">
+                    <div className="flex-1 glass-panel rounded-xl p-4 text-center border border-white/5 bg-black/20">
+                      <p className="text-[10px] uppercase font-bold text-on-surface-variant/50 mb-1">Total Sent</p>
+                      <p className="text-lg font-mono text-yellow-400">{formatBytes(displayCore?.netTotalSent || 0)}</p>
+                    </div>
+                    <div className="flex-1 glass-panel rounded-xl p-4 text-center border border-white/5 bg-black/20">
+                      <p className="text-[10px] uppercase font-bold text-on-surface-variant/50 mb-1">Total Received</p>
+                      <p className="text-lg font-mono text-primary">{formatBytes(displayCore?.netTotalRecv || 0)}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-on-surface-variant/40 mt-8 max-w-sm text-center">Linux kernel does not track bandwidth per-process natively. Use a tool like <span className="font-mono text-white/60">nethogs</span> for advanced process network tracing.</p>
                 </div>
               ) : (
                 <>
@@ -931,33 +962,75 @@ function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: strin
 }
 
 /* ── Terminal View (Mockup) ──────────────────────────── */
-function TerminalView() {
-  const [input, setInput] = useState("");
-  const [logs, setLogs] = useState<string[]>([
-    "Hex Terminal Proxy v1.0.0",
-    "Connecting to Hex Core...",
-    "Connected.",
-    ""
-  ]);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [askingPassword, setAskingPassword] = useState(false);
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import '@xterm/xterm/css/xterm.css';
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      if (!isAuthenticated) {
-        if (!askingPassword) {
-          setLogs(prev => [...prev, `login: ${input}`, "Password: "]);
-          setAskingPassword(true);
-        } else {
-          setLogs(prev => [...prev, "Login incorrect", "", "login: "]);
-          setAskingPassword(false);
-        }
-      } else {
-        setLogs(prev => [...prev, `root@hex-core:~# ${input}`, "bash: command not found"]);
+function TerminalView({ activeCoreId }: { activeCoreId: string | "all" }) {
+  const terminalRef = useRef<HTMLDivElement>(null);
+  const xtermRef = useRef<Terminal | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    if (!terminalRef.current || activeCoreId === "all") return;
+
+    const term = new Terminal({
+      theme: {
+        background: '#1e1e1e',
+        foreground: '#4ade80', // text-green-400
+        cursor: '#4ade80'
+      },
+      fontFamily: 'monospace',
+      fontSize: 14,
+      cursorBlink: true
+    });
+    
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(terminalRef.current);
+    fitAddon.fit();
+    xtermRef.current = term;
+
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${window.location.host}/ws/terminal?coreId=${activeCoreId}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      term.writeln('\x1b[32m[Hex Terminal Proxy] Connected to Core\x1b[0m');
+    };
+
+    ws.onmessage = (event) => {
+      term.write(event.data);
+    };
+
+    ws.onclose = () => {
+      term.writeln('\r\n\x1b[31m[Hex Terminal Proxy] Disconnected\x1b[0m');
+    };
+
+    term.onData(data => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(data);
       }
-      setInput("");
-    }
-  };
+    });
+
+    const handleResize = () => fitAddon.fit();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      ws.close();
+      term.dispose();
+    };
+  }, [activeCoreId]);
+
+  if (activeCoreId === "all") {
+    return (
+      <div className="flex-1 flex flex-col p-8 items-center justify-center text-on-surface-variant/50">
+        <span className="material-symbols-outlined text-4xl mb-4 opacity-50">terminal</span>
+        <p>Please select a specific Core from the dock to use the Terminal.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col p-8 overflow-hidden bg-black fade-in h-full relative">
@@ -967,44 +1040,91 @@ function TerminalView() {
           <div className="w-3 h-3 rounded-full bg-red-500" />
           <div className="w-3 h-3 rounded-full bg-yellow-500" />
           <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span className="ml-4 text-xs text-white/50 tracking-wider">root@hex-core: ~</span>
+          <span className="ml-4 text-xs text-white/50 tracking-wider">Terminal</span>
         </div>
-        <div className="flex-1 p-4 overflow-y-auto text-green-400">
-          {logs.map((log, i) => (
-            <div key={i} className="min-h-[1.5rem] whitespace-pre-wrap">{log}</div>
-          ))}
-          <div className="flex items-center">
-            <span>{!isAuthenticated ? (askingPassword ? "" : "login: ") : "root@hex-core:~# "}</span>
-            <input 
-              type={askingPassword ? "password" : "text"} 
-              autoFocus
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="bg-transparent outline-none flex-1 ml-2 text-green-400"
-            />
-          </div>
-        </div>
+        <div className="flex-1 p-4" ref={terminalRef} style={{ overflow: 'hidden' }}></div>
       </div>
     </div>
   );
 }
 
-/* ── Firewall View (Mockup) ──────────────────────────── */
-function FirewallView() {
+/* ── Firewall View (Real Integration) ──────────────────────────── */
+function FirewallView({ activeCoreId }: { activeCoreId: string | "all" }) {
   const [firewallEnabled, setFirewallEnabled] = useState(true);
-  const [rules, setRules] = useState([
-    { id: 1, port: 80, protocol: 'TCP', type: 'Allow', status: 'Active' },
-    { id: 2, port: 443, protocol: 'TCP', type: 'Allow', status: 'Active' },
-    { id: 3, port: 22, protocol: 'TCP', type: 'Allow', status: 'Inactive' },
-  ]);
+  const [rules, setRules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [newPort, setNewPort] = useState("");
+
+  const fetchRules = async () => {
+    if (activeCoreId === "all") return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/nodes/${activeCoreId}/firewall`);
+      const { data } = await res.json();
+      if (data) {
+        setFirewallEnabled(data.includes("Status: active"));
+        // Parse UFW output
+        const lines = data.split("\n");
+        const parsedRules = [];
+        for (const line of lines) {
+          const match = line.match(/^\[\s*(\d+)\]\s+(\S+)\s+(ALLOW IN|DENY IN)\s+(.*)$/);
+          if (match) {
+            parsedRules.push({
+              id: match[1],
+              port: match[2],
+              action: match[3],
+              from: match[4]
+            });
+          }
+        }
+        setRules(parsedRules);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRules();
+  }, [activeCoreId]);
+
+  const toggleFirewall = async (enable: boolean) => {
+    if (activeCoreId === "all") return;
+    setFirewallEnabled(enable);
+    await fetch(`/api/nodes/${activeCoreId}/firewall?action=${enable ? 'enable' : 'disable'}`, { method: 'POST' });
+    fetchRules();
+  };
+
+  const addRule = async () => {
+    if (!newPort || activeCoreId === "all") return;
+    await fetch(`/api/nodes/${activeCoreId}/firewall?action=allow&port=${newPort}`, { method: 'POST' });
+    setNewPort("");
+    fetchRules();
+  };
+
+  const deleteRule = async (port: string) => {
+    if (activeCoreId === "all") return;
+    await fetch(`/api/nodes/${activeCoreId}/firewall?action=deny&port=${port}`, { method: 'POST' });
+    fetchRules();
+  };
+
+  if (activeCoreId === "all") {
+    return (
+      <div className="flex-1 flex flex-col p-8 items-center justify-center text-on-surface-variant/50">
+        <span className="material-symbols-outlined text-4xl mb-4 opacity-50">security</span>
+        <p>Please select a specific Core from the dock to manage Firewall.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-full fade-in p-8 pb-24">
+    <div className="flex flex-col h-full fade-in p-8 pb-24 overflow-y-auto">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-bold text-on-surface tracking-tight mb-2">Firewall Management</h2>
-          <p className="text-sm text-on-surface-variant">Configure iptables and security rules.</p>
+          <p className="text-sm text-on-surface-variant">Configure UFW iptables and security rules.</p>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-sm font-semibold text-on-surface-variant">Master Switch</span>
@@ -1014,7 +1134,7 @@ function FirewallView() {
                 type="checkbox" 
                 className="sr-only" 
                 checked={firewallEnabled} 
-                onChange={(e) => setFirewallEnabled(e.target.checked)}
+                onChange={(e) => toggleFirewall(e.target.checked)}
               />
               <div className={`block w-10 h-6 rounded-full transition-colors ${firewallEnabled ? 'bg-primary' : 'bg-white/10'}`}></div>
               <div className={`absolute left-1 top-1 bg-black w-4 h-4 rounded-full transition-transform ${firewallEnabled ? 'translate-x-4' : 'translate-x-0'}`}></div>
@@ -1029,45 +1149,41 @@ function FirewallView() {
       <div className="glass-panel rounded-2xl flex flex-col border border-white/10 overflow-hidden">
         <div className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-white/[0.02]">
           <h3 className="text-lg font-bold text-on-surface">Whitelisted Ports</h3>
-          <button className="px-4 py-1.5 rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors flex items-center gap-2 text-xs font-semibold">
-            <span className="material-symbols-outlined text-[16px]">add</span>
-            Add Rule
-          </button>
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="e.g. 8080/tcp" 
+              className="bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-primary text-white w-32"
+              value={newPort}
+              onChange={e => setNewPort(e.target.value)}
+            />
+            <button onClick={addRule} className="px-4 py-1.5 rounded-lg bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors flex items-center gap-2 text-xs font-semibold">
+              <span className="material-symbols-outlined text-[16px]">add</span>
+              Add Rule
+            </button>
+          </div>
         </div>
         <div className="flex-1 p-0">
           <table className="w-full text-left text-sm">
             <thead className="text-xs uppercase text-on-surface-variant/50 bg-white/[0.01] border-b border-white/5">
               <tr>
-                <th className="px-6 py-4">Port</th>
-                <th className="px-6 py-4">Protocol</th>
+                <th className="px-6 py-4">ID</th>
+                <th className="px-6 py-4">Target (Port)</th>
                 <th className="px-6 py-4">Action</th>
-                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4">From</th>
                 <th className="px-6 py-4 text-right">Manage</th>
               </tr>
             </thead>
             <tbody>
-              {rules.map(rule => (
-                <tr key={rule.id} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+              {rules.map((rule, idx) => (
+                <tr key={idx} className="border-b border-white/5 hover:bg-white/[0.02] transition-colors">
+                  <td className="px-6 py-4 text-on-surface-variant/70">[{rule.id}]</td>
                   <td className="px-6 py-4 font-mono font-bold text-on-surface">{rule.port}</td>
-                  <td className="px-6 py-4 text-on-surface-variant/70">{rule.protocol}</td>
-                  <td className="px-6 py-4 text-on-surface-variant/70">{rule.type}</td>
-                  <td className="px-6 py-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <div className="relative">
-                        <input 
-                          type="checkbox" 
-                          className="sr-only" 
-                          checked={rule.status === 'Active'} 
-                          onChange={(e) => setRules(prev => prev.map(r => r.id === rule.id ? { ...r, status: e.target.checked ? 'Active' : 'Inactive' } : r))}
-                        />
-                        <div className={`block w-8 h-4 rounded-full transition-colors ${rule.status === 'Active' ? 'bg-primary' : 'bg-white/10'}`}></div>
-                        <div className={`absolute left-0.5 top-0.5 bg-black w-3 h-3 rounded-full transition-transform ${rule.status === 'Active' ? 'translate-x-4' : 'translate-x-0'}`}></div>
-                      </div>
-                    </label>
-                  </td>
+                  <td className="px-6 py-4 text-on-surface-variant/70">{rule.action}</td>
+                  <td className="px-6 py-4 text-on-surface-variant/70">{rule.from}</td>
                   <td className="px-6 py-4 text-right">
                     <button 
-                      onClick={() => setRules(prev => prev.filter(r => r.id !== rule.id))}
+                      onClick={() => deleteRule(rule.port)}
                       className="text-red-400/50 hover:text-red-400 transition-colors"
                     >
                       <span className="material-symbols-outlined text-[18px]">delete</span>
@@ -1077,11 +1193,17 @@ function FirewallView() {
               ))}
             </tbody>
           </table>
-          {rules.length === 0 && (
+          {!loading && rules.length === 0 && (
             <div className="p-12 text-center text-on-surface-variant/50">
               <span className="material-symbols-outlined text-4xl mb-2 opacity-50">security</span>
-              <p>No firewall rules configured.</p>
+              <p>No firewall rules configured or firewall is inactive.</p>
             </div>
+          )}
+          {loading && (
+             <div className="p-12 text-center text-on-surface-variant/50">
+               <span className="material-symbols-outlined text-4xl mb-2 opacity-50 animate-spin">refresh</span>
+               <p>Loading rules...</p>
+             </div>
           )}
         </div>
       </div>
@@ -1804,8 +1926,8 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               {activeApp === "home" && <HomeView panelName={panelName} cores={cores} activeCoreId={activeCoreId} wsPing={wsPing} apiPing={apiPing} />}
               {activeApp === "docker" && <DockerView cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "files" && <FilesView cores={cores} activeCoreId={activeCoreId} />}
-              {activeApp === "terminal" && <TerminalView />}
-              {activeApp === "firewall" && <FirewallView />}
+              {activeApp === "terminal" && <TerminalView activeCoreId={activeCoreId} />}
+              {activeApp === "firewall" && <FirewallView activeCoreId={activeCoreId} />}
               {activeApp === "core" && (
                 <CoreManagementView 
                   cores={cores}

@@ -442,13 +442,20 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">RAM</p>
             <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
           </div>
-          <CircularGauge label="" percentage={ramPercent} subText={`${ramUsed.toFixed(1)} / ${ramTotal} GB`} />
+          <CircularGauge 
+            label="" 
+            percentage={ramPercent} 
+            subText={`${ramUsed < 1 ? Math.round(ramUsed * 1024) + ' MB' : ramUsed.toFixed(1) + ' GB'} / ${ramTotal} GB`} 
+          />
         </div>
 
         {/* Storage — bottom left */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Storage</p>
-          <div className="flex items-center gap-2">
+        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors">
+          <div className="flex justify-between items-center">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Storage</p>
+            <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1">
             <span className="material-symbols-outlined text-primary text-[18px]">hard_drive</span>
             <span className="text-sm text-on-surface font-medium">
               {displayCore ? `${(displayCore.storageTotal - displayCore.storage).toFixed(1)} GB Free` : "Multi-disk"}
@@ -479,9 +486,12 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         </div>
 
         {/* Network — bottom right */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Network</p>
-          <svg className="w-full h-14 overflow-visible" viewBox="0 0 100 30" preserveAspectRatio="none">
+        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors">
+          <div className="flex justify-between items-center">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Network</p>
+            <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
+          </div>
+          <svg className="w-full h-14 overflow-visible mt-2" viewBox="0 0 100 30" preserveAspectRatio="none">
             {/* Smooth Curve Function generator via SVG commands */}
             {(() => {
               const generateSmoothPath = (points: {x:number, y:number}[]) => {
@@ -680,10 +690,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             </div>
 
             <div className="flex-1 p-4 bg-black/40 font-mono text-xs text-on-surface-variant/80 overflow-y-auto">
-              {/* Mock Logs for now, to be wired later */}
-              <p className="opacity-50 italic">Waiting for {activeLogTab} log stream from {displayCore?.name}...</p>
-              <br/>
-              <p className="text-green-400">[OK] Log subsystem initialized.</p>
+              <p className="opacity-50 italic">Waiting for {activeLogTab} log stream from {displayCore?.name || "the selected Core"}...</p>
             </div>
           </div>
         </div>

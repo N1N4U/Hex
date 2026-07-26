@@ -125,6 +125,10 @@ case $COMMAND in
     ;;
     
   update)
+    if [ "$EUID" -ne 0 ]; then
+      echo "[ERROR] Please run this command as root (sudo hex update)"
+      exit 1
+    fi
     echo "Updating Hex..."
     ARCH=$(uname -m)
     if [ "$ARCH" == "x86_64" ]; then

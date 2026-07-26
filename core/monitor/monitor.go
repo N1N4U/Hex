@@ -61,6 +61,7 @@ type Manager struct {
 	lastNetTime time.Time
 	hostIP      string
 	
+	cachedCPUCores     int
 	cachedCPU          float64
 	cachedMemTotal     uint64
 	cachedMemUsed      uint64
@@ -78,6 +79,13 @@ func NewManager() *Manager {
 	m := &Manager{
 		lastNetTime: time.Now(),
 		hostIP:      "Unknown",
+	}
+	
+	cores, err := cpu.Counts(true)
+	if err == nil && cores > 0 {
+		m.cachedCPUCores = cores
+	} else {
+		m.cachedCPUCores = 1
 	}
 	
 	// Fetch public IP in background
@@ -154,10 +162,11 @@ func NewManager() *Manager {
 					}
 
 					if cpuP > 0 || memB > 0 {
+						scaledCpu := cpuP / float64(m.cachedCPUCores)
 						procStats = append(procStats, ProcessStat{
 							PID:         p.Pid,
 							Name:        name,
-							CPUPercent:  math.Round(cpuP*100) / 100,
+							CPUPercent:  math.Round(scaledCpu*100) / 100,
 							MemoryBytes: memB,
 						})
 					}

@@ -617,7 +617,6 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             
             <div className="flex-1 p-4 overflow-y-auto">
               {showProcessesModal === "storage" ? (
-              {showProcessesModal === "storage" ? (
                 <div className="flex flex-col gap-3">
                   {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5">

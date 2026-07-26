@@ -4,6 +4,7 @@ import next from 'next';
 import { WebSocketServer } from 'ws';
 import { setupBrowserWebSocketServer } from './browser';
 import { setupTerminalWebSocketServer } from './terminal';
+import { setupDockerExecWebSocketServer } from './dockerExec';
 import { getDb } from '../../database';
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -24,6 +25,7 @@ async function main() {
 
   const wss = new WebSocketServer({ noServer: true });
   const terminalWss = new WebSocketServer({ noServer: true });
+  const dockerWss = new WebSocketServer({ noServer: true });
 
   server.on('upgrade', (request, socket, head) => {
     const parsedUrl = parse(request.url!, true);
@@ -35,12 +37,17 @@ async function main() {
       terminalWss.handleUpgrade(request, socket, head, (ws) => {
         terminalWss.emit('connection', ws, request);
       });
+    } else if (parsedUrl.pathname === '/ws/docker/exec') {
+      dockerWss.handleUpgrade(request, socket, head, (ws) => {
+        dockerWss.emit('connection', ws, request);
+      });
     }
   });
 
   // Attach Handlers
   setupBrowserWebSocketServer(wss);
   setupTerminalWebSocketServer(terminalWss);
+  setupDockerExecWebSocketServer(dockerWss);
 
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, () => {

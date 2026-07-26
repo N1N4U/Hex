@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "id": "nodejs",
+  "name": "Node.js",
+  "description": "Deploy any Node.js application using Docker.",
+  "version": "1.0.0",
+  "author": "Hex Team",
+  "homepage": "https://github.com/N1N4U/blueprints",
+  "category": "Applications",
+  "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/nodejs.png",
+  "runtime": {
+    "default": "node:22",
+    "options": [
+      {
+        "id": "node:20",
+        "name": "Node.js 20",
+        "dockerImage": "node:20-alpine"
+      },
+      {
+        "id": "node:22",
+        "name": "Node.js 22",
+        "dockerImage": "node:22-alpine"
+      },
+      {
+        "id": "node:24",
+        "name": "Node.js 24",
+        "dockerImage": "node:24-alpine"
+      }
+    ]
+  },
+  "docker": {
+    "image": "node:22-alpine",
+    "imagePullPolicy": "always",
+    "workingDirectory": "/home/container",
+    "entrypoint": "",
+    "startupCommand": "npm start",
+    "restartPolicy": "unless-stopped",
+    "networkMode": "bridge",
+    "privileged": false,
+    "readOnlyRootFilesystem": false,
+    "healthcheck": {
+      "enabled": false,
+      "command": "",
+      "interval": "30s",
+      "timeout": "5s",
+      "retries": 3
+    }
+  },
+  "git": {
+    "enabled": true,
+    "repository": "",
+    "branch": "main",
+    "autoUpdate": false,
+    "username": "",
+    "accessToken": "",
+    "clonePath": "/home/container"
+  },
+  "startup": {
+    "startupFile": "index.js",
+    "packageManager": "npm",
+    "packageFile": "package.json",
+    "lockFile": "package-lock.json",
+    "installCommand": "npm install",
+    "buildCommand": "",
+    "startCommand": "npm start",
+    "stopCommand": "",
+    "additionalPackages": [],
+    "removeNodeModules": false
+  },
+  "storage": {
+    "persistent": true,
+    "mounts": [
+      {
+        "containerPath": "/home/container",
+        "type": "volume"
+      }
+    ]
+  },
+  "networking": {
+    "ports": [
+      {
+        "name": "Application",
+        "containerPort": [3000],
+        "protocol": "tcp"
+      }
+    ]
+  },
+  "resources": {
+    "memory": {
+      "default": 1024,
+      "minimum": 512,
+      "maximum": 8192
+    },
+    "cpu": {
+      "default": 100,
+      "minimum": 10,
+      "maximum": 400
+    },
+    "disk": {
+      "default": 2048
+    },
+    "swap": {
+      "default": 0
+    }
+  },
+  "variables": [
+    {
+      "id": "PORT",
+      "name": "Application Port",
+      "description": "Port used by the application.",
+      "type": "number",
+      "default": 3000,
+      "required": true
+    },
+    {
+      "id": "NODE_ENV",
+      "name": "Node Environment",
+      "description": "Application environment.",
+      "type": "select",
+      "default": "production",
+      "options": [
+        "production",
+        "development"
+      ]
+    }
+  ],
+  "scripts": {
+    "install": "",
+    "update": "",
+    "backup": "",
+    "restore": ""
+  },
+  "metadata": {
+    "featured": true,
+    "official": true,
+    "verified": true,
+    "tags": [
+      "node",
+      "javascript",
+      "typescript",
+      "backend",
+      "web"
+    ]
+  }
+}

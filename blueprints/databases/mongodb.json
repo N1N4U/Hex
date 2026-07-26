@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "id": "mongodb",
+  "name": "MongoDB",
+  "description": "Deploy a MongoDB database.",
+  "version": "1.0.0",
+  "author": "Hex Team",
+  "homepage": "https://github.com/N1N4U/blueprints",
+  "category": "Databases",
+  "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/mongodb.png",
+  "runtime": {
+    "default": "mongo:6",
+    "options": [
+      {
+        "id": "mongo:6",
+        "name": "MongoDB 6.0",
+        "dockerImage": "mongo:6"
+      },
+      {
+        "id": "mongo:7",
+        "name": "MongoDB 7.0",
+        "dockerImage": "mongo:7"
+      }
+    ]
+  },
+  "docker": {
+    "image": "mongo:6",
+    "imagePullPolicy": "always",
+    "workingDirectory": "/",
+    "entrypoint": "",
+    "startupCommand": "",
+    "restartPolicy": "unless-stopped",
+    "networkMode": "bridge",
+    "privileged": false,
+    "readOnlyRootFilesystem": false,
+    "healthcheck": {
+      "enabled": true,
+      "command": "mongosh --eval 'db.adminCommand(\"ping\")'",
+      "interval": "30s",
+      "timeout": "10s",
+      "retries": 3
+    }
+  },
+  "git": {
+    "enabled": false,
+    "repository": "",
+    "branch": "",
+    "autoUpdate": false,
+    "username": "",
+    "accessToken": "",
+    "clonePath": ""
+  },
+  "startup": {
+    "startupFile": "",
+    "packageManager": "",
+    "packageFile": "",
+    "lockFile": "",
+    "installCommand": "",
+    "buildCommand": "",
+    "startCommand": "",
+    "stopCommand": "",
+    "additionalPackages": [],
+    "removeNodeModules": false
+  },
+  "storage": {
+    "persistent": true,
+    "mounts": [
+      {
+        "containerPath": "/data/db",
+        "type": "volume"
+      }
+    ]
+  },
+  "networking": {
+    "ports": [
+      {
+        "name": "MongoDB Port",
+        "containerPort": [27017],
+        "protocol": "tcp"
+      }
+    ]
+  },
+  "resources": {
+    "memory": {
+      "default": 1024,
+      "minimum": 512,
+      "maximum": 8192
+    },
+    "cpu": {
+      "default": 100,
+      "minimum": 10,
+      "maximum": 400
+    },
+    "disk": {
+      "default": 5120
+    },
+    "swap": {
+      "default": 0
+    }
+  },
+  "variables": [
+    {
+      "id": "MONGO_INITDB_ROOT_USERNAME",
+      "name": "Root Username",
+      "description": "MongoDB root administrator username.",
+      "type": "string",
+      "default": "admin",
+      "required": true
+    },
+    {
+      "id": "MONGO_INITDB_ROOT_PASSWORD",
+      "name": "Root Password",
+      "description": "MongoDB root administrator password.",
+      "type": "string",
+      "default": "securepassword",
+      "required": true
+    }
+  ],
+  "scripts": {
+    "install": "",
+    "update": "",
+    "backup": "",
+    "restore": ""
+  },
+  "metadata": {
+    "featured": true,
+    "official": true,
+    "verified": true,
+    "tags": [
+      "database",
+      "nosql",
+      "mongodb"
+    ]
+  }
+}

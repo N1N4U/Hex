@@ -961,6 +961,7 @@ function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: strin
 }
 
 /* ── Terminal View (Mockup) ──────────────────────────── */
+import ContainersPage from "./containers/page";
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
@@ -1334,7 +1335,7 @@ function CoreManagementView({ cores, setCores, onToggle, onConnect, onRemove }: 
               </span>
               <span className="flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px]">language</span>
-                {formatBytes(core.networkSent + core.networkRecv)}/s
+                {formatBytes((core.networkSent || 0) + (core.networkRecv || 0))}/s
               </span>
             </div>
 

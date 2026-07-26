@@ -61,6 +61,15 @@ type Manager struct {
 	lastNetTime time.Time
 	hostIP      string
 	
+	cachedCPU          float64
+	cachedMemTotal     uint64
+	cachedMemUsed      uint64
+	cachedMemUsage     float64
+	cachedNetSent      uint64
+	cachedNetRecv      uint64
+	cachedNetTotalSent uint64
+	cachedNetTotalRecv uint64
+	
 	cachedProcesses []ProcessStat
 	processMu       sync.Mutex
 }
@@ -86,9 +95,49 @@ func NewManager() *Manager {
 		}
 	}()
 
-	// Fetch top processes in background every 10 seconds to save CPU
+	// Fetch top processes in background every 2 seconds to keep CPU/RAM/Net fresh
 	go func() {
 		for {
+			// CPU
+			cpuPercents, err := cpu.Percent(0, false)
+			if err == nil && len(cpuPercents) > 0 {
+				m.cachedCPU = math.Round(cpuPercents[0]*100) / 100
+			}
+
+			// Memory
+			vmStat, err := mem.VirtualMemory()
+			if err == nil {
+				m.cachedMemTotal = vmStat.Total
+				// Use Total - Free - Buffers - Cached to match 'top' command exactly
+				used := vmStat.Total - vmStat.Free - vmStat.Buffers - vmStat.Cached
+				m.cachedMemUsed = used
+				m.cachedMemUsage = math.Round((float64(used)/float64(vmStat.Total))*100) / 100
+			}
+
+			// Network
+			netStats, err := net.IOCounters(false)
+			if err == nil && len(netStats) > 0 {
+				currentSent := netStats[0].BytesSent
+				currentRecv := netStats[0].BytesRecv
+				m.cachedNetTotalSent = currentSent
+				m.cachedNetTotalRecv = currentRecv
+				now := time.Now()
+				
+				elapsed := now.Sub(m.lastNetTime).Seconds()
+				if elapsed > 0 {
+					if m.lastNetSent > 0 && currentSent > m.lastNetSent {
+						m.cachedNetSent = uint64(float64(currentSent-m.lastNetSent) / elapsed)
+					}
+					if m.lastNetRecv > 0 && currentRecv > m.lastNetRecv {
+						m.cachedNetRecv = uint64(float64(currentRecv-m.lastNetRecv) / elapsed)
+					}
+				}
+
+				m.lastNetSent = currentSent
+				m.lastNetRecv = currentRecv
+				m.lastNetTime = now
+			}
+
 			procs, err := process.Processes()
 			if err == nil {
 				var procStats []ProcessStat
@@ -156,7 +205,7 @@ func NewManager() *Manager {
 				m.cachedProcesses = finalProcs
 				m.processMu.Unlock()
 			}
-			time.Sleep(10 * time.Second)
+			time.Sleep(2 * time.Second)
 		}
 	}()
 
@@ -170,22 +219,16 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	}
 
 	// CPU
-	cpuPercents, err := cpu.PercentWithContext(ctx, 0, false)
-	if err == nil && len(cpuPercents) > 0 {
-		stats.CPUUsage = math.Round(cpuPercents[0]*100) / 100
-	}
+	stats.CPUUsage = m.cachedCPU
 
 	// Memory
-	vmStat, err := mem.VirtualMemoryWithContext(ctx)
-	if err == nil {
-		stats.MemTotal = vmStat.Total
-		stats.MemUsed = vmStat.Used
-		stats.MemUsage = math.Round(vmStat.UsedPercent*100) / 100
-	}
+	stats.MemTotal = m.cachedMemTotal
+	stats.MemUsed = m.cachedMemUsed
+	stats.MemUsage = m.cachedMemUsage
 
 	// Disk (root partition + others)
 	stats.Partitions = make([]PartitionStats, 0)
-	partitions, err := disk.PartitionsWithContext(ctx, false) // Back to false to hide /sys, /proc, /dev, etc
+	partitions, err := disk.PartitionsWithContext(ctx, false)
 	if err == nil {
 		for _, p := range partitions {
 			diskStat, err := disk.UsageWithContext(ctx, p.Mountpoint)
@@ -219,28 +262,10 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	}
 
 	// Network
-	netStats, err := net.IOCountersWithContext(ctx, false)
-	if err == nil && len(netStats) > 0 {
-		currentSent := netStats[0].BytesSent
-		currentRecv := netStats[0].BytesRecv
-		stats.NetTotalSent = currentSent
-		stats.NetTotalRecv = currentRecv
-		now := time.Now()
-		
-		elapsed := now.Sub(m.lastNetTime).Seconds()
-		if elapsed > 0 {
-			if m.lastNetSent > 0 && currentSent > m.lastNetSent {
-				stats.NetSent = uint64(float64(currentSent-m.lastNetSent) / elapsed)
-			}
-			if m.lastNetRecv > 0 && currentRecv > m.lastNetRecv {
-				stats.NetRecv = uint64(float64(currentRecv-m.lastNetRecv) / elapsed)
-			}
-		}
-
-		m.lastNetSent = currentSent
-		m.lastNetRecv = currentRecv
-		m.lastNetTime = now
-	}
+	stats.NetSent = m.cachedNetSent
+	stats.NetRecv = m.cachedNetRecv
+	stats.NetTotalSent = m.cachedNetTotalSent
+	stats.NetTotalRecv = m.cachedNetTotalRecv
 
 	// Host Info
 	hostInfo, err := host.InfoWithContext(ctx)

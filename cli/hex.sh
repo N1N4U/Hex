@@ -190,6 +190,20 @@ case $COMMAND in
         echo "Failed to download Hex CLI update."
     fi
 
+    echo "Updating blueprints..."
+    rm -rf /tmp/hex-repo
+    mkdir -p /tmp/hex-repo
+    wget -q -O /tmp/hex-repo/main.tar.gz "https://github.com/N1N4U/Hex/archive/refs/heads/main.tar.gz"
+    if [ -f /tmp/hex-repo/main.tar.gz ]; then
+        tar -xzf /tmp/hex-repo/main.tar.gz -C /tmp/hex-repo
+        mkdir -p /var/lib/hex/blueprints
+        cp -r /tmp/hex-repo/Hex-main/blueprints/* /var/lib/hex/blueprints/
+        rm -rf /tmp/hex-repo
+        echo "Blueprints updated successfully."
+    else
+        echo "Failed to download blueprints update."
+    fi
+
     echo "Update complete!"
     ;;
     

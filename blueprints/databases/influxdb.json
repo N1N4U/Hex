@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/influxdb.png",
   "runtime": {
-    "default": "latest",
+    "default": "influxdb:latest",
     "options": [
       {
         "id": "influxdb:latest",
-        "name": "Influxdb Latest",
+        "name": "Influxdb latest",
         "dockerImage": "influxdb:latest"
       }
     ]

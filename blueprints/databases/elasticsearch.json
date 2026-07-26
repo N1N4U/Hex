@@ -9,17 +9,32 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/elasticsearch.png",
   "runtime": {
-    "default": "latest",
+    "default": "elasticsearch:latest",
     "options": [
       {
+        "id": "elasticsearch:7.17",
+        "name": "Elasticsearch 7.17",
+        "dockerImage": "elasticsearch:7.17"
+      },
+      {
+        "id": "elasticsearch:8.10",
+        "name": "Elasticsearch 8.10",
+        "dockerImage": "elasticsearch:8.10"
+      },
+      {
+        "id": "elasticsearch:8.12",
+        "name": "Elasticsearch 8.12",
+        "dockerImage": "elasticsearch:8.12"
+      },
+      {
         "id": "elasticsearch:latest",
-        "name": "Elasticsearch Latest",
+        "name": "Elasticsearch latest",
         "dockerImage": "elasticsearch:latest"
       }
     ]
   },
   "docker": {
-    "image": "elasticsearch:latest",
+    "image": "elasticsearch:7.17",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

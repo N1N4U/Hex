@@ -9,17 +9,27 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/bun.png",
   "runtime": {
-    "default": "latest",
+    "default": "bun:latest",
     "options": [
       {
+        "id": "bun:1.0",
+        "name": "Bun 1.0",
+        "dockerImage": "bun:1.0"
+      },
+      {
+        "id": "bun:1.1",
+        "name": "Bun 1.1",
+        "dockerImage": "bun:1.1"
+      },
+      {
         "id": "bun:latest",
-        "name": "Bun Latest",
+        "name": "Bun latest",
         "dockerImage": "bun:latest"
       }
     ]
   },
   "docker": {
-    "image": "bun:latest",
+    "image": "bun:1.0",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

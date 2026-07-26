@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/audiobookshelf.png",
   "runtime": {
-    "default": "latest",
+    "default": "audiobookshelf:latest",
     "options": [
       {
         "id": "audiobookshelf:latest",
-        "name": "Audiobookshelf Latest",
+        "name": "Audiobookshelf latest",
         "dockerImage": "audiobookshelf:latest"
       }
     ]

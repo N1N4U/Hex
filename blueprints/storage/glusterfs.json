@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/glusterfs.png",
   "runtime": {
-    "default": "latest",
+    "default": "glusterfs:latest",
     "options": [
       {
         "id": "glusterfs:latest",
-        "name": "Glusterfs Latest",
+        "name": "Glusterfs latest",
         "dockerImage": "glusterfs:latest"
       }
     ]

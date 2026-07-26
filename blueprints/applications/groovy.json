@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/groovy.png",
   "runtime": {
-    "default": "latest",
+    "default": "groovy:latest",
     "options": [
       {
         "id": "groovy:latest",
-        "name": "Groovy Latest",
+        "name": "Groovy latest",
         "dockerImage": "groovy:latest"
       }
     ]

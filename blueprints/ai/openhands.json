@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/openhands.png",
   "runtime": {
-    "default": "latest",
+    "default": "openhands:latest",
     "options": [
       {
         "id": "openhands:latest",
-        "name": "Openhands Latest",
+        "name": "Openhands latest",
         "dockerImage": "openhands:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/clickhouse.png",
   "runtime": {
-    "default": "latest",
+    "default": "clickhouse:latest",
     "options": [
       {
         "id": "clickhouse:latest",
-        "name": "Clickhouse Latest",
+        "name": "Clickhouse latest",
         "dockerImage": "clickhouse:latest"
       }
     ]

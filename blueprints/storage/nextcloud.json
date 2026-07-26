@@ -9,17 +9,32 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/nextcloud.png",
   "runtime": {
-    "default": "latest",
+    "default": "nextcloud:latest",
     "options": [
       {
+        "id": "nextcloud:27",
+        "name": "Nextcloud 27",
+        "dockerImage": "nextcloud:27"
+      },
+      {
+        "id": "nextcloud:28",
+        "name": "Nextcloud 28",
+        "dockerImage": "nextcloud:28"
+      },
+      {
+        "id": "nextcloud:29",
+        "name": "Nextcloud 29",
+        "dockerImage": "nextcloud:29"
+      },
+      {
         "id": "nextcloud:latest",
-        "name": "Nextcloud Latest",
+        "name": "Nextcloud latest",
         "dockerImage": "nextcloud:latest"
       }
     ]
   },
   "docker": {
-    "image": "nextcloud:latest",
+    "image": "nextcloud:27",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

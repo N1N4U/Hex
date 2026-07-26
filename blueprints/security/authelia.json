@@ -9,11 +9,11 @@
   "category": "Security",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/authelia.png",
   "runtime": {
-    "default": "latest",
+    "default": "authelia:latest",
     "options": [
       {
         "id": "authelia:latest",
-        "name": "Authelia Latest",
+        "name": "Authelia latest",
         "dockerImage": "authelia:latest"
       }
     ]

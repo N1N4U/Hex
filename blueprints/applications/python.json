@@ -9,17 +9,37 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/python.png",
   "runtime": {
-    "default": "latest",
+    "default": "python:3.13",
     "options": [
       {
-        "id": "python:latest",
-        "name": "Python Latest",
-        "dockerImage": "python:latest"
+        "id": "python:3.9",
+        "name": "Python 3.9",
+        "dockerImage": "python:3.9"
+      },
+      {
+        "id": "python:3.10",
+        "name": "Python 3.10",
+        "dockerImage": "python:3.10"
+      },
+      {
+        "id": "python:3.11",
+        "name": "Python 3.11",
+        "dockerImage": "python:3.11"
+      },
+      {
+        "id": "python:3.12",
+        "name": "Python 3.12",
+        "dockerImage": "python:3.12"
+      },
+      {
+        "id": "python:3.13",
+        "name": "Python 3.13",
+        "dockerImage": "python:3.13"
       }
     ]
   },
   "docker": {
-    "image": "python:latest",
+    "image": "python:3.9",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

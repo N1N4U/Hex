@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/readarr.png",
   "runtime": {
-    "default": "latest",
+    "default": "readarr:latest",
     "options": [
       {
         "id": "readarr:latest",
-        "name": "Readarr Latest",
+        "name": "Readarr latest",
         "dockerImage": "readarr:latest"
       }
     ]

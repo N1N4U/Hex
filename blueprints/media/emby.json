@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/emby.png",
   "runtime": {
-    "default": "latest",
+    "default": "emby:latest",
     "options": [
       {
         "id": "emby:latest",
-        "name": "Emby Latest",
+        "name": "Emby latest",
         "dockerImage": "emby:latest"
       }
     ]

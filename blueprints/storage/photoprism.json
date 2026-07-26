@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/photoprism.png",
   "runtime": {
-    "default": "latest",
+    "default": "photoprism:latest",
     "options": [
       {
         "id": "photoprism:latest",
-        "name": "Photoprism Latest",
+        "name": "Photoprism latest",
         "dockerImage": "photoprism:latest"
       }
     ]

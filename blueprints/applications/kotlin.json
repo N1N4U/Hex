@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/kotlin.png",
   "runtime": {
-    "default": "latest",
+    "default": "kotlin:latest",
     "options": [
       {
         "id": "kotlin:latest",
-        "name": "Kotlin Latest",
+        "name": "Kotlin latest",
         "dockerImage": "kotlin:latest"
       }
     ]

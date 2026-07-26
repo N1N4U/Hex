@@ -9,11 +9,11 @@
   "category": "Security",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/wazuh.png",
   "runtime": {
-    "default": "latest",
+    "default": "wazuh:latest",
     "options": [
       {
         "id": "wazuh:latest",
-        "name": "Wazuh Latest",
+        "name": "Wazuh latest",
         "dockerImage": "wazuh:latest"
       }
     ]

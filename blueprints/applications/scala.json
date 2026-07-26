@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/scala.png",
   "runtime": {
-    "default": "latest",
+    "default": "scala:latest",
     "options": [
       {
         "id": "scala:latest",
-        "name": "Scala Latest",
+        "name": "Scala latest",
         "dockerImage": "scala:latest"
       }
     ]

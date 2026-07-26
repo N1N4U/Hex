@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/couchdb.png",
   "runtime": {
-    "default": "latest",
+    "default": "couchdb:latest",
     "options": [
       {
         "id": "couchdb:latest",
-        "name": "Couchdb Latest",
+        "name": "Couchdb latest",
         "dockerImage": "couchdb:latest"
       }
     ]

@@ -9,17 +9,27 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/dotnet.png",
   "runtime": {
-    "default": "latest",
+    "default": "dotnet:8.0",
     "options": [
       {
-        "id": "dotnet:latest",
-        "name": "Dotnet Latest",
-        "dockerImage": "dotnet:latest"
+        "id": "dotnet:6.0",
+        "name": "Dotnet 6.0",
+        "dockerImage": "dotnet:6.0"
+      },
+      {
+        "id": "dotnet:7.0",
+        "name": "Dotnet 7.0",
+        "dockerImage": "dotnet:7.0"
+      },
+      {
+        "id": "dotnet:8.0",
+        "name": "Dotnet 8.0",
+        "dockerImage": "dotnet:8.0"
       }
     ]
   },
   "docker": {
-    "image": "dotnet:latest",
+    "image": "dotnet:6.0",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

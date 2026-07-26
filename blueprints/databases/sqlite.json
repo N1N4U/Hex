@@ -9,17 +9,22 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/sqlite.png",
   "runtime": {
-    "default": "latest",
+    "default": "sqlite:latest",
     "options": [
       {
+        "id": "sqlite:3",
+        "name": "Sqlite 3",
+        "dockerImage": "sqlite:3"
+      },
+      {
         "id": "sqlite:latest",
-        "name": "Sqlite Latest",
+        "name": "Sqlite latest",
         "dockerImage": "sqlite:latest"
       }
     ]
   },
   "docker": {
-    "image": "sqlite:latest",
+    "image": "sqlite:3",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

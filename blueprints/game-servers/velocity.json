@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/velocity.png",
   "runtime": {
-    "default": "latest",
+    "default": "velocity:latest",
     "options": [
       {
         "id": "velocity:latest",
-        "name": "Velocity Latest",
+        "name": "Velocity latest",
         "dockerImage": "velocity:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/jellyseerr.png",
   "runtime": {
-    "default": "latest",
+    "default": "jellyseerr:latest",
     "options": [
       {
         "id": "jellyseerr:latest",
-        "name": "Jellyseerr Latest",
+        "name": "Jellyseerr latest",
         "dockerImage": "jellyseerr:latest"
       }
     ]

@@ -37,6 +37,35 @@ const blueprintData = {
   ]
 };
 
+const versionMap = {
+  "node": ["18", "20", "22", "23"],
+  "python": ["3.9", "3.10", "3.11", "3.12", "3.13"],
+  "java": ["8", "11", "17", "21"],
+  "go": ["1.20", "1.21", "1.22", "1.23"],
+  "rust": ["1.75", "1.76", "1.77", "1.78", "latest"],
+  "php": ["8.1", "8.2", "8.3", "latest"],
+  "dotnet": ["6.0", "7.0", "8.0"],
+  "bun": ["1.0", "1.1", "latest"],
+  "deno": ["1.40", "1.41", "latest"],
+  "ruby": ["3.1", "3.2", "3.3"],
+  "mongodb": ["5.0", "6.0", "7.0", "8.0"],
+  "mysql": ["5.7", "8.0", "8.1"],
+  "mariadb": ["10.6", "10.11", "11.2"],
+  "postgresql": ["14", "15", "16", "17"],
+  "redis": ["6.2", "7.0", "7.2", "latest"],
+  "sqlite": ["3", "latest"],
+  "elasticsearch": ["7.17", "8.10", "8.12", "latest"],
+  "minio": ["RELEASE.2023", "RELEASE.2024", "latest"],
+  "nextcloud": ["27", "28", "29", "latest"],
+  "paper": ["1.19.4", "1.20.4", "1.21", "latest"],
+  "fabric": ["1.19.4", "1.20.4", "1.21", "latest"],
+  "ollama": ["0.1", "0.2", "0.3", "latest"],
+  "jellyfin": ["10.8", "10.9", "latest"],
+  "plex": ["latest"],
+  "n8n": ["1.0", "1.20", "latest"],
+  "vaultwarden": ["1.30", "1.31", "latest"]
+};
+
 const baseDir = path.join(__dirname, '..', 'blueprints');
 
 function capitalize(str) {
@@ -53,35 +82,18 @@ for (const [category, names] of Object.entries(blueprintData)) {
 
   for (const name of names) {
     const filePath = path.join(catDir, `${name}.json`);
+
+    let versions = versionMap[name] || ["latest"];
+    let defaultVersion = `${name}:${versions[versions.length - 1]}`;
     
-    // Don't overwrite if it already exists, unless we want to
-    // Actually, for nodejs and mongodb we update them to have all versions below
-    if (fs.existsSync(filePath) && name !== 'node' && name !== 'mongodb') {
-        continue;
-    }
-
-    let defaultVersion = "latest";
-    let options = [
-      { id: `${name}:latest`, name: `${capitalize(name)} Latest`, dockerImage: `${name}:latest` }
-    ];
-
-    if (name === 'node') {
-      defaultVersion = "node:22";
-      options = [
-        { id: "node:18", name: "Node.js 18", dockerImage: "node:18-alpine" },
-        { id: "node:20", name: "Node.js 20", dockerImage: "node:20-alpine" },
-        { id: "node:22", name: "Node.js 22", dockerImage: "node:22-alpine" },
-        { id: "node:23", name: "Node.js 23", dockerImage: "node:23-alpine" }
-      ];
-    } else if (name === 'mongodb') {
-      defaultVersion = "mongo:7";
-      options = [
-        { id: "mongo:5", name: "MongoDB 5.0", dockerImage: "mongo:5" },
-        { id: "mongo:6", name: "MongoDB 6.0", dockerImage: "mongo:6" },
-        { id: "mongo:7", name: "MongoDB 7.0", dockerImage: "mongo:7" },
-        { id: "mongo:8", name: "MongoDB 8.0", dockerImage: "mongo:8" }
-      ];
-    }
+    let options = versions.map(v => {
+      let vSuffix = v === "latest" ? "latest" : v;
+      return {
+        id: `${name}:${vSuffix}`,
+        name: `${capitalize(name)} ${v}`,
+        dockerImage: `${name}:${vSuffix}`
+      };
+    });
 
     const template = {
       "schemaVersion": 1,
@@ -188,7 +200,7 @@ for (const [category, names] of Object.entries(blueprintData)) {
     };
 
     fs.writeFileSync(filePath, JSON.stringify(template, null, 2));
-    console.log(`Created blueprint: ${category}/${name}.json`);
+    console.log(`Updated blueprint: ${category}/${name}.json`);
   }
 }
-console.log("Finished generating blueprints.");
+console.log("Finished updating blueprints with multi-versions.");

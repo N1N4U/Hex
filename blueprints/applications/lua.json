@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/lua.png",
   "runtime": {
-    "default": "latest",
+    "default": "lua:latest",
     "options": [
       {
         "id": "lua:latest",
-        "name": "Lua Latest",
+        "name": "Lua latest",
         "dockerImage": "lua:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Automation",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/home-assistant.png",
   "runtime": {
-    "default": "latest",
+    "default": "home-assistant:latest",
     "options": [
       {
         "id": "home-assistant:latest",
-        "name": "Home assistant Latest",
+        "name": "Home assistant latest",
         "dockerImage": "home-assistant:latest"
       }
     ]

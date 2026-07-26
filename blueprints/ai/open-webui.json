@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/open-webui.png",
   "runtime": {
-    "default": "latest",
+    "default": "open-webui:latest",
     "options": [
       {
         "id": "open-webui:latest",
-        "name": "Open webui Latest",
+        "name": "Open webui latest",
         "dockerImage": "open-webui:latest"
       }
     ]

@@ -9,17 +9,32 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/java.png",
   "runtime": {
-    "default": "latest",
+    "default": "java:21",
     "options": [
       {
-        "id": "java:latest",
-        "name": "Java Latest",
-        "dockerImage": "java:latest"
+        "id": "java:8",
+        "name": "Java 8",
+        "dockerImage": "java:8"
+      },
+      {
+        "id": "java:11",
+        "name": "Java 11",
+        "dockerImage": "java:11"
+      },
+      {
+        "id": "java:17",
+        "name": "Java 17",
+        "dockerImage": "java:17"
+      },
+      {
+        "id": "java:21",
+        "name": "Java 21",
+        "dockerImage": "java:21"
       }
     ]
   },
   "docker": {
-    "image": "java:latest",
+    "image": "java:8",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

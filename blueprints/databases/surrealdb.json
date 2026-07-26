@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/surrealdb.png",
   "runtime": {
-    "default": "latest",
+    "default": "surrealdb:latest",
     "options": [
       {
         "id": "surrealdb:latest",
-        "name": "Surrealdb Latest",
+        "name": "Surrealdb latest",
         "dockerImage": "surrealdb:latest"
       }
     ]

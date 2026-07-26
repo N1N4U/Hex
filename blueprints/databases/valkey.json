@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/valkey.png",
   "runtime": {
-    "default": "latest",
+    "default": "valkey:latest",
     "options": [
       {
         "id": "valkey:latest",
-        "name": "Valkey Latest",
+        "name": "Valkey latest",
         "dockerImage": "valkey:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/zig.png",
   "runtime": {
-    "default": "latest",
+    "default": "zig:latest",
     "options": [
       {
         "id": "zig:latest",
-        "name": "Zig Latest",
+        "name": "Zig latest",
         "dockerImage": "zig:latest"
       }
     ]

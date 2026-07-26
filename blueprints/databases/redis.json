@@ -9,17 +9,32 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/redis.png",
   "runtime": {
-    "default": "latest",
+    "default": "redis:latest",
     "options": [
       {
+        "id": "redis:6.2",
+        "name": "Redis 6.2",
+        "dockerImage": "redis:6.2"
+      },
+      {
+        "id": "redis:7.0",
+        "name": "Redis 7.0",
+        "dockerImage": "redis:7.0"
+      },
+      {
+        "id": "redis:7.2",
+        "name": "Redis 7.2",
+        "dockerImage": "redis:7.2"
+      },
+      {
         "id": "redis:latest",
-        "name": "Redis Latest",
+        "name": "Redis latest",
         "dockerImage": "redis:latest"
       }
     ]
   },
   "docker": {
-    "image": "redis:latest",
+    "image": "redis:6.2",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

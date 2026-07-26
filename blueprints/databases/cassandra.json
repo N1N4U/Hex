@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/cassandra.png",
   "runtime": {
-    "default": "latest",
+    "default": "cassandra:latest",
     "options": [
       {
         "id": "cassandra:latest",
-        "name": "Cassandra Latest",
+        "name": "Cassandra latest",
         "dockerImage": "cassandra:latest"
       }
     ]

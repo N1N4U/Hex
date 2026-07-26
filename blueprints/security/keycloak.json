@@ -9,11 +9,11 @@
   "category": "Security",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/keycloak.png",
   "runtime": {
-    "default": "latest",
+    "default": "keycloak:latest",
     "options": [
       {
         "id": "keycloak:latest",
-        "name": "Keycloak Latest",
+        "name": "Keycloak latest",
         "dockerImage": "keycloak:latest"
       }
     ]

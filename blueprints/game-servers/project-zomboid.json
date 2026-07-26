@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/project-zomboid.png",
   "runtime": {
-    "default": "latest",
+    "default": "project-zomboid:latest",
     "options": [
       {
         "id": "project-zomboid:latest",
-        "name": "Project zomboid Latest",
+        "name": "Project zomboid latest",
         "dockerImage": "project-zomboid:latest"
       }
     ]

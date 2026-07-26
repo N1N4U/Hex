@@ -9,17 +9,27 @@
   "category": "Security",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/vaultwarden.png",
   "runtime": {
-    "default": "latest",
+    "default": "vaultwarden:latest",
     "options": [
       {
+        "id": "vaultwarden:1.30",
+        "name": "Vaultwarden 1.30",
+        "dockerImage": "vaultwarden:1.30"
+      },
+      {
+        "id": "vaultwarden:1.31",
+        "name": "Vaultwarden 1.31",
+        "dockerImage": "vaultwarden:1.31"
+      },
+      {
         "id": "vaultwarden:latest",
-        "name": "Vaultwarden Latest",
+        "name": "Vaultwarden latest",
         "dockerImage": "vaultwarden:latest"
       }
     ]
   },
   "docker": {
-    "image": "vaultwarden:latest",
+    "image": "vaultwarden:1.30",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

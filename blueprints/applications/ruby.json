@@ -9,17 +9,27 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/ruby.png",
   "runtime": {
-    "default": "latest",
+    "default": "ruby:3.3",
     "options": [
       {
-        "id": "ruby:latest",
-        "name": "Ruby Latest",
-        "dockerImage": "ruby:latest"
+        "id": "ruby:3.1",
+        "name": "Ruby 3.1",
+        "dockerImage": "ruby:3.1"
+      },
+      {
+        "id": "ruby:3.2",
+        "name": "Ruby 3.2",
+        "dockerImage": "ruby:3.2"
+      },
+      {
+        "id": "ruby:3.3",
+        "name": "Ruby 3.3",
+        "dockerImage": "ruby:3.3"
       }
     ]
   },
   "docker": {
-    "image": "ruby:latest",
+    "image": "ruby:3.1",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

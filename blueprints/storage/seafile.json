@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/seafile.png",
   "runtime": {
-    "default": "latest",
+    "default": "seafile:latest",
     "options": [
       {
         "id": "seafile:latest",
-        "name": "Seafile Latest",
+        "name": "Seafile latest",
         "dockerImage": "seafile:latest"
       }
     ]

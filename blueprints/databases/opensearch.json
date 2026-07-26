@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/opensearch.png",
   "runtime": {
-    "default": "latest",
+    "default": "opensearch:latest",
     "options": [
       {
         "id": "opensearch:latest",
-        "name": "Opensearch Latest",
+        "name": "Opensearch latest",
         "dockerImage": "opensearch:latest"
       }
     ]

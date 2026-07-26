@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/filerun.png",
   "runtime": {
-    "default": "latest",
+    "default": "filerun:latest",
     "options": [
       {
         "id": "filerun:latest",
-        "name": "Filerun Latest",
+        "name": "Filerun latest",
         "dockerImage": "filerun:latest"
       }
     ]

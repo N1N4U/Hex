@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/bazarr.png",
   "runtime": {
-    "default": "latest",
+    "default": "bazarr:latest",
     "options": [
       {
         "id": "bazarr:latest",
-        "name": "Bazarr Latest",
+        "name": "Bazarr latest",
         "dockerImage": "bazarr:latest"
       }
     ]

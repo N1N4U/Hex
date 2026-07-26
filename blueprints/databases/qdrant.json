@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/qdrant.png",
   "runtime": {
-    "default": "latest",
+    "default": "qdrant:latest",
     "options": [
       {
         "id": "qdrant:latest",
-        "name": "Qdrant Latest",
+        "name": "Qdrant latest",
         "dockerImage": "qdrant:latest"
       }
     ]

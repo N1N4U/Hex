@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/swift.png",
   "runtime": {
-    "default": "latest",
+    "default": "swift:latest",
     "options": [
       {
         "id": "swift:latest",
-        "name": "Swift Latest",
+        "name": "Swift latest",
         "dockerImage": "swift:latest"
       }
     ]

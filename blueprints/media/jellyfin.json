@@ -9,17 +9,27 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/jellyfin.png",
   "runtime": {
-    "default": "latest",
+    "default": "jellyfin:latest",
     "options": [
       {
+        "id": "jellyfin:10.8",
+        "name": "Jellyfin 10.8",
+        "dockerImage": "jellyfin:10.8"
+      },
+      {
+        "id": "jellyfin:10.9",
+        "name": "Jellyfin 10.9",
+        "dockerImage": "jellyfin:10.9"
+      },
+      {
         "id": "jellyfin:latest",
-        "name": "Jellyfin Latest",
+        "name": "Jellyfin latest",
         "dockerImage": "jellyfin:latest"
       }
     ]
   },
   "docker": {
-    "image": "jellyfin:latest",
+    "image": "jellyfin:10.8",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

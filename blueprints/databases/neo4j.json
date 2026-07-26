@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/neo4j.png",
   "runtime": {
-    "default": "latest",
+    "default": "neo4j:latest",
     "options": [
       {
         "id": "neo4j:latest",
-        "name": "Neo4j Latest",
+        "name": "Neo4j latest",
         "dockerImage": "neo4j:latest"
       }
     ]

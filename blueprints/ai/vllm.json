@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/vllm.png",
   "runtime": {
-    "default": "latest",
+    "default": "vllm:latest",
     "options": [
       {
         "id": "vllm:latest",
-        "name": "Vllm Latest",
+        "name": "Vllm latest",
         "dockerImage": "vllm:latest"
       }
     ]

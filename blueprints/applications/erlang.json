@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/erlang.png",
   "runtime": {
-    "default": "latest",
+    "default": "erlang:latest",
     "options": [
       {
         "id": "erlang:latest",
-        "name": "Erlang Latest",
+        "name": "Erlang latest",
         "dockerImage": "erlang:latest"
       }
     ]

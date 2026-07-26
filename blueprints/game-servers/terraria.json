@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/terraria.png",
   "runtime": {
-    "default": "latest",
+    "default": "terraria:latest",
     "options": [
       {
         "id": "terraria:latest",
-        "name": "Terraria Latest",
+        "name": "Terraria latest",
         "dockerImage": "terraria:latest"
       }
     ]

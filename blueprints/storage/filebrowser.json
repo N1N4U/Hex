@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/filebrowser.png",
   "runtime": {
-    "default": "latest",
+    "default": "filebrowser:latest",
     "options": [
       {
         "id": "filebrowser:latest",
-        "name": "Filebrowser Latest",
+        "name": "Filebrowser latest",
         "dockerImage": "filebrowser:latest"
       }
     ]

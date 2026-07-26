@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/typesense.png",
   "runtime": {
-    "default": "latest",
+    "default": "typesense:latest",
     "options": [
       {
         "id": "typesense:latest",
-        "name": "Typesense Latest",
+        "name": "Typesense latest",
         "dockerImage": "typesense:latest"
       }
     ]

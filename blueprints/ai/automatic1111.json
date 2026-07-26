@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/automatic1111.png",
   "runtime": {
-    "default": "latest",
+    "default": "automatic1111:latest",
     "options": [
       {
         "id": "automatic1111:latest",
-        "name": "Automatic1111 Latest",
+        "name": "Automatic1111 latest",
         "dockerImage": "automatic1111:latest"
       }
     ]

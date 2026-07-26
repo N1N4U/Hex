@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/cs2.png",
   "runtime": {
-    "default": "latest",
+    "default": "cs2:latest",
     "options": [
       {
         "id": "cs2:latest",
-        "name": "Cs2 Latest",
+        "name": "Cs2 latest",
         "dockerImage": "cs2:latest"
       }
     ]

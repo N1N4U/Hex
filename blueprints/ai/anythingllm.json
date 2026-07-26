@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/anythingllm.png",
   "runtime": {
-    "default": "latest",
+    "default": "anythingllm:latest",
     "options": [
       {
         "id": "anythingllm:latest",
-        "name": "Anythingllm Latest",
+        "name": "Anythingllm latest",
         "dockerImage": "anythingllm:latest"
       }
     ]

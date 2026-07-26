@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/garage.png",
   "runtime": {
-    "default": "latest",
+    "default": "garage:latest",
     "options": [
       {
         "id": "garage:latest",
-        "name": "Garage Latest",
+        "name": "Garage latest",
         "dockerImage": "garage:latest"
       }
     ]

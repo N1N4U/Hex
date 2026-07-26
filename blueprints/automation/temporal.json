@@ -9,11 +9,11 @@
   "category": "Automation",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/temporal.png",
   "runtime": {
-    "default": "latest",
+    "default": "temporal:latest",
     "options": [
       {
         "id": "temporal:latest",
-        "name": "Temporal Latest",
+        "name": "Temporal latest",
         "dockerImage": "temporal:latest"
       }
     ]

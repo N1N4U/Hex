@@ -9,17 +9,27 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/mariadb.png",
   "runtime": {
-    "default": "latest",
+    "default": "mariadb:11.2",
     "options": [
       {
-        "id": "mariadb:latest",
-        "name": "Mariadb Latest",
-        "dockerImage": "mariadb:latest"
+        "id": "mariadb:10.6",
+        "name": "Mariadb 10.6",
+        "dockerImage": "mariadb:10.6"
+      },
+      {
+        "id": "mariadb:10.11",
+        "name": "Mariadb 10.11",
+        "dockerImage": "mariadb:10.11"
+      },
+      {
+        "id": "mariadb:11.2",
+        "name": "Mariadb 11.2",
+        "dockerImage": "mariadb:11.2"
       }
     ]
   },
   "docker": {
-    "image": "mariadb:latest",
+    "image": "mariadb:10.6",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

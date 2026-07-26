@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/seaweedfs.png",
   "runtime": {
-    "default": "latest",
+    "default": "seaweedfs:latest",
     "options": [
       {
         "id": "seaweedfs:latest",
-        "name": "Seaweedfs Latest",
+        "name": "Seaweedfs latest",
         "dockerImage": "seaweedfs:latest"
       }
     ]

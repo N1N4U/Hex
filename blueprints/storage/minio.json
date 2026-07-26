@@ -9,17 +9,27 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/minio.png",
   "runtime": {
-    "default": "latest",
+    "default": "minio:latest",
     "options": [
       {
+        "id": "minio:RELEASE.2023",
+        "name": "Minio RELEASE.2023",
+        "dockerImage": "minio:RELEASE.2023"
+      },
+      {
+        "id": "minio:RELEASE.2024",
+        "name": "Minio RELEASE.2024",
+        "dockerImage": "minio:RELEASE.2024"
+      },
+      {
         "id": "minio:latest",
-        "name": "Minio Latest",
+        "name": "Minio latest",
         "dockerImage": "minio:latest"
       }
     ]
   },
   "docker": {
-    "image": "minio:latest",
+    "image": "minio:RELEASE.2023",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

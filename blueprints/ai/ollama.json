@@ -9,17 +9,32 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/ollama.png",
   "runtime": {
-    "default": "latest",
+    "default": "ollama:latest",
     "options": [
       {
+        "id": "ollama:0.1",
+        "name": "Ollama 0.1",
+        "dockerImage": "ollama:0.1"
+      },
+      {
+        "id": "ollama:0.2",
+        "name": "Ollama 0.2",
+        "dockerImage": "ollama:0.2"
+      },
+      {
+        "id": "ollama:0.3",
+        "name": "Ollama 0.3",
+        "dockerImage": "ollama:0.3"
+      },
+      {
         "id": "ollama:latest",
-        "name": "Ollama Latest",
+        "name": "Ollama latest",
         "dockerImage": "ollama:latest"
       }
     ]
   },
   "docker": {
-    "image": "ollama:latest",
+    "image": "ollama:0.1",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

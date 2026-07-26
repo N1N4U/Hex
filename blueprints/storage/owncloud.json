@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/owncloud.png",
   "runtime": {
-    "default": "latest",
+    "default": "owncloud:latest",
     "options": [
       {
         "id": "owncloud:latest",
-        "name": "Owncloud Latest",
+        "name": "Owncloud latest",
         "dockerImage": "owncloud:latest"
       }
     ]

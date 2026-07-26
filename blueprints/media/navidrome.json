@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/navidrome.png",
   "runtime": {
-    "default": "latest",
+    "default": "navidrome:latest",
     "options": [
       {
         "id": "navidrome:latest",
-        "name": "Navidrome Latest",
+        "name": "Navidrome latest",
         "dockerImage": "navidrome:latest"
       }
     ]

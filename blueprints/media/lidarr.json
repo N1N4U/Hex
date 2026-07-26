@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/lidarr.png",
   "runtime": {
-    "default": "latest",
+    "default": "lidarr:latest",
     "options": [
       {
         "id": "lidarr:latest",
-        "name": "Lidarr Latest",
+        "name": "Lidarr latest",
         "dockerImage": "lidarr:latest"
       }
     ]

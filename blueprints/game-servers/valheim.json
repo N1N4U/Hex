@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/valheim.png",
   "runtime": {
-    "default": "latest",
+    "default": "valheim:latest",
     "options": [
       {
         "id": "valheim:latest",
-        "name": "Valheim Latest",
+        "name": "Valheim latest",
         "dockerImage": "valheim:latest"
       }
     ]

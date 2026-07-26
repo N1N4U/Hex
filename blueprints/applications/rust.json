@@ -9,17 +9,37 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/rust.png",
   "runtime": {
-    "default": "latest",
+    "default": "rust:latest",
     "options": [
       {
+        "id": "rust:1.75",
+        "name": "Rust 1.75",
+        "dockerImage": "rust:1.75"
+      },
+      {
+        "id": "rust:1.76",
+        "name": "Rust 1.76",
+        "dockerImage": "rust:1.76"
+      },
+      {
+        "id": "rust:1.77",
+        "name": "Rust 1.77",
+        "dockerImage": "rust:1.77"
+      },
+      {
+        "id": "rust:1.78",
+        "name": "Rust 1.78",
+        "dockerImage": "rust:1.78"
+      },
+      {
         "id": "rust:latest",
-        "name": "Rust Latest",
+        "name": "Rust latest",
         "dockerImage": "rust:latest"
       }
     ]
   },
   "docker": {
-    "image": "rust:latest",
+    "image": "rust:1.75",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

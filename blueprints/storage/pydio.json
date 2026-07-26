@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/pydio.png",
   "runtime": {
-    "default": "latest",
+    "default": "pydio:latest",
     "options": [
       {
         "id": "pydio:latest",
-        "name": "Pydio Latest",
+        "name": "Pydio latest",
         "dockerImage": "pydio:latest"
       }
     ]

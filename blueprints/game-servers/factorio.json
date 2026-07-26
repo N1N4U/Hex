@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/factorio.png",
   "runtime": {
-    "default": "latest",
+    "default": "factorio:latest",
     "options": [
       {
         "id": "factorio:latest",
-        "name": "Factorio Latest",
+        "name": "Factorio latest",
         "dockerImage": "factorio:latest"
       }
     ]

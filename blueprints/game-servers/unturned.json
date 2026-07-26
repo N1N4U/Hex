@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/unturned.png",
   "runtime": {
-    "default": "latest",
+    "default": "unturned:latest",
     "options": [
       {
         "id": "unturned:latest",
-        "name": "Unturned Latest",
+        "name": "Unturned latest",
         "dockerImage": "unturned:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/litellm.png",
   "runtime": {
-    "default": "latest",
+    "default": "litellm:latest",
     "options": [
       {
         "id": "litellm:latest",
-        "name": "Litellm Latest",
+        "name": "Litellm latest",
         "dockerImage": "litellm:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/comfyui.png",
   "runtime": {
-    "default": "latest",
+    "default": "comfyui:latest",
     "options": [
       {
         "id": "comfyui:latest",
-        "name": "Comfyui Latest",
+        "name": "Comfyui latest",
         "dockerImage": "comfyui:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/flowise.png",
   "runtime": {
-    "default": "latest",
+    "default": "flowise:latest",
     "options": [
       {
         "id": "flowise:latest",
-        "name": "Flowise Latest",
+        "name": "Flowise latest",
         "dockerImage": "flowise:latest"
       }
     ]

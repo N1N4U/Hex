@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/invokeai.png",
   "runtime": {
-    "default": "latest",
+    "default": "invokeai:latest",
     "options": [
       {
         "id": "invokeai:latest",
-        "name": "Invokeai Latest",
+        "name": "Invokeai latest",
         "dockerImage": "invokeai:latest"
       }
     ]

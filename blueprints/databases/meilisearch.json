@@ -9,11 +9,11 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/meilisearch.png",
   "runtime": {
-    "default": "latest",
+    "default": "meilisearch:latest",
     "options": [
       {
         "id": "meilisearch:latest",
-        "name": "Meilisearch Latest",
+        "name": "Meilisearch latest",
         "dockerImage": "meilisearch:latest"
       }
     ]

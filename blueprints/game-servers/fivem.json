@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/fivem.png",
   "runtime": {
-    "default": "latest",
+    "default": "fivem:latest",
     "options": [
       {
         "id": "fivem:latest",
-        "name": "Fivem Latest",
+        "name": "Fivem latest",
         "dockerImage": "fivem:latest"
       }
     ]

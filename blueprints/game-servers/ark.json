@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/ark.png",
   "runtime": {
-    "default": "latest",
+    "default": "ark:latest",
     "options": [
       {
         "id": "ark:latest",
-        "name": "Ark Latest",
+        "name": "Ark latest",
         "dockerImage": "ark:latest"
       }
     ]

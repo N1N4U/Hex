@@ -9,17 +9,32 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/go.png",
   "runtime": {
-    "default": "latest",
+    "default": "go:1.23",
     "options": [
       {
-        "id": "go:latest",
-        "name": "Go Latest",
-        "dockerImage": "go:latest"
+        "id": "go:1.20",
+        "name": "Go 1.20",
+        "dockerImage": "go:1.20"
+      },
+      {
+        "id": "go:1.21",
+        "name": "Go 1.21",
+        "dockerImage": "go:1.21"
+      },
+      {
+        "id": "go:1.22",
+        "name": "Go 1.22",
+        "dockerImage": "go:1.22"
+      },
+      {
+        "id": "go:1.23",
+        "name": "Go 1.23",
+        "dockerImage": "go:1.23"
       }
     ]
   },
   "docker": {
-    "image": "go:latest",
+    "image": "go:1.20",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

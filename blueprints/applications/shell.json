@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/shell.png",
   "runtime": {
-    "default": "latest",
+    "default": "shell:latest",
     "options": [
       {
         "id": "shell:latest",
-        "name": "Shell Latest",
+        "name": "Shell latest",
         "dockerImage": "shell:latest"
       }
     ]

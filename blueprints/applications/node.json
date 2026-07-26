@@ -9,32 +9,32 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/node.png",
   "runtime": {
-    "default": "node:22",
+    "default": "node:23",
     "options": [
       {
         "id": "node:18",
-        "name": "Node.js 18",
-        "dockerImage": "node:18-alpine"
+        "name": "Node 18",
+        "dockerImage": "node:18"
       },
       {
         "id": "node:20",
-        "name": "Node.js 20",
-        "dockerImage": "node:20-alpine"
+        "name": "Node 20",
+        "dockerImage": "node:20"
       },
       {
         "id": "node:22",
-        "name": "Node.js 22",
-        "dockerImage": "node:22-alpine"
+        "name": "Node 22",
+        "dockerImage": "node:22"
       },
       {
         "id": "node:23",
-        "name": "Node.js 23",
-        "dockerImage": "node:23-alpine"
+        "name": "Node 23",
+        "dockerImage": "node:23"
       }
     ]
   },
   "docker": {
-    "image": "node:18-alpine",
+    "image": "node:18",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

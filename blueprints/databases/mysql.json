@@ -9,17 +9,27 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/mysql.png",
   "runtime": {
-    "default": "latest",
+    "default": "mysql:8.1",
     "options": [
       {
-        "id": "mysql:latest",
-        "name": "Mysql Latest",
-        "dockerImage": "mysql:latest"
+        "id": "mysql:5.7",
+        "name": "Mysql 5.7",
+        "dockerImage": "mysql:5.7"
+      },
+      {
+        "id": "mysql:8.0",
+        "name": "Mysql 8.0",
+        "dockerImage": "mysql:8.0"
+      },
+      {
+        "id": "mysql:8.1",
+        "name": "Mysql 8.1",
+        "dockerImage": "mysql:8.1"
       }
     ]
   },
   "docker": {
-    "image": "mysql:latest",
+    "image": "mysql:5.7",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

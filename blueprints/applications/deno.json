@@ -9,17 +9,27 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/deno.png",
   "runtime": {
-    "default": "latest",
+    "default": "deno:latest",
     "options": [
       {
+        "id": "deno:1.40",
+        "name": "Deno 1.40",
+        "dockerImage": "deno:1.40"
+      },
+      {
+        "id": "deno:1.41",
+        "name": "Deno 1.41",
+        "dockerImage": "deno:1.41"
+      },
+      {
         "id": "deno:latest",
-        "name": "Deno Latest",
+        "name": "Deno latest",
         "dockerImage": "deno:latest"
       }
     ]
   },
   "docker": {
-    "image": "deno:latest",
+    "image": "deno:1.40",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

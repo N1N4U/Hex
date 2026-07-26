@@ -9,32 +9,32 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/mongodb.png",
   "runtime": {
-    "default": "mongo:7",
+    "default": "mongodb:8.0",
     "options": [
       {
-        "id": "mongo:5",
-        "name": "MongoDB 5.0",
-        "dockerImage": "mongo:5"
+        "id": "mongodb:5.0",
+        "name": "Mongodb 5.0",
+        "dockerImage": "mongodb:5.0"
       },
       {
-        "id": "mongo:6",
-        "name": "MongoDB 6.0",
-        "dockerImage": "mongo:6"
+        "id": "mongodb:6.0",
+        "name": "Mongodb 6.0",
+        "dockerImage": "mongodb:6.0"
       },
       {
-        "id": "mongo:7",
-        "name": "MongoDB 7.0",
-        "dockerImage": "mongo:7"
+        "id": "mongodb:7.0",
+        "name": "Mongodb 7.0",
+        "dockerImage": "mongodb:7.0"
       },
       {
-        "id": "mongo:8",
-        "name": "MongoDB 8.0",
-        "dockerImage": "mongo:8"
+        "id": "mongodb:8.0",
+        "name": "Mongodb 8.0",
+        "dockerImage": "mongodb:8.0"
       }
     ]
   },
   "docker": {
-    "image": "mongo:5",
+    "image": "mongodb:5.0",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

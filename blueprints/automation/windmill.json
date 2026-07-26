@@ -9,11 +9,11 @@
   "category": "Automation",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/windmill.png",
   "runtime": {
-    "default": "latest",
+    "default": "windmill:latest",
     "options": [
       {
         "id": "windmill:latest",
-        "name": "Windmill Latest",
+        "name": "Windmill latest",
         "dockerImage": "windmill:latest"
       }
     ]

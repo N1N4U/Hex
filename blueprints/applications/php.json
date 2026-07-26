@@ -9,17 +9,32 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/php.png",
   "runtime": {
-    "default": "latest",
+    "default": "php:latest",
     "options": [
       {
+        "id": "php:8.1",
+        "name": "Php 8.1",
+        "dockerImage": "php:8.1"
+      },
+      {
+        "id": "php:8.2",
+        "name": "Php 8.2",
+        "dockerImage": "php:8.2"
+      },
+      {
+        "id": "php:8.3",
+        "name": "Php 8.3",
+        "dockerImage": "php:8.3"
+      },
+      {
         "id": "php:latest",
-        "name": "Php Latest",
+        "name": "Php latest",
         "dockerImage": "php:latest"
       }
     ]
   },
   "docker": {
-    "image": "php:latest",
+    "image": "php:8.1",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

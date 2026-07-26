@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/radarr.png",
   "runtime": {
-    "default": "latest",
+    "default": "radarr:latest",
     "options": [
       {
         "id": "radarr:latest",
-        "name": "Radarr Latest",
+        "name": "Radarr latest",
         "dockerImage": "radarr:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/sftpgo.png",
   "runtime": {
-    "default": "latest",
+    "default": "sftpgo:latest",
     "options": [
       {
         "id": "sftpgo:latest",
-        "name": "Sftpgo Latest",
+        "name": "Sftpgo latest",
         "dockerImage": "sftpgo:latest"
       }
     ]

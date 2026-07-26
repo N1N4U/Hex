@@ -9,17 +9,32 @@
   "category": "Databases",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/postgresql.png",
   "runtime": {
-    "default": "latest",
+    "default": "postgresql:17",
     "options": [
       {
-        "id": "postgresql:latest",
-        "name": "Postgresql Latest",
-        "dockerImage": "postgresql:latest"
+        "id": "postgresql:14",
+        "name": "Postgresql 14",
+        "dockerImage": "postgresql:14"
+      },
+      {
+        "id": "postgresql:15",
+        "name": "Postgresql 15",
+        "dockerImage": "postgresql:15"
+      },
+      {
+        "id": "postgresql:16",
+        "name": "Postgresql 16",
+        "dockerImage": "postgresql:16"
+      },
+      {
+        "id": "postgresql:17",
+        "name": "Postgresql 17",
+        "dockerImage": "postgresql:17"
       }
     ]
   },
   "docker": {
-    "image": "postgresql:latest",
+    "image": "postgresql:14",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",

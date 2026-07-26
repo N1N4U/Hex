@@ -9,11 +9,11 @@
   "category": "Applications",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/dart.png",
   "runtime": {
-    "default": "latest",
+    "default": "dart:latest",
     "options": [
       {
         "id": "dart:latest",
-        "name": "Dart Latest",
+        "name": "Dart latest",
         "dockerImage": "dart:latest"
       }
     ]

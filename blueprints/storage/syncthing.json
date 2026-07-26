@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/syncthing.png",
   "runtime": {
-    "default": "latest",
+    "default": "syncthing:latest",
     "options": [
       {
         "id": "syncthing:latest",
-        "name": "Syncthing Latest",
+        "name": "Syncthing latest",
         "dockerImage": "syncthing:latest"
       }
     ]

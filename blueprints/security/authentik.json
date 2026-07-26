@@ -9,11 +9,11 @@
   "category": "Security",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/authentik.png",
   "runtime": {
-    "default": "latest",
+    "default": "authentik:latest",
     "options": [
       {
         "id": "authentik:latest",
-        "name": "Authentik Latest",
+        "name": "Authentik latest",
         "dockerImage": "authentik:latest"
       }
     ]

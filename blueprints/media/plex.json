@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/plex.png",
   "runtime": {
-    "default": "latest",
+    "default": "plex:latest",
     "options": [
       {
         "id": "plex:latest",
-        "name": "Plex Latest",
+        "name": "Plex latest",
         "dockerImage": "plex:latest"
       }
     ]

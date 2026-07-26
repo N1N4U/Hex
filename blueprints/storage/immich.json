@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/immich.png",
   "runtime": {
-    "default": "latest",
+    "default": "immich:latest",
     "options": [
       {
         "id": "immich:latest",
-        "name": "Immich Latest",
+        "name": "Immich latest",
         "dockerImage": "immich:latest"
       }
     ]

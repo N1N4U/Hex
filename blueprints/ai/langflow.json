@@ -9,11 +9,11 @@
   "category": "Ai",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/langflow.png",
   "runtime": {
-    "default": "latest",
+    "default": "langflow:latest",
     "options": [
       {
         "id": "langflow:latest",
-        "name": "Langflow Latest",
+        "name": "Langflow latest",
         "dockerImage": "langflow:latest"
       }
     ]

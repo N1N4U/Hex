@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/ceph.png",
   "runtime": {
-    "default": "latest",
+    "default": "ceph:latest",
     "options": [
       {
         "id": "ceph:latest",
-        "name": "Ceph Latest",
+        "name": "Ceph latest",
         "dockerImage": "ceph:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Storage",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/paperlessngx.png",
   "runtime": {
-    "default": "latest",
+    "default": "paperlessngx:latest",
     "options": [
       {
         "id": "paperlessngx:latest",
-        "name": "Paperlessngx Latest",
+        "name": "Paperlessngx latest",
         "dockerImage": "paperlessngx:latest"
       }
     ]

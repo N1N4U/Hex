@@ -9,11 +9,11 @@
   "category": "Game servers",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/palworld.png",
   "runtime": {
-    "default": "latest",
+    "default": "palworld:latest",
     "options": [
       {
         "id": "palworld:latest",
-        "name": "Palworld Latest",
+        "name": "Palworld latest",
         "dockerImage": "palworld:latest"
       }
     ]

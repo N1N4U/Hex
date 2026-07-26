@@ -9,11 +9,11 @@
   "category": "Media",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/sonarr.png",
   "runtime": {
-    "default": "latest",
+    "default": "sonarr:latest",
     "options": [
       {
         "id": "sonarr:latest",
-        "name": "Sonarr Latest",
+        "name": "Sonarr latest",
         "dockerImage": "sonarr:latest"
       }
     ]

@@ -9,11 +9,11 @@
   "category": "Automation",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/activepieces.png",
   "runtime": {
-    "default": "latest",
+    "default": "activepieces:latest",
     "options": [
       {
         "id": "activepieces:latest",
-        "name": "Activepieces Latest",
+        "name": "Activepieces latest",
         "dockerImage": "activepieces:latest"
       }
     ]

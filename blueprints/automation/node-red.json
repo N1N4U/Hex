@@ -9,11 +9,11 @@
   "category": "Automation",
   "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/node-red.png",
   "runtime": {
-    "default": "latest",
+    "default": "node-red:latest",
     "options": [
       {
         "id": "node-red:latest",
-        "name": "Node red Latest",
+        "name": "Node red latest",
         "dockerImage": "node-red:latest"
       }
     ]

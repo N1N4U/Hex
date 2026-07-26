@@ -205,7 +205,7 @@ func NewManager() *Manager {
 				m.cachedProcesses = finalProcs
 				m.processMu.Unlock()
 			}
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}()
 

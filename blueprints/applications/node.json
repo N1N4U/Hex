@@ -1,40 +1,40 @@
 {
   "schemaVersion": 1,
-  "id": "mongodb",
-  "name": "Mongodb",
-  "description": "Deploy Mongodb using Docker.",
+  "id": "node",
+  "name": "Node",
+  "description": "Deploy Node using Docker.",
   "version": "1.0.0",
   "author": "Hex Team",
   "homepage": "https://github.com/N1N4U/blueprints",
-  "category": "Databases",
-  "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/mongodb.png",
+  "category": "Applications",
+  "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/node.png",
   "runtime": {
-    "default": "mongo:7",
+    "default": "node:22",
     "options": [
       {
-        "id": "mongo:5",
-        "name": "MongoDB 5.0",
-        "dockerImage": "mongo:5"
+        "id": "node:18",
+        "name": "Node.js 18",
+        "dockerImage": "node:18-alpine"
       },
       {
-        "id": "mongo:6",
-        "name": "MongoDB 6.0",
-        "dockerImage": "mongo:6"
+        "id": "node:20",
+        "name": "Node.js 20",
+        "dockerImage": "node:20-alpine"
       },
       {
-        "id": "mongo:7",
-        "name": "MongoDB 7.0",
-        "dockerImage": "mongo:7"
+        "id": "node:22",
+        "name": "Node.js 22",
+        "dockerImage": "node:22-alpine"
       },
       {
-        "id": "mongo:8",
-        "name": "MongoDB 8.0",
-        "dockerImage": "mongo:8"
+        "id": "node:23",
+        "name": "Node.js 23",
+        "dockerImage": "node:23-alpine"
       }
     ]
   },
   "docker": {
-    "image": "mongo:5",
+    "image": "node:18-alpine",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",
@@ -122,8 +122,8 @@
     "official": true,
     "verified": true,
     "tags": [
-      "mongodb",
-      "databases"
+      "node",
+      "applications"
     ]
   }
 }

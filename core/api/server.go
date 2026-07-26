@@ -879,8 +879,27 @@ func NewServer(port int) *Server {
 			time.Sleep(2 * time.Second)
 			exec.Command("hex", "update").Run()
 		}()
-		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+	}))
+
+	// --- Blueprints API ---
+	mux.HandleFunc("/blueprints", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			bpMgr := blueprint.NewManager("../blueprints")
+			bps, err := bpMgr.ListBlueprints()
+			if err != nil {
+				bpMgr = blueprint.NewManager("/var/lib/hex/blueprints")
+				bps, err = bpMgr.ListBlueprints()
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(bps)
+			return
+		}
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
 	return &Server{

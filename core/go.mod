@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/creack/pty v1.1.24
-	github.com/docker/docker v28.5.2+incompatible
+	github.com/docker/docker v24.0.9+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/mattn/go-sqlite3 v1.14.48

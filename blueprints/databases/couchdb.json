@@ -1,40 +1,25 @@
 {
   "schemaVersion": 1,
-  "id": "mongodb",
-  "name": "Mongodb",
-  "description": "Deploy Mongodb using Docker.",
+  "id": "couchdb",
+  "name": "Couchdb",
+  "description": "Deploy Couchdb using Docker.",
   "version": "1.0.0",
   "author": "Hex Team",
   "homepage": "https://github.com/N1N4U/blueprints",
   "category": "Databases",
-  "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/mongodb.png",
+  "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/couchdb.png",
   "runtime": {
-    "default": "mongo:7",
+    "default": "latest",
     "options": [
       {
-        "id": "mongo:5",
-        "name": "MongoDB 5.0",
-        "dockerImage": "mongo:5"
-      },
-      {
-        "id": "mongo:6",
-        "name": "MongoDB 6.0",
-        "dockerImage": "mongo:6"
-      },
-      {
-        "id": "mongo:7",
-        "name": "MongoDB 7.0",
-        "dockerImage": "mongo:7"
-      },
-      {
-        "id": "mongo:8",
-        "name": "MongoDB 8.0",
-        "dockerImage": "mongo:8"
+        "id": "couchdb:latest",
+        "name": "Couchdb Latest",
+        "dockerImage": "couchdb:latest"
       }
     ]
   },
   "docker": {
-    "image": "mongo:5",
+    "image": "couchdb:latest",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",
@@ -122,7 +107,7 @@
     "official": true,
     "verified": true,
     "tags": [
-      "mongodb",
+      "couchdb",
       "databases"
     ]
   }

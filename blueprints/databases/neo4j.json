@@ -1,40 +1,25 @@
 {
   "schemaVersion": 1,
-  "id": "mongodb",
-  "name": "Mongodb",
-  "description": "Deploy Mongodb using Docker.",
+  "id": "neo4j",
+  "name": "Neo4j",
+  "description": "Deploy Neo4j using Docker.",
   "version": "1.0.0",
   "author": "Hex Team",
   "homepage": "https://github.com/N1N4U/blueprints",
   "category": "Databases",
-  "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/mongodb.png",
+  "iconUrl": "https://raw.githubusercontent.com/N1N4U/blueprints/main/icons/neo4j.png",
   "runtime": {
-    "default": "mongo:7",
+    "default": "latest",
     "options": [
       {
-        "id": "mongo:5",
-        "name": "MongoDB 5.0",
-        "dockerImage": "mongo:5"
-      },
-      {
-        "id": "mongo:6",
-        "name": "MongoDB 6.0",
-        "dockerImage": "mongo:6"
-      },
-      {
-        "id": "mongo:7",
-        "name": "MongoDB 7.0",
-        "dockerImage": "mongo:7"
-      },
-      {
-        "id": "mongo:8",
-        "name": "MongoDB 8.0",
-        "dockerImage": "mongo:8"
+        "id": "neo4j:latest",
+        "name": "Neo4j Latest",
+        "dockerImage": "neo4j:latest"
       }
     ]
   },
   "docker": {
-    "image": "mongo:5",
+    "image": "neo4j:latest",
     "imagePullPolicy": "always",
     "workingDirectory": "/home/container",
     "entrypoint": "",
@@ -122,7 +107,7 @@
     "official": true,
     "verified": true,
     "tags": [
-      "mongodb",
+      "neo4j",
       "databases"
     ]
   }

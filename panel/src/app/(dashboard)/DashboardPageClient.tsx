@@ -232,6 +232,8 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
   const [showCpuModal, setShowCpuModal] = useState(false);
   const [networkHistory, setNetworkHistory] = useState<{up: number, down: number, max: number}[]>(Array(20).fill({up:0, down:0, max:1}));
   const [showProcessesModal, setShowProcessesModal] = useState<"cpu" | "ram" | "storage" | "network" | null>(null);
+  const [wipeTarget, setWipeTarget] = useState<string | null>(null);
+  const [wipeDays, setWipeDays] = useState(7);
 
   useEffect(() => {
     setTime(new Date());
@@ -333,7 +335,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           </div>
           <CircularGauge label="" percentage={cpuPct} subText={displayCore ? `${displayCore.cpuCores || '?'} Cores` : `Avg · ${onlineCores.length} cores`} />
           {displayCore?.stats?.cpu_cores_usage && (
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-2 w-full px-2">
+            <div className="grid grid-cols-1 gap-x-3 gap-y-2 mt-2 w-full px-2">
               {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
                 <div key={idx} className="flex flex-col gap-1 w-full">
                   <div className="flex justify-between text-[9px] text-on-surface-variant/60 font-mono">
@@ -603,7 +605,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
 
       {/* Action Confirmation Modal */}
       {confirmAction && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl">
+        <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl">
           <div className="glass-panel w-96 rounded-2xl p-6 shadow-2xl border border-white/10">
             <h3 className="text-xl font-bold text-on-surface mb-2 capitalize">{confirmAction} Core</h3>
             <p className="text-sm text-on-surface-variant/70 mb-6">
@@ -625,9 +627,36 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         </div>
       )}
 
+      {/* Wipe Confirmation Modal */}
+      {wipeTarget && (
+        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setWipeTarget(null)}>
+          <div className="glass-panel w-96 rounded-2xl p-6 shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
+            <h3 className="text-xl font-bold text-on-surface mb-2">Wipe {wipeTarget}</h3>
+            <p className="text-sm text-on-surface-variant/70 mb-4">
+              Select how you want to clear the logs. You can delete all logs or only those older than a specific number of days.
+            </p>
+            <div className="flex items-center gap-3 mb-6">
+              <label className="text-sm text-on-surface-variant/80">Older than (days):</label>
+              <input type="number" value={wipeDays} onChange={(e) => setWipeDays(parseInt(e.target.value) || 0)} className="w-20 bg-black/40 border border-white/10 rounded-lg px-3 py-1 text-on-surface focus:outline-none focus:border-primary" />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setWipeTarget(null)} className="px-4 py-2 rounded-lg text-sm font-semibold text-on-surface-variant hover:bg-white/10 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => setWipeTarget(null)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 transition-colors">
+                Wipe Day
+              </button>
+              <button onClick={() => setWipeTarget(null)} className="px-4 py-2 rounded-lg text-sm font-semibold bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors">
+                Wipe Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Processes Modal */}
       {showProcessesModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setShowProcessesModal(null)}>
+        <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setShowProcessesModal(null)}>
           <div className="glass-panel w-full max-w-2xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden max-h-full" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
               <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
@@ -659,36 +688,65 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                       </div>
                     </div>
                   </div>
+                  {displayCore.stats.cpu_cores_usage && (
+                    <div className="grid grid-cols-1 gap-x-3 gap-y-2 mt-4 w-full">
+                      <h4 className="text-xs font-bold text-on-surface-variant/70 mb-1 uppercase tracking-wider">Per-Core Usage</h4>
+                      {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
+                        <div key={idx} className="flex flex-col gap-1 w-full">
+                          <div className="flex justify-between text-[9px] text-on-surface-variant/60 font-mono">
+                            <span>Core {idx}</span>
+                            <span>{usage.toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                            <div className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${usage}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
             )}
             
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
               {showProcessesModal === "storage" ? (
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
-                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4" alt="Docker"/> Docker Storage</h4>
-                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Containers</span> <span>1.2 GB</span></div>
-                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
-                    </div>
-                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
                       <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">image</span> Docker Images</h4>
                       <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Images</span> <span>4.5 GB</span></div>
-                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                      <button onClick={() => setWipeTarget("Docker Images")} className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
                     </div>
                     <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
                       <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-yellow-400">subject</span> Docker Logs</h4>
                       <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>800 MB</span></div>
-                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                      <button onClick={() => setWipeTarget("Docker Logs")} className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
                     </div>
                     <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
                       <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-purple-400">dns</span> Hex Core Logs</h4>
                       <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>120 MB</span></div>
+                      <button onClick={() => setWipeTarget("Hex Core Logs")} className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2 opacity-50 pointer-events-none">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-green-400">dns</span> Hex Panel Logs</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>N/A</span></div>
                       <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
                     </div>
                   </div>
                   <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase tracking-wider mb-2">Partitions</h4>
-                  {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
+                  <div className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5 mb-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-bold text-on-surface flex items-center gap-2"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4" alt="Docker"/> Docker Storage</span>
+                      <span className="font-mono text-on-surface-variant">1.2 GB / 50 GB</span>
+                    </div>
+                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden mt-1">
+                      <div className="h-full bg-primary" style={{ width: `2%` }} />
+                    </div>
+                    <div className="flex justify-between text-xs text-on-surface-variant/50">
+                      <span>Device: overlay</span>
+                      <span>2.4% Used</span>
+                    </div>
+                  </div>
+                  {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.filter((p: any) => p.device !== "swap").map((p: any, idx: number) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5">
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">hard_drive</span> {p.mountpoint}</span>
@@ -724,6 +782,39 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                         <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase">Total Transfer</h4>
                         <span className="font-mono text-xl text-purple-400 mt-1">{formatBytes((displayCore?.netTotalRecv || 0) + (displayCore?.netTotalSent || 0))}</span>
                       </div>
+                    </div>
+                    
+                    <div className="mt-4">
+                      <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
+                        <div className="col-span-2">PID</div>
+                        <div className="col-span-3">Name</div>
+                        <div className="col-span-2">User</div>
+                        <div className="col-span-2">TIME+</div>
+                        <div className="col-span-1 text-right">In</div>
+                        <div className="col-span-2 text-right">Out</div>
+                      </div>
+                      {displayCore?.stats?.top_processes ? [...displayCore.stats.top_processes].sort((a: any, b: any) => b.cpu_percent - a.cpu_percent).map((p: any, i: number) => {
+                        const isDocker = p.name.includes('docker') || p.name.includes('containerd');
+                        return (
+                          <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-on-surface items-center border-b border-white/5 hover:bg-white/5 transition-colors">
+                            <div className="col-span-2 text-on-surface-variant/50">{p.pid}</div>
+                            <div className="col-span-3 flex items-center gap-2 truncate">
+                              {isDocker ? (
+                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4 object-contain" alt="Docker" />
+                              ) : (
+                                <span className="material-symbols-outlined text-[16px] text-primary">terminal</span>
+                              )}
+                              <span className="truncate" title={p.name}>{p.name}</span>
+                            </div>
+                            <div className="col-span-2 text-on-surface-variant/70 truncate">{p.user || "root"}</div>
+                            <div className="col-span-2 text-on-surface-variant/70 font-mono text-xs">{p.time_plus || "0:00.00"}</div>
+                            <div className="col-span-1 text-right font-mono text-primary text-xs truncate">0 B/s</div>
+                            <div className="col-span-2 text-right font-mono text-yellow-400 text-xs truncate">0 B/s</div>
+                          </div>
+                        );
+                      }) : (
+                        <div className="p-8 text-center text-on-surface-variant/50 text-sm">No process data available for this core.</div>
+                      )}
                     </div>
                   </div>
               ) : (
@@ -784,7 +875,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
 
       {/* CPU Name Modal */}
       {showCpuModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setShowCpuModal(false)}>
+        <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setShowCpuModal(false)}>
           <div className="glass-panel max-w-md w-full rounded-2xl p-6 shadow-2xl border border-white/10 text-center flex flex-col gap-4 items-center" onClick={e => e.stopPropagation()}>
             <span className="material-symbols-outlined text-[48px] text-primary">memory</span>
             <h3 className="text-xl font-bold text-on-surface">Processor Information</h3>
@@ -800,7 +891,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
 
       {/* Logs Modal */}
       {isLogsModalOpen && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6">
+        <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6">
           <div className="glass-panel w-full h-full max-w-4xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden">
             <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
               <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
@@ -824,7 +915,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
               ))}
             </div>
 
-            <div className="flex-1 p-4 bg-black/40 font-mono text-xs text-on-surface-variant/80 overflow-y-auto">
+            <div className="flex-1 p-4 bg-black/40 font-mono text-xs text-on-surface-variant/80 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
               {activeLogTab === 'Panel' ? (
                 <>
                   <p className="text-on-surface-variant/60">[BFF] Starting Hex Panel Background Services...</p>
@@ -1220,7 +1311,7 @@ function FirewallView({ activeCoreId }: { activeCoreId: string | "all" }) {
   }
 
   return (
-    <div className="flex flex-col h-full fade-in p-8 pb-24 overflow-y-auto">
+    <div className="flex flex-col h-full fade-in p-8 pb-24 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-bold text-on-surface tracking-tight mb-2">Firewall Management</h2>

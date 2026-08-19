@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/user"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -285,6 +286,10 @@ func NewManager() *Manager {
 						if uid == "" {
 							uid = "0"
 						}
+						u, err := user.LookupId(uid)
+						if err == nil {
+							uid = u.Username
+						}
 
 						if cpuPercent > 0 || memBytes > 0 {
 							procStats = append(procStats, ProcessStat{
@@ -305,22 +310,14 @@ func NewManager() *Manager {
 					})
 
 					var topCpu []ProcessStat
-					if len(procStats) > 15 {
-						topCpu = append([]ProcessStat(nil), procStats[:15]...)
-					} else {
-						topCpu = append([]ProcessStat(nil), procStats...)
-					}
+					topCpu = append([]ProcessStat(nil), procStats...)
 
 					sort.Slice(procStats, func(i, j int) bool {
 						return procStats[i].MemoryBytes > procStats[j].MemoryBytes
 					})
 
 					var topRam []ProcessStat
-					if len(procStats) > 15 {
-						topRam = append([]ProcessStat(nil), procStats[:15]...)
-					} else {
-						topRam = append([]ProcessStat(nil), procStats...)
-					}
+					topRam = append([]ProcessStat(nil), procStats...)
 
 					mergedMap := make(map[int32]ProcessStat)
 					for _, p := range topCpu {

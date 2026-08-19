@@ -12,6 +12,7 @@ coverage/
 trash/
 
 others/
+prompt/
 
 # Next.js
 .next/

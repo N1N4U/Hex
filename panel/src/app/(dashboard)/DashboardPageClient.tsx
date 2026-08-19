@@ -344,7 +344,6 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     </div>
                   )
                 })}
-              </div>
             </div>
           )}
         </div>
@@ -472,7 +471,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                 <span>{formatBytes(displayCore?.stats?.swap_used || 0)} / {formatBytes(displayCore?.stats?.swap_total || 0)}</span>
               </div>
               <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-400" style={{ width: `${(displayCore?.stats?.swap_used || 0 / displayCore?.stats?.swap_total || 0) * 100}%` }} />
+                <div className="h-full bg-yellow-400" style={{ width: `${((displayCore?.stats?.swap_used || 0) / (displayCore?.stats?.swap_total || 1)) * 100}%` }} />
               </div>
             </div>
           )}
@@ -697,8 +696,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                             )
                           })}
                         </div>
-                      </div>
-                    )}
+                      )}
                 </div>
             )}
             

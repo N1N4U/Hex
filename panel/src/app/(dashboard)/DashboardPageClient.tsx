@@ -332,6 +332,21 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
           </div>
           <CircularGauge label="" percentage={cpuPct} subText={displayCore ? `${displayCore.cpuCores || '?'} Cores` : `Avg · ${onlineCores.length} cores`} />
+          {displayCore?.stats?.cpu_cores_usage && (
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-2 w-full px-2">
+              {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
+                <div key={idx} className="flex flex-col gap-1 w-full">
+                  <div className="flex justify-between text-[9px] text-on-surface-variant/60 font-mono">
+                    <span>{idx}</span>
+                    <span>{usage.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${usage}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* CENTER — tall info card spanning 2 rows */}
@@ -450,6 +465,17 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             percentage={ramPercent} 
             subText={`${ramUsed < 1 ? Math.round(ramUsed * 1024) + ' MB' : ramUsed.toFixed(1) + ' GB'} / ${ramTotal} GB`} 
           />
+          {displayCore?.stats?.swap_total > 0 && (
+            <div className="flex flex-col gap-1 mt-2 w-full px-2">
+              <div className="flex justify-between text-[9px] text-on-surface-variant/60 font-mono">
+                <span>SWAP</span>
+                <span>{formatBytes(displayCore.stats.swap_used)} / {formatBytes(displayCore.stats.swap_total)}</span>
+              </div>
+              <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-full bg-yellow-400" style={{ width: `${(displayCore.stats.swap_used / displayCore.stats.swap_total) * 100}%` }} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Storage — bottom left */}
@@ -615,9 +641,53 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
               </button>
             </div>
             
+            {showProcessesModal !== "storage" && showProcessesModal !== "network" && displayCore?.stats && (
+                <div className="px-6 py-4 border-b border-white/5 bg-black/20 flex flex-col gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="col-span-2">
+                      <h4 className="text-xs font-bold text-on-surface-variant/70 mb-2 uppercase tracking-wider">Load Average</h4>
+                      <div className="flex gap-4 font-mono text-lg text-on-surface">
+                        <span title="1 minute">{displayCore.stats.load_1?.toFixed(2) || "0.00"}</span>
+                        <span title="5 minutes" className="text-on-surface-variant/70">{displayCore.stats.load_5?.toFixed(2) || "0.00"}</span>
+                        <span title="15 minutes" className="text-on-surface-variant/40">{displayCore.stats.load_15?.toFixed(2) || "0.00"}</span>
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <h4 className="text-xs font-bold text-on-surface-variant/70 mb-2 uppercase tracking-wider">Tasks</h4>
+                      <div className="font-mono text-lg text-on-surface">
+                        {displayCore.stats.task_count || "0"} <span className="text-xs font-sans text-on-surface-variant/50">total</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+            )}
+            
             <div className="flex-1 p-4 overflow-y-auto">
               {showProcessesModal === "storage" ? (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4" alt="Docker"/> Docker Storage</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Containers</span> <span>1.2 GB</span></div>
+                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">image</span> Docker Images</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Images</span> <span>4.5 GB</span></div>
+                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-yellow-400">subject</span> Docker Logs</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>800 MB</span></div>
+                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-purple-400">dns</span> Hex Core Logs</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>120 MB</span></div>
+                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                  </div>
+                  <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase tracking-wider mb-2">Partitions</h4>
                   {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5">
                       <div className="flex justify-between items-center text-sm">
@@ -636,18 +706,40 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     <div className="text-center p-8 text-on-surface-variant/50">No partition data available</div>
                   )}
                 </div>
+              ) : showProcessesModal === "network" ? (
+                  <div className="flex flex-col gap-4">
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col items-center text-center">
+                        <span className="material-symbols-outlined text-[32px] text-primary mb-2">download</span>
+                        <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase">Total Download</h4>
+                        <span className="font-mono text-xl text-primary mt-1">{formatBytes(displayCore?.netTotalRecv || 0)}</span>
+                      </div>
+                      <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col items-center text-center">
+                        <span className="material-symbols-outlined text-[32px] text-yellow-400 mb-2">upload</span>
+                        <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase">Total Upload</h4>
+                        <span className="font-mono text-xl text-yellow-400 mt-1">{formatBytes(displayCore?.netTotalSent || 0)}</span>
+                      </div>
+                      <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col items-center text-center">
+                        <span className="material-symbols-outlined text-[32px] text-purple-400 mb-2">swap_vert</span>
+                        <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase">Total Transfer</h4>
+                        <span className="font-mono text-xl text-purple-400 mt-1">{formatBytes((displayCore?.netTotalRecv || 0) + (displayCore?.netTotalSent || 0))}</span>
+                      </div>
+                    </div>
+                  </div>
               ) : (
                 <>
                   <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
                     <div className="col-span-2">PID</div>
-                    <div className="col-span-5">Name</div>
+                    <div className="col-span-3">Name</div>
+                    <div className="col-span-2">User</div>
+                    <div className="col-span-2">TIME+</div>
                     {showProcessesModal === "network" ? (
                       <>
-                        <div className="col-span-2 text-right">Net In</div>
-                        <div className="col-span-3 text-right">Net Out</div>
+                        <div className="col-span-1 text-right">In</div>
+                        <div className="col-span-2 text-right">Out</div>
                       </>
                     ) : (
-                      <div className="col-span-5 text-right">{showProcessesModal === "cpu" ? "CPU" : "RAM"}</div>
+                      <div className="col-span-3 text-right">{showProcessesModal === "cpu" ? "CPU %" : "RAM"}</div>
                     )}
                   </div>
               {displayCore?.stats?.top_processes ? [...displayCore.stats.top_processes].sort((a: any, b: any) => {
@@ -658,7 +750,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                 return (
                   <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-on-surface items-center border-b border-white/5 hover:bg-white/5 transition-colors">
                     <div className="col-span-2 text-on-surface-variant/50">{p.pid}</div>
-                    <div className="col-span-5 flex items-center gap-2 truncate">
+                    <div className="col-span-3 flex items-center gap-2 truncate">
                       {isDocker ? (
                         <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4 object-contain" alt="Docker" />
                       ) : (
@@ -666,18 +758,17 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                       )}
                       <span className="truncate" title={p.name}>{p.name}</span>
                     </div>
+                    <div className="col-span-2 text-on-surface-variant/70 truncate">{p.user || "root"}</div>
+                    <div className="col-span-2 text-on-surface-variant/70 font-mono text-xs">{p.time_plus || "0:00.00"}</div>
                     {showProcessesModal === "network" ? (
                       <>
-                        <div className="col-span-2 text-right font-mono text-primary group relative">
-                          0 B/s
-                          <div className="absolute hidden group-hover:block bottom-full right-0 mb-2 w-48 p-2 bg-black/90 border border-white/10 rounded text-[10px] text-white z-50">Requires nethogs kernel module for live stats</div>
-                        </div>
-                        <div className="col-span-3 text-right font-mono text-yellow-400">0 B/s</div>
+                        <div className="col-span-1 text-right font-mono text-primary text-xs truncate">Total: {formatBytes(displayCore?.netTotalRecv || 0)}</div>
+                        <div className="col-span-2 text-right font-mono text-yellow-400 text-xs truncate">Total: {formatBytes(displayCore?.netTotalSent || 0)}</div>
                       </>
                     ) : showProcessesModal === "cpu" ? (
-                      <div className="col-span-5 text-right font-mono text-yellow-400">{p.cpu_percent}%</div>
+                      <div className="col-span-3 text-right font-mono text-yellow-400">{p.cpu_percent?.toFixed(1)}%</div>
                     ) : (
-                      <div className="col-span-5 text-right font-mono text-primary">{formatBytes(p.memory_bytes)}</div>
+                      <div className="col-span-3 text-right font-mono text-primary">{formatBytes(p.memory_bytes || 0)}</div>
                     )}
                   </div>
                 );

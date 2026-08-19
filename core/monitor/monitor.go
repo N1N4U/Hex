@@ -394,10 +394,26 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	stats.MemUsage = m.cachedMemUsage
 
 	stats.Partitions = make([]PartitionStats, 0)
+	
+	// 1. Unconditionally add root
+	rootStat, err := disk.UsageWithContext(ctx, "/")
+	if err == nil {
+		stats.Partitions = append(stats.Partitions, PartitionStats{
+			Device:      "rootfs",
+			Mountpoint:  "/",
+			Total:       rootStat.Total,
+			Used:        rootStat.Used,
+			UsedPercent: math.Round(rootStat.UsedPercent*100) / 100,
+		})
+		stats.DiskTotal = rootStat.Total
+		stats.DiskUsed = rootStat.Used
+		stats.DiskUsage = math.Round(rootStat.UsedPercent*100) / 100
+	}
+
 	partitions, err := disk.PartitionsWithContext(ctx, false)
-	foundRoot := false
 	if err == nil {
 		for _, p := range partitions {
+			if p.Mountpoint == "/" { continue }
 			if p.Fstype == "overlay" || p.Fstype == "squashfs" || p.Fstype == "tmpfs" || strings.Contains(p.Mountpoint, "/docker") {
 				continue
 			}
@@ -405,7 +421,7 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 				continue
 			}
 			diskStat, err := disk.UsageWithContext(ctx, p.Mountpoint)
-			if err == nil {
+			if err == nil && diskStat.Total > 0 {
 				stats.Partitions = append(stats.Partitions, PartitionStats{
 					Device:      p.Device,
 					Mountpoint:  p.Mountpoint,
@@ -413,29 +429,7 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 					Used:        diskStat.Used,
 					UsedPercent: math.Round(diskStat.UsedPercent*100) / 100,
 				})
-				if p.Mountpoint == "/" {
-					foundRoot = true
-					stats.DiskTotal = diskStat.Total
-					stats.DiskUsed = diskStat.Used
-					stats.DiskUsage = math.Round(diskStat.UsedPercent*100) / 100
-				}
 			}
-		}
-	}
-	
-	if !foundRoot || len(stats.Partitions) == 0 {
-		diskStat, err := disk.UsageWithContext(ctx, "/")
-		if err == nil {
-			stats.Partitions = append(stats.Partitions, PartitionStats{
-				Device:      "rootfs",
-				Mountpoint:  "/",
-				Total:       diskStat.Total,
-				Used:        diskStat.Used,
-				UsedPercent: math.Round(diskStat.UsedPercent*100) / 100,
-			})
-			stats.DiskTotal = diskStat.Total
-			stats.DiskUsed = diskStat.Used
-			stats.DiskUsage = math.Round(diskStat.UsedPercent*100) / 100
 		}
 	}
 

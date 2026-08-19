@@ -335,14 +335,17 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           </div>
           <CircularGauge label="" percentage={cpuPct} subText={displayCore ? `${displayCore.cpuCores || '?'} Cores` : `Avg · ${onlineCores.length} cores`} />
           {displayCore?.stats?.cpu_cores_usage && (
-            <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden flex mt-3">
-              {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
-                const colors = ['bg-primary', 'bg-yellow-400', 'bg-purple-400', 'bg-red-400'];
-                return (
-                <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ width: `${usage / displayCore.stats.cpu_cores_usage.length}%` }} className={`h-full flex items-center justify-center text-[8px] font-bold text-black border-r border-black/20 ${colors[idx % 4]}`}>
-                  {usage > 10 ? `${idx}:${usage.toFixed(0)}%` : ''}
-                </div>
-              )})}
+            <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden mt-3 relative">
+              <div className="h-full flex absolute left-0 top-0" style={{ width: `${cpuPct}%` }}>
+                {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
+                  const colors = ['bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-emerald-400', 'bg-emerald-500', 'bg-emerald-600', 'bg-teal-400', 'bg-teal-500', 'bg-teal-600'];
+                  return (
+                    <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[8px] font-bold text-black border-r border-black/20 ${colors[idx % colors.length]}`}>
+                      {usage > 5 ? `${idx}:${usage.toFixed(0)}%` : ''}
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -467,10 +470,10 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             <div className="flex flex-col gap-1 mt-2 w-full px-2">
               <div className="flex justify-between text-[9px] text-on-surface-variant/60 font-mono">
                 <span>SWAP</span>
-                <span>{formatBytes(displayCore.stats.swap_used)} / {formatBytes(displayCore.stats.swap_total)}</span>
+                <span>{formatBytes(displayCore?.stats?.swap_used || 0)} / {formatBytes(displayCore?.stats?.swap_total || 0)}</span>
               </div>
               <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-yellow-400" style={{ width: `${(displayCore.stats.swap_used / displayCore.stats.swap_total) * 100}%` }} />
+                <div className="h-full bg-yellow-400" style={{ width: `${(displayCore?.stats?.swap_used || 0 / displayCore?.stats?.swap_total || 0) * 100}%` }} />
               </div>
             </div>
           )}
@@ -676,18 +679,6 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                         <span title="5 minutes" className="text-on-surface-variant/70">{displayCore.stats.load_5?.toFixed(2) || "0.00"}</span>
                         <span title="15 minutes" className="text-on-surface-variant/40">{displayCore.stats.load_15?.toFixed(2) || "0.00"}</span>
                       </div>
-                      {displayCore.stats.cpu_cores_usage && (
-                        <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden flex mt-2">
-                          {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
-                            const colors = ['bg-primary', 'bg-yellow-400', 'bg-purple-400', 'bg-red-400'];
-                            return (
-                              <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ width: `${usage / displayCore.stats.cpu_cores_usage.length}%` }} className={`h-full flex items-center justify-center text-[8px] font-bold text-black border-r border-black/20 ${colors[idx % 4]}`}>
-                                {usage > 5 ? `${idx}: ${usage.toFixed(0)}%` : ''}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
                     </div>
                     <div className="col-span-2">
                       <h4 className="text-xs font-bold text-on-surface-variant/70 mb-2 uppercase tracking-wider">Tasks</h4>
@@ -696,8 +687,20 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                       </div>
                     </div>
                   </div>
-                    </div>
-                  )}
+                  {displayCore.stats.cpu_cores_usage && (
+                    <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden mt-1 relative">
+                        <div className="h-full flex absolute left-0 top-0" style={{ width: `${displayCore.cpu}%` }}>
+                          {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
+                            const colors = ['bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-emerald-400', 'bg-emerald-500', 'bg-emerald-600', 'bg-teal-400', 'bg-teal-500', 'bg-teal-600'];
+                            return (
+                              <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[8px] font-bold text-black border-r border-black/20 ${colors[idx % colors.length]}`}>
+                                {usage > 5 ? `${idx}:${usage.toFixed(0)}%` : ''}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                 </div>
             )}
             
@@ -714,7 +717,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     <div className="col-span-2">
                       <h4 className="text-xs font-bold text-on-surface-variant/70 mb-2 uppercase tracking-wider">Swap</h4>
                       <div className="font-mono text-lg text-on-surface">
-                        {formatBytes(displayCore.stats.swap_used)} <span className="text-xs font-sans text-on-surface-variant/50">/ {formatBytes(displayCore.stats.swap_total)}</span>
+                        {formatBytes(displayCore?.stats?.swap_used || 0)} <span className="text-xs font-sans text-on-surface-variant/50">/ {formatBytes(displayCore?.stats?.swap_total || 0)}</span>
                       </div>
                     </div>
                   </div>
@@ -771,9 +774,11 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     <div className="text-center p-8 text-on-surface-variant/50">No partition data available</div>
                   )}
                 </div>
-              ) : showProcessesModal === "network" ? (
-                  <div className="flex flex-col gap-4">
-                    <div className="grid grid-cols-3 gap-4">
+              ) : (
+                <>
+                  {showProcessesModal === "network" && (
+                    <div className="flex flex-col gap-4 mb-4">
+                      <div className="grid grid-cols-3 gap-4">
                       <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col items-center text-center">
                         <span className="material-symbols-outlined text-[32px] text-primary mb-2">download</span>
                         <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase">Total Download</h4>
@@ -790,42 +795,8 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                         <span className="font-mono text-xl text-purple-400 mt-1">{formatBytes((displayCore?.netTotalRecv || 0) + (displayCore?.netTotalSent || 0))}</span>
                       </div>
                     </div>
-                    
-                    <div className="mt-4">
-                      <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
-                        <div className="col-span-2">PID</div>
-                        <div className="col-span-3">Name</div>
-                        <div className="col-span-2">User</div>
-                        <div className="col-span-2">TIME+</div>
-                        <div className="col-span-1 text-right">In</div>
-                        <div className="col-span-2 text-right">Out</div>
-                      </div>
-                      {displayCore?.stats?.top_processes ? [...displayCore.stats.top_processes].sort((a: any, b: any) => b.cpu_percent - a.cpu_percent).map((p: any, i: number) => {
-                        const isDocker = p.name.includes('docker') || p.name.includes('containerd');
-                        return (
-                          <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-on-surface items-center border-b border-white/5 hover:bg-white/5 transition-colors">
-                            <div className="col-span-2 text-on-surface-variant/50">{p.pid}</div>
-                            <div className="col-span-3 flex items-center gap-2 truncate">
-                              {isDocker ? (
-                                <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4 object-contain" alt="Docker" />
-                              ) : (
-                                <span className="material-symbols-outlined text-[16px] text-primary">terminal</span>
-                              )}
-                              <span className="truncate" title={p.name}>{p.name}</span>
-                            </div>
-                            <div className="col-span-2 text-on-surface-variant/70 truncate">{p.user || "root"}</div>
-                            <div className="col-span-2 text-on-surface-variant/70 font-mono text-xs">{p.time_plus || "0:00.00"}</div>
-                            <div className="col-span-1 text-right font-mono text-primary text-xs truncate">0 B/s</div>
-                            <div className="col-span-2 text-right font-mono text-yellow-400 text-xs truncate">0 B/s</div>
-                          </div>
-                        );
-                      }) : (
-                        <div className="p-8 text-center text-on-surface-variant/50 text-sm">No process data available for this core.</div>
-                      )}
                     </div>
-                  </div>
-              ) : (
-                <>
+                  )}
                   <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
                     <div className="col-span-2">PID</div>
                     <div className="col-span-3">Name</div>

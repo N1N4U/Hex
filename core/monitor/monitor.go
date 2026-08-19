@@ -398,6 +398,12 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	foundRoot := false
 	if err == nil {
 		for _, p := range partitions {
+			if p.Fstype == "overlay" || p.Fstype == "squashfs" || p.Fstype == "tmpfs" || strings.Contains(p.Mountpoint, "/docker") {
+				continue
+			}
+			if strings.HasPrefix(p.Device, "/dev/loop") {
+				continue
+			}
 			diskStat, err := disk.UsageWithContext(ctx, p.Mountpoint)
 			if err == nil {
 				stats.Partitions = append(stats.Partitions, PartitionStats{

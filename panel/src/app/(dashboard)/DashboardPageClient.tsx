@@ -338,9 +338,9 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden mt-3 relative">
               <div className="h-full flex absolute left-0 top-0" style={{ width: `${cpuPct}%` }}>
                 {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
-                  const colors = ['bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-emerald-400', 'bg-emerald-500', 'bg-emerald-600', 'bg-teal-400', 'bg-teal-500', 'bg-teal-600'];
+                  const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-yellow-500', 'bg-red-500', 'bg-cyan-500', 'bg-pink-500', 'bg-orange-500', 'bg-indigo-500', 'bg-teal-500'];
                   return (
-                    <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[8px] font-bold text-black border-r border-black/20 ${colors[idx % colors.length]}`}>
+                    <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[7px] font-bold text-black border-r border-black/20 overflow-hidden min-w-0 ${colors[idx % colors.length]}`}>
                       {usage > 5 ? `${idx}:${usage.toFixed(0)}%` : ''}
                     </div>
                   )
@@ -691,9 +691,9 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden mt-1 relative">
                         <div className="h-full flex absolute left-0 top-0" style={{ width: `${displayCore.cpu}%` }}>
                           {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
-                            const colors = ['bg-green-400', 'bg-green-500', 'bg-green-600', 'bg-emerald-400', 'bg-emerald-500', 'bg-emerald-600', 'bg-teal-400', 'bg-teal-500', 'bg-teal-600'];
+                            const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-yellow-500', 'bg-red-500', 'bg-cyan-500', 'bg-pink-500', 'bg-orange-500', 'bg-indigo-500', 'bg-teal-500'];
                             return (
-                              <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[8px] font-bold text-black border-r border-black/20 ${colors[idx % colors.length]}`}>
+                              <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[7px] font-bold text-black border-r border-black/20 overflow-hidden min-w-0 ${colors[idx % colors.length]}`}>
                                 {usage > 5 ? `${idx}:${usage.toFixed(0)}%` : ''}
                               </div>
                             )
@@ -724,7 +724,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                 </div>
             )}
             
-            <div className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <div className="flex-1 p-4 overflow-y-auto no-scrollbar">
               {showProcessesModal === "storage" ? (
                 <div className="flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-4 mb-4">

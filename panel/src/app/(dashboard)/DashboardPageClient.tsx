@@ -1931,8 +1931,36 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
                         osName: stats.os_name || c.osName,
                         cpuModel: stats.cpu_model || c.cpuModel,
                         cpuCores: stats.cpu_cores || c.cpuCores,
-                        partitions: stats.partitions || [],
-                        stats: stats
+                        partitions: stats.partitions || c.partitions || [],
+                        stats: {
+                          ...(c.stats || {}),
+                          ...stats,
+                          partitions: stats.partitions || c.stats?.partitions || c.partitions || [],
+                          docker_images_size: stats.docker_images_size || c.stats?.docker_images_size || 0,
+                          docker_logs_size: stats.docker_logs_size || c.stats?.docker_logs_size || 0,
+                          docker_storage_size: stats.docker_storage_size || c.stats?.docker_storage_size || 0
+                        }
+                      };
+                    }
+                    return c;
+                  }));
+                }
+
+                if (data.type === 'storage.update' && data.core_id) {
+                  const storage = data.payload || data;
+                  setCores(prev => prev.map(c => {
+                    if (c.id === data.core_id) {
+                      const updatedPartitions = storage.partitions || c.partitions || [];
+                      return {
+                        ...c,
+                        partitions: updatedPartitions,
+                        stats: {
+                          ...(c.stats || {}),
+                          partitions: updatedPartitions,
+                          docker_images_size: storage.docker_images_size !== undefined ? storage.docker_images_size : (c.stats?.docker_images_size || 0),
+                          docker_logs_size: storage.docker_logs_size !== undefined ? storage.docker_logs_size : (c.stats?.docker_logs_size || 0),
+                          docker_storage_size: storage.docker_storage_size !== undefined ? storage.docker_storage_size : (c.stats?.docker_storage_size || 0)
+                        }
                       };
                     }
                     return c;

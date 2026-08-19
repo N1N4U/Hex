@@ -335,12 +335,11 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           </div>
           <CircularGauge label="" percentage={cpuPct} subText={displayCore ? `${displayCore.cpuCores || '?'} Cores` : `Avg · ${onlineCores.length} cores`} />
           {displayCore?.stats?.cpu_cores_usage && (
-            <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden mt-3 relative">
-              <div className="h-full flex absolute left-0 top-0" style={{ width: `${cpuPct}%` }}>
+            <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden mt-3 flex">
                 {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
                   const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-yellow-500', 'bg-red-500', 'bg-cyan-500', 'bg-pink-500', 'bg-orange-500', 'bg-indigo-500', 'bg-teal-500'];
                   return (
-                    <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[7px] font-bold text-black border-r border-black/20 overflow-hidden min-w-0 ${colors[idx % colors.length]}`}>
+                    <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[7px] font-bold text-white text-shadow-sm border-r border-black/20 overflow-hidden min-w-0 ${colors[idx % colors.length]}`}>
                       {usage > 5 ? `${idx}:${usage.toFixed(0)}%` : ''}
                     </div>
                   )
@@ -688,12 +687,11 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     </div>
                   </div>
                   {displayCore.stats.cpu_cores_usage && (
-                    <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden mt-1 relative">
-                        <div className="h-full flex absolute left-0 top-0" style={{ width: `${displayCore.cpu}%` }}>
+                    <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden mt-1 flex">
                           {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
                             const colors = ['bg-green-500', 'bg-blue-500', 'bg-purple-500', 'bg-yellow-500', 'bg-red-500', 'bg-cyan-500', 'bg-pink-500', 'bg-orange-500', 'bg-indigo-500', 'bg-teal-500'];
                             return (
-                              <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[7px] font-bold text-black border-r border-black/20 overflow-hidden min-w-0 ${colors[idx % colors.length]}`}>
+                              <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ flex: usage }} className={`h-full flex items-center justify-center text-[7px] font-bold text-white text-shadow-sm border-r border-black/20 overflow-hidden min-w-0 ${colors[idx % colors.length]}`}>
                                 {usage > 5 ? `${idx}:${usage.toFixed(0)}%` : ''}
                               </div>
                             )
@@ -1061,7 +1059,7 @@ function FilesView({ cores, activeCoreId }: { cores: Core[]; activeCoreId: strin
             <span className="font-bold text-on-surface tracking-wide">{currentPath}</span>
           </div>
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-black text-xs font-bold hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]">
+            <button className="flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-white text-shadow-sm text-xs font-bold hover:bg-primary/90 transition-colors shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)]">
               <span className="material-symbols-outlined text-[14px]">upload</span>
               Upload
             </button>
@@ -1429,7 +1427,7 @@ function EmptyStateView({ onConnect }: { onConnect: () => void }) {
         </p>
         <button 
           onClick={onConnect}
-          className="px-6 py-3 rounded-xl bg-primary text-black font-bold tracking-wide hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)] hover:shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)] transform hover:-translate-y-0.5 flex items-center justify-center gap-2 mx-auto"
+          className="px-6 py-3 rounded-xl bg-primary text-white text-shadow-sm font-bold tracking-wide hover:bg-primary/90 transition-all shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)] hover:shadow-[0_0_30px_rgba(var(--primary-rgb),0.5)] transform hover:-translate-y-0.5 flex items-center justify-center gap-2 mx-auto"
         >
           <span className="material-symbols-outlined text-[20px]">add_link</span>
           Connect Your First Core
@@ -1646,7 +1644,7 @@ function AccountView() {
       <div className="space-y-6">
         {/* Profile */}
         <div className="glass-panel rounded-2xl border border-white/5 p-6 flex items-center gap-6">
-          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center text-black text-3xl font-bold">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-blue-500 flex items-center justify-center text-white text-shadow-sm text-3xl font-bold">
             N
           </div>
           <div className="flex-1">
@@ -2189,7 +2187,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               </button>
               <button 
                 onClick={handleAddApp}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-black hover:bg-primary/90 transition-colors"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-white text-shadow-sm hover:bg-primary/90 transition-colors"
               >
                 Add App
               </button>
@@ -2272,7 +2270,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
               <button 
                 onClick={handleConnectCore}
                 disabled={isConnecting || !coreName || !coreIp || !coreToken}
-                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-primary text-black hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                className="px-6 py-2.5 rounded-xl text-xs font-bold bg-primary text-white text-shadow-sm hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isConnecting ? (
                   <>

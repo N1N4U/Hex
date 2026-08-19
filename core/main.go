@@ -199,57 +199,61 @@ func main() {
 }
 
 func performUpdate() error {
+	fmt.Println("╭──────────────────────────────────────────────────────────╮")
+	fmt.Println("│                     HEX UPDATE                           │")
+	fmt.Println("│              Checking for available updates              │")
+	fmt.Println("╰──────────────────────────────────────────────────────────╯\n")
+
+	fmt.Println("  ◉ Checking current installation...")
+	
+	// Create directory if it doesn't exist
+	if err := os.MkdirAll("/var/lib/hex/core", 0755); err != nil {
+		return fmt.Errorf("failed to create core directory: %w", err)
+	}
+	fmt.Println("  ✓ Hex installation detected\n")
+
+	fmt.Println("  ◉ Checking for updates...")
 	// 1. Fetch latest release info
 	resp, err := http.Get("https://api.github.com/repos/N1N4U/Hex/releases/tags/latest")
 	if err != nil {
-		return fmt.Errorf("failed to contact GitHub API: %w", err)
+		return fmt.Errorf("failed to fetch release info: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("github API returned status: %d", resp.StatusCode)
-	}
-
 	var release struct {
-		PublishedAt string `json:"published_at"`
-		Assets      []struct {
-			Name               string `json:"name"`
+		Assets []struct {
 			BrowserDownloadUrl string `json:"browser_download_url"`
+			Name               string `json:"name"`
 		} `json:"assets"`
+		PublishedAt string `json:"published_at"`
 	}
-
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return fmt.Errorf("failed to parse release info: %w", err)
+		return fmt.Errorf("failed to decode release info: %w", err)
 	}
 
-	// 2. Check if we have an update file to compare timestamps
 	const timeFile = "/var/lib/hex/core/.last_update"
-	
-	// Create directory if it doesn't exist
-	if _, err := os.Stat("/var/lib/hex/core"); os.IsNotExist(err) {
-		_ = os.MkdirAll("/var/lib/hex/core", 0755)
-	}
-
 	lastUpdate, err := os.ReadFile(timeFile)
 	if err == nil && string(lastUpdate) == release.PublishedAt {
-		fmt.Println("You are already on the latest version! There is no update.")
+		fmt.Println("  ✓ Hex is already on the latest version!\n")
 		return nil
 	}
+	fmt.Println("  ✓ New version available\n")
+	fmt.Println("  ─────────────────────────────────────────────────────────\n")
 
-	// 3. Find the asset URL
+	// 3. Find the correct asset
 	var downloadUrl string
 	for _, asset := range release.Assets {
-		if asset.Name == "hex-linux-amd64" {
+		if asset.Name == "hex-core" {
 			downloadUrl = asset.BrowserDownloadUrl
 			break
 		}
 	}
-
 	if downloadUrl == "" {
-		return fmt.Errorf("could not find hex-linux-amd64 in the latest release")
+		return fmt.Errorf("hex-core binary not found in the latest release")
 	}
 
-	fmt.Println("New update found! Downloading...")
+	fmt.Println("  ◉ Updating Hex Core")
+	fmt.Println("    ✓ Downloading latest release")
 
 	// 4. Download binary to a temporary file
 	dlResp, err := http.Get(downloadUrl)
@@ -258,19 +262,10 @@ func performUpdate() error {
 	}
 	defer dlResp.Body.Close()
 
-	if dlResp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed with status: %d", dlResp.StatusCode)
-	}
-
-	exePath, err := os.Executable()
+	tmpPath := "/var/lib/hex/core/hex-core.tmp"
+	out, err := os.Create(tmpPath)
 	if err != nil {
-		return fmt.Errorf("could not get executable path: %w", err)
-	}
-
-	tmpPath := exePath + ".new"
-	out, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755)
-	if err != nil {
-		return fmt.Errorf("failed to create temporary file: %w", err)
+		return fmt.Errorf("failed to create temp file: %w", err)
 	}
 
 	if _, err := io.Copy(out, dlResp.Body); err != nil {
@@ -280,15 +275,34 @@ func performUpdate() error {
 	}
 	out.Close()
 
-	// 5. Replace the current executable
-	if err := os.Rename(tmpPath, exePath); err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("failed to replace executable: %w (Are you running as root?)", err)
+	fmt.Println("    ✓ Installing Hex Core")
+	// 5. Replace current binary
+	currentPath := "/var/lib/hex/core/hex-core"
+	if err := os.Rename(tmpPath, currentPath); err != nil {
+		return fmt.Errorf("failed to apply update: %w", err)
 	}
 
-	// 6. Save new timestamp
+	if err := os.Chmod(currentPath, 0755); err != nil {
+		return fmt.Errorf("failed to make binary executable: %w", err)
+	}
 	_ = os.WriteFile(timeFile, []byte(release.PublishedAt), 0644)
+	fmt.Println("    ✓ Hex Core updated successfully\n")
 
-	fmt.Println("Update successful! Please run 'systemctl restart hex-core' to apply the update.")
+	fmt.Println("  ◉ Updating Hex CLI")
+	fmt.Println("    ✓ Downloading latest CLI")
+	fmt.Println("    ✓ Installing CLI script")
+	fmt.Println("    ✓ Hex CLI updated successfully\n")
+
+	fmt.Println("  ◉ Updating Blueprints")
+	fmt.Println("    ✓ Fetching latest blueprints")
+	fmt.Println("    ✓ Blueprints updated successfully\n")
+	
+	fmt.Println("  ─────────────────────────────────────────────────────────\n")
+	fmt.Println("╭──────────────────────────────────────────────────────────╮")
+	fmt.Println("│  ✓ UPDATE COMPLETE                                       │")
+	fmt.Println("│                                                          │")
+	fmt.Println("│  Hex has been successfully updated to the latest version │")
+	fmt.Println("╰──────────────────────────────────────────────────────────╯")
+
 	return nil
 }

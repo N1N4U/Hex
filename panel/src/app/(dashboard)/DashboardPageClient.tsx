@@ -335,12 +335,14 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           </div>
           <CircularGauge label="" percentage={cpuPct} subText={displayCore ? `${displayCore.cpuCores || '?'} Cores` : `Avg · ${onlineCores.length} cores`} />
           {displayCore?.stats?.cpu_cores_usage && (
-            <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden flex mt-3 gap-[1px]">
-              {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
-                <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ width: `${100 / displayCore.stats.cpu_cores_usage.length}%` }} className="h-full bg-white/5 overflow-hidden">
-                  <div className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${usage}%` }} />
+            <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden flex mt-3">
+              {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
+                const colors = ['bg-primary', 'bg-yellow-400', 'bg-purple-400', 'bg-red-400'];
+                return (
+                <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ width: `${usage / displayCore.stats.cpu_cores_usage.length}%` }} className={`h-full flex items-center justify-center text-[8px] font-bold text-black border-r border-black/20 ${colors[idx % 4]}`}>
+                  {usage > 10 ? `${idx}:${usage.toFixed(0)}%` : ''}
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </div>
@@ -674,6 +676,18 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                         <span title="5 minutes" className="text-on-surface-variant/70">{displayCore.stats.load_5?.toFixed(2) || "0.00"}</span>
                         <span title="15 minutes" className="text-on-surface-variant/40">{displayCore.stats.load_15?.toFixed(2) || "0.00"}</span>
                       </div>
+                      {displayCore.stats.cpu_cores_usage && (
+                        <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden flex mt-2">
+                          {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => {
+                            const colors = ['bg-primary', 'bg-yellow-400', 'bg-purple-400', 'bg-red-400'];
+                            return (
+                              <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ width: `${usage / displayCore.stats.cpu_cores_usage.length}%` }} className={`h-full flex items-center justify-center text-[8px] font-bold text-black border-r border-black/20 ${colors[idx % 4]}`}>
+                                {usage > 5 ? `${idx}: ${usage.toFixed(0)}%` : ''}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
                     <div className="col-span-2">
                       <h4 className="text-xs font-bold text-on-surface-variant/70 mb-2 uppercase tracking-wider">Tasks</h4>
@@ -682,13 +696,6 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                       </div>
                     </div>
                   </div>
-                  {displayCore.stats.cpu_cores_usage && (
-                    <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden flex mt-1 gap-[1px]">
-                      {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
-                        <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ width: `${100 / displayCore.stats.cpu_cores_usage.length}%` }} className="h-full bg-white/5 overflow-hidden">
-                          <div className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${usage}%` }} />
-                        </div>
-                      ))}
                     </div>
                   )}
                 </div>

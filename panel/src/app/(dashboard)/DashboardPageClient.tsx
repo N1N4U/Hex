@@ -576,7 +576,6 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                   </div>
                   <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase tracking-wider mt-4">Partitions</h4>
                   {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
- && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5">
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">hard_drive</span> {p.mountpoint}</span>

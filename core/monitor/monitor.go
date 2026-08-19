@@ -204,7 +204,7 @@ func NewManager() *Manager {
 					}
 					m.cachedCPUCoresUsage = roundedCores
 					if len(cpuPerCore) > 0 {
-						m.cachedCPU = math.Round(sum*100) / 100
+						m.cachedCPU = math.Round((sum/float64(len(cpuPerCore)))*100) / 100
 					}
 				}
 

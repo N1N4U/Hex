@@ -25,6 +25,7 @@ build/
 panel/.env
 *.env
 
+*.py
 # Go
 bin/
 obj/

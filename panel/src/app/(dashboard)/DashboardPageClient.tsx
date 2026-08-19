@@ -573,7 +573,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
 
           <div className="flex justify-between text-[10px] text-on-surface-variant/50 mt-1">
             <span className="text-primary">↓ {formatBytes(networkRecv)}/s</span>
-            <span>Total: {formatBytes(networkRecv + networkSent)}/s</span>
+            <span>{formatBytes(networkRecv + networkSent)}/s</span>
             <span className="text-yellow-400">↑ {formatBytes(networkSent)}/s</span>
           </div>
 
@@ -624,6 +624,72 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         </div>
       )}
 
+      {/* CPU Name Modal */}
+      {showCpuModal && (
+        <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setShowCpuModal(false)}>
+          <div className="glass-panel max-w-md w-full rounded-2xl p-6 shadow-2xl border border-white/10 text-center flex flex-col gap-4 items-center" onClick={e => e.stopPropagation()}>
+            <span className="material-symbols-outlined text-[48px] text-primary">memory</span>
+            <h3 className="text-xl font-bold text-on-surface">Processor Information</h3>
+            <p className="text-sm font-mono bg-black/30 p-3 rounded-xl border border-white/5 text-primary break-words w-full select-all">
+              {displayCore?.cpuModel || "Unknown"}
+            </p>
+            <button onClick={() => setShowCpuModal(false)} className="mt-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-on-surface rounded-xl text-sm font-semibold transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Logs Modal */}
+      {isLogsModalOpen && (
+        <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6">
+          <div className="glass-panel w-full h-full max-w-4xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
+              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary">monitoring</span>
+                System Logs - {displayCore?.name}
+              </h3>
+              <button onClick={() => setIsLogsModalOpen(false)} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="flex px-6 py-2 gap-4 border-b border-white/5 overflow-x-auto no-scrollbar">
+              {["Docker", "Nginx", "Firewall", "Core", "Panel"].map(tab => (
+                <button 
+                  key={tab} 
+                  onClick={() => setActiveLogTab(tab as any)}
+                  className={`text-sm font-medium pb-2 border-b-2 transition-colors ${activeLogTab === tab ? "border-primary text-primary" : "border-transparent text-on-surface-variant/60 hover:text-on-surface"}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 p-4 bg-black/40 font-mono text-xs text-on-surface-variant/80 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {activeLogTab === 'Panel' ? (
+                <>
+                  <p className="text-on-surface-variant/60">[BFF] Starting Hex Panel Background Services...</p>
+                  <p className="text-on-surface-variant/60">[BFF] Loaded 1 active core configurations.</p>
+                  <p className="text-on-surface-variant/60">[BFF] Next.js Router initialized on port 3000.</p>
+                  <p className="text-green-400">[BFF] Successfully connected to Core "Test".</p>
+                  <p className="text-on-surface-variant/60">[WS] Client connected from 192.168.1.5</p>
+                </>
+              ) : activeLogTab === 'Core' ? (
+                <>
+                  <p className="text-on-surface-variant/60">[HexCore] Initializing Daemon...</p>
+                  <p className="text-on-surface-variant/60">[HexCore] Loading plugins: Docker, Network, SysStats</p>
+                  <p className="text-on-surface-variant/60">[HexCore] Starting WebSocket server on 0.0.0.0:8080</p>
+                  <p className="text-green-400">[HexCore] Daemon is ready and accepting connections.</p>
+                </>
+              ) : (
+                <p className="opacity-50 italic">Waiting for {activeLogTab} log stream from {displayCore?.name || "the selected Core"}...</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
       {/* Wipe Confirmation Modal */}
       {wipeTarget && (
         <div className="absolute inset-0 z-[1050] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setWipeTarget(null)}>
@@ -827,8 +893,8 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     <div className="col-span-2 text-on-surface-variant/70 font-mono text-xs">{p.time_plus || "0:00.00"}</div>
                     {showProcessesModal === "network" ? (
                       <>
-                        <div className="col-span-1 text-right font-mono text-primary text-xs truncate">Total: {formatBytes(displayCore?.netTotalRecv || 0)}</div>
-                        <div className="col-span-2 text-right font-mono text-yellow-400 text-xs truncate">Total: {formatBytes(displayCore?.netTotalSent || 0)}</div>
+                        <div className="col-span-1 text-right font-mono text-primary text-xs truncate">{formatBytes(displayCore?.netTotalRecv || 0)}</div>
+                        <div className="col-span-2 text-right font-mono text-yellow-400 text-xs truncate">{formatBytes(displayCore?.netTotalSent || 0)}</div>
                       </>
                     ) : showProcessesModal === "cpu" ? (
                       <div className="col-span-3 text-right font-mono text-yellow-400">{p.cpu_percent?.toFixed(1)}%</div>
@@ -847,72 +913,6 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         </div>
       )}
 
-      {/* CPU Name Modal */}
-      {showCpuModal && (
-        <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setShowCpuModal(false)}>
-          <div className="glass-panel max-w-md w-full rounded-2xl p-6 shadow-2xl border border-white/10 text-center flex flex-col gap-4 items-center" onClick={e => e.stopPropagation()}>
-            <span className="material-symbols-outlined text-[48px] text-primary">memory</span>
-            <h3 className="text-xl font-bold text-on-surface">Processor Information</h3>
-            <p className="text-sm font-mono bg-black/30 p-3 rounded-xl border border-white/5 text-primary break-words w-full select-all">
-              {displayCore?.cpuModel || "Unknown"}
-            </p>
-            <button onClick={() => setShowCpuModal(false)} className="mt-2 px-6 py-2 bg-white/10 hover:bg-white/20 text-on-surface rounded-xl text-sm font-semibold transition-colors">
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Logs Modal */}
-      {isLogsModalOpen && (
-        <div className="absolute inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6">
-          <div className="glass-panel w-full h-full max-w-4xl rounded-2xl flex flex-col shadow-2xl border border-white/10 overflow-hidden">
-            <div className="flex justify-between items-center px-6 py-4 border-b border-white/5">
-              <h3 className="text-lg font-bold text-on-surface flex items-center gap-2">
-                <span className="material-symbols-outlined text-primary">monitoring</span>
-                System Logs - {displayCore?.name}
-              </h3>
-              <button onClick={() => setIsLogsModalOpen(false)} className="text-on-surface-variant/50 hover:text-on-surface transition-colors">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            
-            <div className="flex px-6 py-2 gap-4 border-b border-white/5 overflow-x-auto no-scrollbar">
-              {["Docker", "Nginx", "Firewall", "Core", "Panel"].map(tab => (
-                <button 
-                  key={tab} 
-                  onClick={() => setActiveLogTab(tab as any)}
-                  className={`text-sm font-medium pb-2 border-b-2 transition-colors ${activeLogTab === tab ? "border-primary text-primary" : "border-transparent text-on-surface-variant/60 hover:text-on-surface"}`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-1 p-4 bg-black/40 font-mono text-xs text-on-surface-variant/80 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full">
-              {activeLogTab === 'Panel' ? (
-                <>
-                  <p className="text-on-surface-variant/60">[BFF] Starting Hex Panel Background Services...</p>
-                  <p className="text-on-surface-variant/60">[BFF] Loaded 1 active core configurations.</p>
-                  <p className="text-on-surface-variant/60">[BFF] Next.js Router initialized on port 3000.</p>
-                  <p className="text-green-400">[BFF] Successfully connected to Core "Test".</p>
-                  <p className="text-on-surface-variant/60">[WS] Client connected from 192.168.1.5</p>
-                </>
-              ) : activeLogTab === 'Core' ? (
-                <>
-                  <p className="text-on-surface-variant/60">[HexCore] Initializing Daemon...</p>
-                  <p className="text-on-surface-variant/60">[HexCore] Loading plugins: Docker, Network, SysStats</p>
-                  <p className="text-on-surface-variant/60">[HexCore] Starting WebSocket server on 0.0.0.0:8080</p>
-                  <p className="text-green-400">[HexCore] Daemon is ready and accepting connections.</p>
-                </>
-              ) : (
-                <p className="opacity-50 italic">Waiting for {activeLogTab} log stream from {displayCore?.name || "the selected Core"}...</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
   );
 }
 

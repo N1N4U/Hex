@@ -8,6 +8,7 @@ import (
 	"time"
 	"context"
 	"net"
+	"os/exec"
 
 	"github.com/N1N4U/Hex/core/auth"
 	"github.com/N1N4U/Hex/core/database"
@@ -111,6 +112,16 @@ func (m *WSManager) HandleWS(w http.ResponseWriter, r *http.Request, monitorMgr 
 		case "stats.subscribe":
 			// Start pushing stats
 			go m.streamStats(conn, monitorMgr, msg.ID)
+		case "docker.wipe_images":
+			go func() {
+				exec.Command("docker", "image", "prune", "-a", "-f").Run()
+				conn.WriteJSON(WSMessage{ID: msg.ID, Type: "docker.wipe_images_done"})
+			}()
+		case "docker.wipe_logs":
+			go func() {
+				exec.Command("sh", "-c", "truncate -s 0 /var/lib/docker/containers/*/*-json.log").Run()
+				conn.WriteJSON(WSMessage{ID: msg.ID, Type: "docker.wipe_logs_done"})
+			}()
 		default:
 			conn.WriteJSON(WSMessage{ID: msg.ID, Error: "Unknown event type"})
 		}
@@ -133,9 +144,35 @@ func (m *WSManager) streamStats(conn *websocket.Conn, monitorMgr interface{}, re
 		return
 	}
 
+	var lastStorageHash string
 	for range ticker.C {
 		stats, err := getter.GetStats(context.Background())
 		if err == nil {
+			// Extract storage
+			storageData := map[string]interface{}{
+				"partitions":          stats.Partitions,
+				"docker_images_size":  stats.DockerImagesSize,
+				"docker_logs_size":    stats.DockerLogsSize,
+				"docker_storage_size": stats.DockerStorageSize,
+			}
+			storageJson, _ := json.Marshal(storageData)
+			currentStorageHash := string(storageJson)
+
+			if currentStorageHash != lastStorageHash {
+				lastStorageHash = currentStorageHash
+				conn.WriteJSON(WSMessage{
+					ID:      reqId,
+					Type:    "storage.update",
+					Payload: storageJson,
+				})
+			}
+
+			// Clear from stats to avoid spam
+			stats.Partitions = nil
+			stats.DockerImagesSize = 0
+			stats.DockerLogsSize = 0
+			stats.DockerStorageSize = 0
+
 			payload, _ := json.Marshal(stats)
 			err = conn.WriteJSON(WSMessage{
 				ID:      reqId,

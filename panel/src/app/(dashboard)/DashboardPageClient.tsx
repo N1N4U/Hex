@@ -335,17 +335,14 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           </div>
           <CircularGauge label="" percentage={cpuPct} subText={displayCore ? `${displayCore.cpuCores || '?'} Cores` : `Avg · ${onlineCores.length} cores`} />
           {displayCore?.stats?.cpu_cores_usage && (
-            <div className="grid grid-cols-1 gap-x-3 gap-y-2 mt-2 w-full px-2">
+            <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden flex mt-3 gap-[1px]">
               {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
-                <div key={idx} className="flex flex-col gap-1 w-full">
-                  <div className="flex justify-between text-[9px] text-on-surface-variant/60 font-mono">
-                    <span>{idx}</span>
-                    <span>{usage.toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${usage}%` }} />
-                  </div>
-                </div>
+                <div 
+                  key={idx} 
+                  title={`Core ${idx}: ${usage.toFixed(1)}%`}
+                  className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} 
+                  style={{ width: `${100 / displayCore.stats.cpu_cores_usage.length}%`, opacity: Math.max(0.2, usage/100) }} 
+                />
               ))}
             </div>
           )}
@@ -501,7 +498,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
 
           {displayCore?.partitions && Array.isArray(displayCore.partitions) && displayCore.partitions.length > 0 && (
             <div className="mt-2 flex flex-col gap-2 max-h-24 overflow-y-auto pr-1 no-scrollbar border-t border-white/5 pt-2">
-              {displayCore.partitions.map((p: any, idx: number) => (
+              {displayCore.partitions.filter((p: any) => p.mountpoint !== "[SWAP]").map((p: any, idx: number) => (
                 <div key={idx} className="flex flex-col gap-1">
                   <div className="flex justify-between text-[9px] text-on-surface-variant/60">
                     <span className="truncate max-w-[80px]" title={p.mountpoint}>{p.mountpoint}</span>
@@ -629,7 +626,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
 
       {/* Wipe Confirmation Modal */}
       {wipeTarget && (
-        <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setWipeTarget(null)}>
+        <div className="absolute inset-0 z-[1050] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setWipeTarget(null)}>
           <div className="glass-panel w-96 rounded-2xl p-6 shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-on-surface mb-2">Wipe {wipeTarget}</h3>
             <p className="text-sm text-on-surface-variant/70 mb-4">
@@ -670,7 +667,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
               </button>
             </div>
             
-            {showProcessesModal !== "storage" && showProcessesModal !== "network" && displayCore?.stats && (
+            {showProcessesModal === "cpu" && displayCore?.stats && (
                 <div className="px-6 py-4 border-b border-white/5 bg-black/20 flex flex-col gap-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="col-span-2">
@@ -689,21 +686,37 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                     </div>
                   </div>
                   {displayCore.stats.cpu_cores_usage && (
-                    <div className="grid grid-cols-1 gap-x-3 gap-y-2 mt-4 w-full">
-                      <h4 className="text-xs font-bold text-on-surface-variant/70 mb-1 uppercase tracking-wider">Per-Core Usage</h4>
+                    <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden flex mt-1 gap-[1px]">
                       {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
-                        <div key={idx} className="flex flex-col gap-1 w-full">
-                          <div className="flex justify-between text-[9px] text-on-surface-variant/60 font-mono">
-                            <span>Core {idx}</span>
-                            <span>{usage.toFixed(1)}%</span>
-                          </div>
-                          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                            <div className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${usage}%` }} />
-                          </div>
-                        </div>
+                        <div 
+                          key={idx} 
+                          title={`Core ${idx}: ${usage.toFixed(1)}%`}
+                          className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} 
+                          style={{ width: `${100 / displayCore.stats.cpu_cores_usage.length}%`, opacity: Math.max(0.2, usage/100) }} 
+                        />
                       ))}
                     </div>
                   )}
+                </div>
+            )}
+            
+            {showProcessesModal === "ram" && displayCore?.stats && (
+                <div className="px-6 py-4 border-b border-white/5 bg-black/20 flex flex-col gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="col-span-2">
+                      <h4 className="text-xs font-bold text-on-surface-variant/70 mb-2 uppercase tracking-wider">RAM Usage</h4>
+                      <div className="flex gap-4 font-mono text-lg text-on-surface">
+                        <span title="Used RAM">{formatBytes(displayCore.stats.mem_used)}</span>
+                        <span title="Total RAM" className="text-on-surface-variant/40">/ {formatBytes(displayCore.stats.mem_total)}</span>
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <h4 className="text-xs font-bold text-on-surface-variant/70 mb-2 uppercase tracking-wider">Swap</h4>
+                      <div className="font-mono text-lg text-on-surface">
+                        {formatBytes(displayCore.stats.swap_used)} <span className="text-xs font-sans text-on-surface-variant/50">/ {formatBytes(displayCore.stats.swap_total)}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
             )}
             
@@ -713,12 +726,12 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
                       <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">image</span> Docker Images</h4>
-                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Images</span> <span>4.5 GB</span></div>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Images</span> <span>{displayCore?.stats?.docker_images_size ? formatBytes(displayCore.stats.docker_images_size) : '0 B'}</span></div>
                       <button onClick={() => setWipeTarget("Docker Images")} className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
                     </div>
                     <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
                       <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-yellow-400">subject</span> Docker Logs</h4>
-                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>800 MB</span></div>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>{displayCore?.stats?.docker_logs_size ? formatBytes(displayCore.stats.docker_logs_size) : '0 B'}</span></div>
                       <button onClick={() => setWipeTarget("Docker Logs")} className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
                     </div>
                     <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
@@ -736,17 +749,10 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                   <div className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5 mb-2">
                     <div className="flex justify-between items-center text-sm">
                       <span className="font-bold text-on-surface flex items-center gap-2"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4" alt="Docker"/> Docker Storage</span>
-                      <span className="font-mono text-on-surface-variant">1.2 GB / 50 GB</span>
-                    </div>
-                    <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden mt-1">
-                      <div className="h-full bg-primary" style={{ width: `2%` }} />
-                    </div>
-                    <div className="flex justify-between text-xs text-on-surface-variant/50">
-                      <span>Device: overlay</span>
-                      <span>2.4% Used</span>
+                      <span className="font-mono text-on-surface-variant">{displayCore?.stats?.docker_storage_size ? formatBytes(displayCore.stats.docker_storage_size) : '0 B'}</span>
                     </div>
                   </div>
-                  {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.filter((p: any) => p.device !== "swap").map((p: any, idx: number) => (
+                  {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.filter((p: any) => p.mountpoint !== "[SWAP]").map((p: any, idx: number) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5">
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">hard_drive</span> {p.mountpoint}</span>

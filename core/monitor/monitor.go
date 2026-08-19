@@ -6,6 +6,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"sort"
@@ -48,6 +49,9 @@ type SystemStats struct {
 	CPUCores      int              `json:"cpu_cores"`
 	HostIP        string           `json:"host_ip"`
 	TopProcesses  []ProcessStat    `json:"top_processes"`
+	DockerImagesSize  uint64       `json:"docker_images_size"`
+	DockerLogsSize    uint64       `json:"docker_logs_size"`
+	DockerStorageSize uint64       `json:"docker_storage_size"`
 }
 
 type ProcessStat struct {
@@ -89,6 +93,9 @@ type Manager struct {
 	cachedNetTotalSent uint64
 	cachedNetTotalRecv uint64
 	cachedProcesses    []ProcessStat
+	cachedDockerImages  uint64
+	cachedDockerLogs    uint64
+	cachedDockerStorage uint64
 	processMu          sync.Mutex
 	lastProcTimes      map[int32]uint64
 	lastSysTime        uint64
@@ -154,11 +161,7 @@ func NewManager() *Manager {
 		tickCount := 0
 		clockTicks := float64(100) // standard CLK_TCK
 		for {
-			cpuPercents, err := cpu.Percent(0, false)
-			if err == nil && len(cpuPercents) > 0 {
-				m.cachedCPU = math.Round(cpuPercents[0]*100) / 100
-			}
-
+			// Total CPU is calculated from per-core usage below
 			vmStat, err := mem.VirtualMemory()
 			if err == nil {
 				m.cachedMemTotal = vmStat.Total
@@ -194,10 +197,15 @@ func NewManager() *Manager {
 				cpuPerCore, err := cpu.Percent(0, true)
 				if err == nil {
 					var roundedCores []float64
+					var sum float64
 					for _, c := range cpuPerCore {
 						roundedCores = append(roundedCores, math.Round(c*100)/100)
+						sum += c
 					}
 					m.cachedCPUCoresUsage = roundedCores
+					if len(cpuPerCore) > 0 {
+						m.cachedCPU = math.Round((sum/float64(len(cpuPerCore)))*100) / 100
+					}
 				}
 
 				swapStat, err := mem.SwapMemory()
@@ -342,6 +350,28 @@ func NewManager() *Manager {
 		}
 	}()
 
+	go func() {
+		for {
+			var images, logs, total uint64
+			out, err := exec.Command("sh", "-c", "du -sb /var/lib/docker/image 2>/dev/null | awk '{print $1}'").Output()
+			if err == nil {
+				images, _ = strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
+			}
+			out, err = exec.Command("sh", "-c", "du -sb /var/lib/docker/containers/*/*-json.log 2>/dev/null | awk '{s+=$1} END {print s}'").Output()
+			if err == nil {
+				logs, _ = strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
+			}
+			out, err = exec.Command("sh", "-c", "du -sb /var/lib/docker 2>/dev/null | awk '{print $1}'").Output()
+			if err == nil {
+				total, _ = strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
+			}
+			m.cachedDockerImages = images
+			m.cachedDockerLogs = logs
+			m.cachedDockerStorage = total
+			time.Sleep(30 * time.Second)
+		}
+	}()
+
 	return m
 }
 
@@ -419,6 +449,10 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	m.processMu.Lock()
 	stats.TopProcesses = m.cachedProcesses
 	m.processMu.Unlock()
+
+	stats.DockerImagesSize = m.cachedDockerImages
+	stats.DockerLogsSize = m.cachedDockerLogs
+	stats.DockerStorageSize = m.cachedDockerStorage
 
 	return stats, nil
 }

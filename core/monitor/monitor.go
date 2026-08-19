@@ -204,7 +204,7 @@ func NewManager() *Manager {
 					}
 					m.cachedCPUCoresUsage = roundedCores
 					if len(cpuPerCore) > 0 {
-						m.cachedCPU = math.Round((sum/float64(len(cpuPerCore)))*100) / 100
+						m.cachedCPU = math.Round(sum*100) / 100
 					}
 				}
 
@@ -395,6 +395,7 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 
 	stats.Partitions = make([]PartitionStats, 0)
 	partitions, err := disk.PartitionsWithContext(ctx, false)
+	foundRoot := false
 	if err == nil {
 		for _, p := range partitions {
 			diskStat, err := disk.UsageWithContext(ctx, p.Mountpoint)
@@ -407,10 +408,26 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 					UsedPercent: math.Round(diskStat.UsedPercent*100) / 100,
 				})
 				if p.Mountpoint == "/" {
+					foundRoot = true
 					stats.DiskTotal = diskStat.Total
 					stats.DiskUsed = diskStat.Used
 					stats.DiskUsage = math.Round(diskStat.UsedPercent*100) / 100
 				}
+			}
+		}
+		if !foundRoot {
+			diskStat, err := disk.UsageWithContext(ctx, "/")
+			if err == nil {
+				stats.Partitions = append(stats.Partitions, PartitionStats{
+					Device:      "rootfs",
+					Mountpoint:  "/",
+					Total:       diskStat.Total,
+					Used:        diskStat.Used,
+					UsedPercent: math.Round(diskStat.UsedPercent*100) / 100,
+				})
+				stats.DiskTotal = diskStat.Total
+				stats.DiskUsed = diskStat.Used
+				stats.DiskUsage = math.Round(diskStat.UsedPercent*100) / 100
 			}
 		}
 	}

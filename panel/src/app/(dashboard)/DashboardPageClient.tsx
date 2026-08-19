@@ -337,12 +337,9 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           {displayCore?.stats?.cpu_cores_usage && (
             <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden flex mt-3 gap-[1px]">
               {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
-                <div 
-                  key={idx} 
-                  title={`Core ${idx}: ${usage.toFixed(1)}%`}
-                  className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} 
-                  style={{ width: `${100 / displayCore.stats.cpu_cores_usage.length}%`, opacity: Math.max(0.2, usage/100) }} 
-                />
+                <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ width: `${100 / displayCore.stats.cpu_cores_usage.length}%` }} className="h-full bg-white/5 overflow-hidden">
+                  <div className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${usage}%` }} />
+                </div>
               ))}
             </div>
           )}
@@ -462,7 +459,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           <CircularGauge 
             label="" 
             percentage={ramPercent} 
-            subText={`${ramUsed < 1 ? Math.round(ramUsed * 1024) + ' MB' : ramUsed.toFixed(1) + ' GB'} / ${ramTotal} GB`} 
+            subText={`${ramUsed < 1 ? Math.round(ramUsed * 1024) + ' MB' : ramUsed.toFixed(2) + ' GB'} / ${ramTotal} GB`} 
           />
           {displayCore?.stats?.swap_total > 0 && (
             <div className="flex flex-col gap-1 mt-2 w-full px-2">
@@ -688,12 +685,9 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                   {displayCore.stats.cpu_cores_usage && (
                     <div className="w-full h-4 bg-white/5 rounded-full overflow-hidden flex mt-1 gap-[1px]">
                       {displayCore.stats.cpu_cores_usage.map((usage: number, idx: number) => (
-                        <div 
-                          key={idx} 
-                          title={`Core ${idx}: ${usage.toFixed(1)}%`}
-                          className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} 
-                          style={{ width: `${100 / displayCore.stats.cpu_cores_usage.length}%`, opacity: Math.max(0.2, usage/100) }} 
-                        />
+                        <div key={idx} title={`Core ${idx}: ${usage.toFixed(1)}%`} style={{ width: `${100 / displayCore.stats.cpu_cores_usage.length}%` }} className="h-full bg-white/5 overflow-hidden">
+                          <div className={`h-full ${usage > 85 ? 'bg-red-500' : 'bg-primary'}`} style={{ width: `${usage}%` }} />
+                        </div>
                       ))}
                     </div>
                   )}
@@ -1951,8 +1945,8 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
                       return {
                         ...c,
                         cpu: stats.cpu_usage || 0,
-                        ram: Number(((stats.mem_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
-                        ramTotal: Number(((stats.mem_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
+                        ram: Number(((stats.mem_used || 0) / (1024 * 1024 * 1024)).toFixed(3)),
+                        ramTotal: Number(((stats.mem_total || 0) / (1024 * 1024 * 1024)).toFixed(2)),
                         storage: Number(((stats.disk_used || 0) / (1024 * 1024 * 1024)).toFixed(1)),
                         storageTotal: Number(((stats.disk_total || 0) / (1024 * 1024 * 1024)).toFixed(0)),
                         networkSent: stats.net_sent || 0,

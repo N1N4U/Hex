@@ -5,7 +5,10 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -15,34 +18,42 @@ import (
 	"github.com/shirou/gopsutil/v3/host"
 	"github.com/shirou/gopsutil/v3/mem"
 	"github.com/shirou/gopsutil/v3/net"
-	"github.com/shirou/gopsutil/v3/process"
 )
 
 type SystemStats struct {
-	CPUUsage    float64 `json:"cpu_usage"` // percentage
-	MemTotal    uint64  `json:"mem_total"` // bytes
-	MemUsed     uint64  `json:"mem_used"`
-	MemUsage    float64 `json:"mem_usage"` // percentage
-	DiskTotal   uint64  `json:"disk_total"`
-	DiskUsed    uint64  `json:"disk_used"`
-	DiskUsage   float64          `json:"disk_usage"` // percentage
-	Partitions  []PartitionStats `json:"partitions"`
-	NetSent     uint64           `json:"net_sent"`   // bytes/sec (calculated)
-	NetRecv     uint64           `json:"net_recv"`   // bytes/sec (calculated)
-	NetTotalSent uint64          `json:"net_total_sent"`
-	NetTotalRecv uint64          `json:"net_total_recv"`
-	Timestamp   string           `json:"timestamp"`
-	Uptime      uint64           `json:"uptime"`
-	OSName      string           `json:"os_name"`
-	CPUModel    string           `json:"cpu_model"`
-	CPUCores     int              `json:"cpu_cores"`
-	HostIP       string           `json:"host_ip"`
-	TopProcesses []ProcessStat    `json:"top_processes"`
+	CPUUsage      float64          `json:"cpu_usage"`
+	CPUCoresUsage []float64        `json:"cpu_cores_usage"`
+	Load1         float64          `json:"load_1"`
+	Load5         float64          `json:"load_5"`
+	Load15        float64          `json:"load_15"`
+	TaskCount     int              `json:"task_count"`
+	SwapTotal     uint64           `json:"swap_total"`
+	SwapUsed      uint64           `json:"swap_used"`
+	MemTotal      uint64           `json:"mem_total"`
+	MemUsed       uint64           `json:"mem_used"`
+	MemUsage      float64          `json:"mem_usage"`
+	DiskTotal     uint64           `json:"disk_total"`
+	DiskUsed      uint64           `json:"disk_used"`
+	DiskUsage     float64          `json:"disk_usage"`
+	Partitions    []PartitionStats `json:"partitions"`
+	NetSent       uint64           `json:"net_sent"`
+	NetRecv       uint64           `json:"net_recv"`
+	NetTotalSent  uint64           `json:"net_total_sent"`
+	NetTotalRecv  uint64           `json:"net_total_recv"`
+	Timestamp     string           `json:"timestamp"`
+	Uptime        uint64           `json:"uptime"`
+	OSName        string           `json:"os_name"`
+	CPUModel      string           `json:"cpu_model"`
+	CPUCores      int              `json:"cpu_cores"`
+	HostIP        string           `json:"host_ip"`
+	TopProcesses  []ProcessStat    `json:"top_processes"`
 }
 
 type ProcessStat struct {
 	PID         int32   `json:"pid"`
 	Name        string  `json:"name"`
+	User        string  `json:"user"`
+	TimePlus    string  `json:"time_plus"`
 	CPUPercent  float64 `json:"cpu_percent"`
 	MemoryBytes uint64  `json:"memory_bytes"`
 }
@@ -56,13 +67,19 @@ type PartitionStats struct {
 }
 
 type Manager struct {
-	lastNetSent uint64
-	lastNetRecv uint64
-	lastNetTime time.Time
-	hostIP      string
-	
+	lastNetSent        uint64
+	lastNetRecv        uint64
+	lastNetTime        time.Time
+	hostIP             string
 	cachedCPUCores     int
 	cachedCPU          float64
+	cachedCPUCoresUsage []float64
+	cachedLoad1        float64
+	cachedLoad5        float64
+	cachedLoad15       float64
+	cachedTaskCount    int
+	cachedSwapTotal    uint64
+	cachedSwapUsed     uint64
 	cachedMemTotal     uint64
 	cachedMemUsed      uint64
 	cachedMemUsage     float64
@@ -70,25 +87,54 @@ type Manager struct {
 	cachedNetRecv      uint64
 	cachedNetTotalSent uint64
 	cachedNetTotalRecv uint64
-	
-	cachedProcesses []ProcessStat
-	processMu       sync.Mutex
+	cachedProcesses    []ProcessStat
+	processMu          sync.Mutex
+	lastProcTimes      map[int32]uint64
+	lastSysTime        uint64
+}
+
+func readLoadAvg() (float64, float64, float64) {
+	data, err := os.ReadFile("/proc/loadavg")
+	if err != nil {
+		return 0, 0, 0
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) >= 3 {
+		l1, _ := strconv.ParseFloat(fields[0], 64)
+		l5, _ := strconv.ParseFloat(fields[1], 64)
+		l15, _ := strconv.ParseFloat(fields[2], 64)
+		return l1, l5, l15
+	}
+	return 0, 0, 0
+}
+
+func readUptime() float64 {
+	data, err := os.ReadFile("/proc/uptime")
+	if err != nil {
+		return 0
+	}
+	fields := strings.Fields(string(data))
+	if len(fields) > 0 {
+		up, _ := strconv.ParseFloat(fields[0], 64)
+		return up
+	}
+	return 0
 }
 
 func NewManager() *Manager {
 	m := &Manager{
-		lastNetTime: time.Now(),
-		hostIP:      "Unknown",
+		lastNetTime:   time.Now(),
+		hostIP:        "Unknown",
+		lastProcTimes: make(map[int32]uint64),
 	}
-	
+
 	cores, err := cpu.Counts(true)
 	if err == nil && cores > 0 {
 		m.cachedCPUCores = cores
 	} else {
 		m.cachedCPUCores = 1
 	}
-	
-	// Fetch public IP in background
+
 	go func() {
 		client := http.Client{Timeout: 5 * time.Second}
 		resp, err := client.Get("https://api.ipify.org")
@@ -103,26 +149,23 @@ func NewManager() *Manager {
 		}
 	}()
 
-	// Fetch top processes in background every 2 seconds to keep CPU/RAM/Net fresh
 	go func() {
+		tickCount := 0
+		clockTicks := float64(100) // standard CLK_TCK
 		for {
-			// CPU
 			cpuPercents, err := cpu.Percent(0, false)
 			if err == nil && len(cpuPercents) > 0 {
 				m.cachedCPU = math.Round(cpuPercents[0]*100) / 100
 			}
 
-			// Memory
 			vmStat, err := mem.VirtualMemory()
 			if err == nil {
 				m.cachedMemTotal = vmStat.Total
-				// Use Total - Free - Buffers - Cached to match 'top' command exactly
 				used := vmStat.Total - vmStat.Free - vmStat.Buffers - vmStat.Cached
 				m.cachedMemUsed = used
 				m.cachedMemUsage = math.Round((float64(used)/float64(vmStat.Total))*100) / 100
 			}
 
-			// Network
 			netStats, err := net.IOCounters(false)
 			if err == nil && len(netStats) > 0 {
 				currentSent := netStats[0].BytesSent
@@ -130,7 +173,7 @@ func NewManager() *Manager {
 				m.cachedNetTotalSent = currentSent
 				m.cachedNetTotalRecv = currentRecv
 				now := time.Now()
-				
+
 				elapsed := now.Sub(m.lastNetTime).Seconds()
 				if elapsed > 0 {
 					if m.lastNetSent > 0 && currentSent > m.lastNetSent {
@@ -146,74 +189,158 @@ func NewManager() *Manager {
 				m.lastNetTime = now
 			}
 
-			procs, err := process.Processes()
-			if err == nil {
+			if tickCount%2 == 0 {
+				cpuPerCore, err := cpu.Percent(0, true)
+				if err == nil {
+					var roundedCores []float64
+					for _, c := range cpuPerCore {
+						roundedCores = append(roundedCores, math.Round(c*100)/100)
+					}
+					m.cachedCPUCoresUsage = roundedCores
+				}
+
+				swapStat, err := mem.SwapMemory()
+				if err == nil {
+					m.cachedSwapTotal = swapStat.Total
+					m.cachedSwapUsed = swapStat.Used
+				}
+
+				m.cachedLoad1, m.cachedLoad5, m.cachedLoad15 = readLoadAvg()
+
+				dirs, err := os.ReadDir("/proc")
+				taskCount := 0
 				var procStats []ProcessStat
-				for _, p := range procs {
-					name, err := p.Name()
-					if err != nil {
-						continue
-					}
-					cpuP, _ := p.CPUPercent()
-					memInfo, err := p.MemoryInfo()
-					memB := uint64(0)
-					if err == nil {
-						memB = memInfo.RSS
-					}
-
-					if cpuP > 0 || memB > 0 {
-						scaledCpu := cpuP / float64(m.cachedCPUCores)
-						procStats = append(procStats, ProcessStat{
-							PID:         p.Pid,
-							Name:        name,
-							CPUPercent:  math.Round(scaledCpu*100) / 100,
-							MemoryBytes: memB,
-						})
-					}
-				}
-
-				// Sort by CPU
-				sort.Slice(procStats, func(i, j int) bool {
-					return procStats[i].CPUPercent > procStats[j].CPUPercent
-				})
 				
-				var topCpu []ProcessStat
-				if len(procStats) > 15 {
-					topCpu = append([]ProcessStat(nil), procStats[:15]...)
-				} else {
-					topCpu = append([]ProcessStat(nil), procStats...)
-				}
+				sysTime := uint64(readUptime() * clockTicks)
 
-				// Sort by RAM
-				sort.Slice(procStats, func(i, j int) bool {
-					return procStats[i].MemoryBytes > procStats[j].MemoryBytes
-				})
+				if err == nil {
+					for _, d := range dirs {
+						if !d.IsDir() {
+							continue
+						}
+						pid, err := strconv.ParseInt(d.Name(), 10, 32)
+						if err != nil {
+							continue
+						}
+						taskCount++
+						
+						statData, err := os.ReadFile(filepath.Join("/proc", d.Name(), "stat"))
+						if err != nil {
+							continue
+						}
+						statusData, err := os.ReadFile(filepath.Join("/proc", d.Name(), "status"))
+						if err != nil {
+							continue
+						}
 
-				var topRam []ProcessStat
-				if len(procStats) > 15 {
-					topRam = append([]ProcessStat(nil), procStats[:15]...)
-				} else {
-					topRam = append([]ProcessStat(nil), procStats...)
-				}
+						statStr := string(statData)
+						openParen := strings.IndexByte(statStr, '(')
+						closeParen := strings.LastIndexByte(statStr, ')')
+						if openParen < 0 || closeParen < 0 {
+							continue
+						}
+						name := statStr[openParen+1 : closeParen]
+						
+						fields := strings.Fields(statStr[closeParen+2:])
+						if len(fields) < 22 {
+							continue
+						}
+						
+						utime, _ := strconv.ParseUint(fields[11], 10, 64)
+						stime, _ := strconv.ParseUint(fields[12], 10, 64)
+						totalTime := utime + stime
 
-				// Deduplicate
-				mergedMap := make(map[int32]ProcessStat)
-				for _, p := range topCpu {
-					mergedMap[p.PID] = p
-				}
-				for _, p := range topRam {
-					mergedMap[p.PID] = p
-				}
+						var memBytes uint64
+						var uid string
+						lines := strings.Split(string(statusData), "\n")
+						for _, line := range lines {
+							if strings.HasPrefix(line, "VmRSS:") {
+								f := strings.Fields(line)
+								if len(f) >= 2 {
+									kb, _ := strconv.ParseUint(f[1], 10, 64)
+									memBytes = kb * 1024
+								}
+							} else if strings.HasPrefix(line, "Uid:") {
+								f := strings.Fields(line)
+								if len(f) >= 2 {
+									uid = f[1]
+								}
+							}
+						}
 
-				var finalProcs []ProcessStat
-				for _, p := range mergedMap {
-					finalProcs = append(finalProcs, p)
-				}
+						lastTotal := m.lastProcTimes[int32(pid)]
+						var cpuPercent float64
+						if lastTotal > 0 && sysTime > m.lastSysTime {
+							diff := totalTime - lastTotal
+							sysDiff := sysTime - m.lastSysTime
+							cpuPercent = (float64(diff) / float64(sysDiff)) * 100.0 * float64(m.cachedCPUCores)
+						}
+						m.lastProcTimes[int32(pid)] = totalTime
 
-				m.processMu.Lock()
-				m.cachedProcesses = finalProcs
-				m.processMu.Unlock()
+						totalSecs := float64(totalTime) / clockTicks
+						mins := int(totalSecs / 60)
+						secs := float64(totalSecs) - float64(mins*60)
+						timePlus := strconv.Itoa(mins) + ":" + strconv.FormatFloat(secs, 'f', 2, 64)
+
+						if uid == "" {
+							uid = "0"
+						}
+
+						if cpuPercent > 0 || memBytes > 0 {
+							procStats = append(procStats, ProcessStat{
+								PID:         int32(pid),
+								Name:        name,
+								User:        uid,
+								TimePlus:    timePlus,
+								CPUPercent:  math.Round(cpuPercent*100) / 100,
+								MemoryBytes: memBytes,
+							})
+						}
+					}
+					m.cachedTaskCount = taskCount
+					m.lastSysTime = sysTime
+
+					sort.Slice(procStats, func(i, j int) bool {
+						return procStats[i].CPUPercent > procStats[j].CPUPercent
+					})
+
+					var topCpu []ProcessStat
+					if len(procStats) > 15 {
+						topCpu = append([]ProcessStat(nil), procStats[:15]...)
+					} else {
+						topCpu = append([]ProcessStat(nil), procStats...)
+					}
+
+					sort.Slice(procStats, func(i, j int) bool {
+						return procStats[i].MemoryBytes > procStats[j].MemoryBytes
+					})
+
+					var topRam []ProcessStat
+					if len(procStats) > 15 {
+						topRam = append([]ProcessStat(nil), procStats[:15]...)
+					} else {
+						topRam = append([]ProcessStat(nil), procStats...)
+					}
+
+					mergedMap := make(map[int32]ProcessStat)
+					for _, p := range topCpu {
+						mergedMap[p.PID] = p
+					}
+					for _, p := range topRam {
+						mergedMap[p.PID] = p
+					}
+
+					var finalProcs []ProcessStat
+					for _, p := range mergedMap {
+						finalProcs = append(finalProcs, p)
+					}
+
+					m.processMu.Lock()
+					m.cachedProcesses = finalProcs
+					m.processMu.Unlock()
+				}
 			}
+			tickCount++
 			time.Sleep(1 * time.Second)
 		}
 	}()
@@ -227,15 +354,18 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 		HostIP:    m.hostIP,
 	}
 
-	// CPU
 	stats.CPUUsage = m.cachedCPU
-
-	// Memory
+	stats.CPUCoresUsage = m.cachedCPUCoresUsage
+	stats.Load1 = m.cachedLoad1
+	stats.Load5 = m.cachedLoad5
+	stats.Load15 = m.cachedLoad15
+	stats.TaskCount = m.cachedTaskCount
+	stats.SwapTotal = m.cachedSwapTotal
+	stats.SwapUsed = m.cachedSwapUsed
 	stats.MemTotal = m.cachedMemTotal
 	stats.MemUsed = m.cachedMemUsed
 	stats.MemUsage = m.cachedMemUsage
 
-	// Disk (root partition + others)
 	stats.Partitions = make([]PartitionStats, 0)
 	partitions, err := disk.PartitionsWithContext(ctx, false)
 	if err == nil {
@@ -258,7 +388,6 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 		}
 	}
 
-	// Add SWAP as a pseudo-partition
 	swapStat, err := mem.SwapMemoryWithContext(ctx)
 	if err == nil && swapStat.Total > 0 {
 		stats.Partitions = append(stats.Partitions, PartitionStats{
@@ -270,20 +399,17 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 		})
 	}
 
-	// Network
 	stats.NetSent = m.cachedNetSent
 	stats.NetRecv = m.cachedNetRecv
 	stats.NetTotalSent = m.cachedNetTotalSent
 	stats.NetTotalRecv = m.cachedNetTotalRecv
 
-	// Host Info
 	hostInfo, err := host.InfoWithContext(ctx)
 	if err == nil {
 		stats.Uptime = hostInfo.Uptime
 		stats.OSName = hostInfo.Platform + " " + hostInfo.PlatformVersion
 	}
 
-	// CPU Info
 	cpuInfo, err := cpu.InfoWithContext(ctx)
 	if err == nil && len(cpuInfo) > 0 {
 		stats.CPUModel = cpuInfo[0].ModelName
@@ -293,7 +419,6 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 		stats.CPUCores = cpuCores
 	}
 
-	// Top Processes
 	m.processMu.Lock()
 	stats.TopProcesses = m.cachedProcesses
 	m.processMu.Unlock()

@@ -11,6 +11,8 @@ z.txt
 coverage/
 trash/
 
+others/
+
 # Next.js
 .next/
 out/

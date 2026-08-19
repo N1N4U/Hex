@@ -326,130 +326,27 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
       <div className="grid gap-3" style={{ gridTemplateColumns: "1fr 1fr 1fr", gridTemplateRows: "1fr 1fr auto" }}>
 
         {/* CPU — top left */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowProcessesModal("cpu")}>
+        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors overflow-y-auto no-scrollbar" onClick={() => setShowProcessesModal("cpu")}>
           <div className="flex justify-between items-center">
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">CPU</p>
-            <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
-          </div>
-          <CircularGauge label="" percentage={cpuPct} subText={displayCore ? `${displayCore.cpuCores || '?'} Cores` : `Avg · ${onlineCores.length} cores`} />
-        </div>
-
-        {/* CENTER — tall info card spanning 2 rows */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 row-span-2">
-          {/* Time */}
-          <div className="flex flex-col items-center pt-2">
-            <p className="text-[44px] font-bold text-on-surface leading-none tracking-tight">{formattedTime}</p>
-            <p className="text-[11px] text-on-surface-variant/60 mt-1">{formattedDate}</p>
-          </div>
-
-          <div className="border-t border-white/5 my-1" />
-
-          {/* Uptime */}
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0" />
-            <span className="text-xs text-on-surface-variant/60">Uptime</span>
-            <span className="text-xs text-on-surface font-semibold ml-auto">
-              {displayCore ? displayCore.uptime : `${onlineCores.length} cores up`}
-            </span>
-          </div>
-
-          {/* Host IP */}
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">computer</span>
-            <span className="text-xs text-on-surface-variant/60">Host IP</span>
-            <div className="ml-auto flex items-center gap-2">
-              <span className={`text-xs font-semibold truncate max-w-[120px] transition-all duration-300 ${showHostIP ? 'text-on-surface' : 'text-transparent bg-on-surface-variant/30 select-none rounded blur-sm'}`}>
-                {displayCore ? (displayCore.stats?.host_ip || displayCore.host.split(":")[0]) : panelName}
-              </span>
-              <button 
-                onClick={() => setShowHostIP(!showHostIP)}
-                className="text-on-surface-variant/50 hover:text-on-surface transition-colors flex items-center justify-center p-1 rounded-md hover:bg-white/5"
-                title={showHostIP ? "Hide IP" : "Show IP"}
-              >
-                <span className="material-symbols-outlined text-[14px]">
-                  {showHostIP ? 'visibility_off' : 'visibility'}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* CPU type spec */}
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">memory</span>
-            <span className="text-xs text-on-surface-variant/60">CPU</span>
-            <span 
-              className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px] cursor-pointer hover:text-primary transition-colors" 
-              title={displayCore?.cpuModel || "Mixed CPUs"}
-              onClick={() => setShowCpuModal(true)}
-            >
-              {displayCore ? displayCore.cpuModel || "Unknown CPU" : "Mixed CPUs"}
-            </span>
-          </div>
-
-          {/* Location spec */}
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">location_on</span>
-            <span className="text-xs text-on-surface-variant/60">Location</span>
-            <span className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px]">
-              {displayCore ? (locationCache[displayCore.host.split(":")[0]] === "Error" ? "Unknown" : (locationCache[displayCore.host.split(":")[0]] || "Fetching...")) : "Multiple Locations"}
-            </span>
-          </div>
-
-          {/* OS */}
-          <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-on-surface-variant/40 text-[16px]">terminal</span>
-            <span className="text-xs text-on-surface-variant/60">OS</span>
-            <span className="text-xs text-on-surface font-semibold ml-auto truncate max-w-[120px]" title={displayCore?.osName || "Mixed OS"}>
-              {displayCore ? displayCore.osName || "Unknown OS" : "Mixed OS"}
-            </span>
-          </div>
-
-          <div className="border-t border-white/5 my-1" />
-
-          {/* Quick Actions label + buttons */}
-          <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">Quick Actions</p>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { icon: "refresh",            label: "Reboot",   action: "reboot" },
-              { icon: "download",           label: "Update",   action: "update" },
-              { icon: "monitoring",         label: "Logs",     action: "logs" },
-              { icon: "power_settings_new", label: "Shut Down",action: "shutdown" },
-            ].map(a => (
-              <button 
-                key={a.icon} 
-                onClick={() => {
-                  if (activeCoreId === "all") {
-                    alert("Please select a specific Core first.");
-                    return;
-                  }
-                  if (a.action === "logs") setIsLogsModalOpen(true);
-                  else setConfirmAction(a.action as any);
-                }}
-                className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-white/5 border border-white/5 transition-colors"
-              >
-                <span className="material-symbols-outlined text-on-surface-variant text-[16px]">{a.icon}</span>
-                <span className="text-[11px] text-on-surface-variant/70">{a.label}</span>
-              </button>
-            ))}
-          </div>
-          
-          <div className="flex justify-between items-center mt-2 px-1 text-[10px] text-on-surface-variant/50 font-medium">
-            <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${wsPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> WS: {wsPing !== null ? `${wsPing}ms` : '---'}</span>
-            <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${apiPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> API: {apiPing !== null ? `${apiPing}ms` : '---'}</span>
-          </div>
-        </div>
-
-        {/* RAM — top right */}
-        <div className="glass-panel rounded-2xl p-5 flex flex-col gap-3 relative group cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setShowProcessesModal("ram")}>
-          <div className="flex justify-between items-center">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/50">RAM</p>
             <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-on-surface-variant/70 text-[18px] transition-colors">chevron_right</span>
           </div>
           <CircularGauge 
             label="" 
             percentage={ramPercent} 
-            subText={`${ramUsed < 1 ? Math.round(ramUsed * 1024) + ' MB' : ramUsed.toFixed(1) + ' GB'} / ${ramTotal} GB`} 
+            subText={`${ramUsed < 1 ? Math.round(ramUsed * 1024) + ' MB' : ramUsed.toFixed(2) + ' GB'} / ${ramTotal.toFixed(2)} GB`} 
           />
+          {displayCore?.stats?.swap_total > 0 && (
+            <div className="mt-2 flex flex-col gap-1">
+              <div className="flex justify-between text-[9px] font-mono text-on-surface-variant/60">
+                <span>SWAP</span>
+                <span>{formatBytes(displayCore.stats.swap_used)} / {formatBytes(displayCore.stats.swap_total)}</span>
+              </div>
+              <div className="w-full h-1.5 bg-black/30 rounded-sm overflow-hidden border border-white/5 relative">
+                <div className="absolute inset-y-0 left-0 bg-primary/50" style={{width: `${(displayCore.stats.swap_used / displayCore.stats.swap_total) * 100}%`}} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Storage — bottom left */}
@@ -615,10 +512,71 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
               </button>
             </div>
             
+            
             <div className="flex-1 p-4 overflow-y-auto">
+              {(showProcessesModal === "cpu" || showProcessesModal === "ram") && displayCore?.stats && (
+                <div className="mb-4 grid grid-cols-2 gap-4">
+                  <div className="glass-panel p-4 rounded-xl border border-white/5">
+                    <h4 className="text-xs font-bold text-on-surface-variant/70 mb-2 uppercase tracking-wider">Per-Core Usage</h4>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-[10px] font-mono text-on-surface-variant/60">
+                      {displayCore.stats.cpu_cores_usage?.map((val: number, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <span className="w-6 text-right">CPU{idx}</span>
+                          <div className="flex-1 h-1.5 bg-black/30 rounded-sm overflow-hidden border border-white/5 relative">
+                            <div className="absolute inset-y-0 left-0 bg-primary/70" style={{width: `${val}%`}} />
+                          </div>
+                          <span className="w-8">{Math.round(val)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col justify-center gap-4">
+                    <div>
+                      <h4 className="text-xs font-bold text-on-surface-variant/70 mb-1 uppercase tracking-wider">Load Average</h4>
+                      <div className="flex gap-4 font-mono text-lg text-primary">
+                        <span>{displayCore.stats.load_1?.toFixed(2)}</span>
+                        <span>{displayCore.stats.load_5?.toFixed(2)}</span>
+                        <span>{displayCore.stats.load_15?.toFixed(2)}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-on-surface-variant/70 mb-1 uppercase tracking-wider">Tasks</h4>
+                      <div className="font-mono text-lg text-on-surface">
+                        {displayCore.stats.task_count} <span className="text-xs text-on-surface-variant/50">total</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              
               {showProcessesModal === "storage" ? (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4"/> Docker Storage</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Containers</span> <span>1.2 GB</span></div>
+                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">image</span> Docker Images</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Images</span> <span>4.5 GB</span></div>
+                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-yellow-400">subject</span> Docker Logs</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>800 MB</span></div>
+                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                    <div className="glass-panel p-4 rounded-xl border border-white/5 flex flex-col gap-2">
+                      <h4 className="text-xs font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-purple-400">dns</span> Hex Core Logs</h4>
+                      <div className="flex justify-between text-xs text-on-surface-variant/60"><span>Logs</span> <span>120 MB</span></div>
+                      <button className="mt-2 w-full py-1.5 rounded bg-red-500/10 text-red-400 text-[10px] font-bold hover:bg-red-500/20">WIPE</button>
+                    </div>
+                  </div>
+                  <h4 className="text-xs font-bold text-on-surface-variant/70 uppercase tracking-wider mt-4">Partitions</h4>
                   {displayCore?.partitions && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
+ && displayCore.partitions.length > 0 ? displayCore.partitions.map((p: any, idx: number) => (
                     <div key={idx} className="flex flex-col gap-2 p-4 bg-black/20 rounded-xl border border-white/5">
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-on-surface flex items-center gap-2"><span className="material-symbols-outlined text-[16px] text-primary">hard_drive</span> {p.mountpoint}</span>
@@ -638,58 +596,22 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
                 </div>
               ) : (
                 <>
+                  
                   <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-semibold text-on-surface-variant/60 uppercase tracking-wider border-b border-white/5">
                     <div className="col-span-2">PID</div>
-                    <div className="col-span-5">Name</div>
+                    <div className="col-span-3">Name</div>
+                    <div className="col-span-2">User</div>
+                    <div className="col-span-2">TIME+</div>
                     {showProcessesModal === "network" ? (
                       <>
-                        <div className="col-span-2 text-right">Net In</div>
-                        <div className="col-span-3 text-right">Net Out</div>
+                        <div className="col-span-1 text-right">In</div>
+                        <div className="col-span-2 text-right">Out</div>
                       </>
                     ) : (
-                      <div className="col-span-5 text-right">{showProcessesModal === "cpu" ? "CPU" : "RAM"}</div>
+                      <div className="col-span-3 text-right">{showProcessesModal === "cpu" ? "CPU %" : "RAM"}</div>
                     )}
                   </div>
-              {displayCore?.stats?.top_processes ? [...displayCore.stats.top_processes].sort((a: any, b: any) => {
-                if (showProcessesModal === "ram") return b.memory_bytes - a.memory_bytes;
-                return b.cpu_percent - a.cpu_percent;
-              }).map((p: any, i: number) => {
-                const isDocker = p.name.includes('docker') || p.name.includes('containerd');
-                return (
-                  <div key={i} className="grid grid-cols-12 gap-4 px-4 py-3 text-sm text-on-surface items-center border-b border-white/5 hover:bg-white/5 transition-colors">
-                    <div className="col-span-2 text-on-surface-variant/50">{p.pid}</div>
-                    <div className="col-span-5 flex items-center gap-2 truncate">
-                      {isDocker ? (
-                        <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuDSlP-MXO6DGETS2dCFrduqJ57mhChx29Bo1zTWaxHk_bmuvaQ7-dvFTxoN3zVjGQ_-na_aQ6qi5u6Jwei3J4E1YvxLg4bJIgvmKOk48W4n0C4AQ_gxTbB-qh85HWOOh_hcNelIT-e6XynhC6grb7e8jsxyX4Wtm1BgHDKixENN4Lw59x1MtngwzQ15yafZ-6foP56Gshu-4GFdjbyB3w2jFND5r9REqUPogaY_IxBqlKcupJJKlYxGo5FFHClboqiayurVGKMRHRZt" className="w-4 h-4 object-contain" alt="Docker" />
-                      ) : (
-                        <span className="material-symbols-outlined text-[16px] text-primary">terminal</span>
-                      )}
-                      <span className="truncate" title={p.name}>{p.name}</span>
-                    </div>
-                    {showProcessesModal === "network" ? (
-                      <>
-                        <div className="col-span-2 text-right font-mono text-primary group relative">
-                          0 B/s
-                          <div className="absolute hidden group-hover:block bottom-full right-0 mb-2 w-48 p-2 bg-black/90 border border-white/10 rounded text-[10px] text-white z-50">Requires nethogs kernel module for live stats</div>
-                        </div>
-                        <div className="col-span-3 text-right font-mono text-yellow-400">0 B/s</div>
-                      </>
-                    ) : showProcessesModal === "cpu" ? (
-                      <div className="col-span-5 text-right font-mono text-yellow-400">{p.cpu_percent}%</div>
-                    ) : (
-                      <div className="col-span-5 text-right font-mono text-primary">{formatBytes(p.memory_bytes)}</div>
-                    )}
-                  </div>
-                );
-              }) : (
-                <div className="p-8 text-center text-on-surface-variant/50 text-sm">No process data available for this core. Make sure your Hex Core is updated.</div>
-              )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+)}
 
       {/* CPU Name Modal */}
       {showCpuModal && (

@@ -1,10 +1,13 @@
 import WebSocket from 'ws';
+import http from 'http';
+import https from 'https';
 import { getDb } from '../../../database';
 import { browserManager } from '../browser/manager';
 import { WSMessage } from '../protocol/types';
 
 class CoreConnectionManager {
   private connections: Map<string, WebSocket> = new Map();
+  private pingIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   public async getOrConnectCore(coreId: string): Promise<WebSocket | null> {
     let ws = this.connections.get(coreId);
@@ -17,6 +20,10 @@ class CoreConnectionManager {
   }
 
   private async connectToCore(coreId: string): Promise<WebSocket | null> {
+    if (this.pingIntervals.has(coreId)) {
+      clearInterval(this.pingIntervals.get(coreId)!);
+      this.pingIntervals.delete(coreId);
+    }
     try {
       const db = await getDb();
       const node = await db.get('SELECT name, ip_address, port, protocol, api_key FROM nodes WHERE id = ?', [coreId]);

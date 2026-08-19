@@ -218,7 +218,7 @@ function MacDock({ apps, activeApp, onSelect }: { apps: DockApp[]; activeApp: Ap
 }
 
 /* ── Home View ──────────────────────────────────────── */
-function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelName: string; cores: Core[]; activeCoreId: string | "all"; wsPing: number | null; apiPing: number | null }) {
+function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing, coreWsPing, coreApiPing }: { panelName: string; cores: Core[]; activeCoreId: string | "all"; wsPing: number | null; apiPing: number | null; coreWsPing: number | null; coreApiPing: number | null; }) {
   const [time, setTime] = useState<Date | null>(null);
   const [locationCache, setLocationCache] = useState<Record<string, string>>({});
 
@@ -447,10 +447,22 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
             ))}
           </div>
           
-          <div className="flex justify-between items-center mt-2 px-1 text-[10px] text-on-surface-variant/50 font-medium">
-            <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${wsPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> WS: {wsPing !== null ? `${wsPing}ms` : '---'}</span>
-            <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${apiPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> API: {apiPing !== null ? `${apiPing}ms` : '---'}</span>
-          </div>
+          <div className="flex flex-col gap-1 mt-3 px-1 text-[10px] text-on-surface-variant/50 font-medium bg-black/20 rounded-lg p-2">
+              <div className="flex justify-between">
+                <span>Browser ? Panel:</span>
+                <span className="flex gap-2">
+                  <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${wsPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> WS: {wsPing !== null ? `${wsPing}ms` : '---'}</span>
+                  <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${apiPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> API: {apiPing !== null ? `${apiPing}ms` : '---'}</span>
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Panel ? Core:</span>
+                <span className="flex gap-2">
+                  <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${coreWsPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> WS: {coreWsPing !== null ? `${coreWsPing}ms` : '---'}</span>
+                  <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${coreApiPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> API: {coreApiPing !== null ? `${coreApiPing}ms` : '---'}</span>
+                </span>
+              </div>
+            </div>
         </div>
 
         {/* RAM — top right */}
@@ -689,9 +701,8 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
           </div>
         </div>
       )}
-    </div>
-      {/* Wipe Confirmation Modal */}
-      {wipeTarget && (
+
+      {/* Wipe Confirmation Modal */}      {wipeTarget && (
         <div className="absolute inset-0 z-[1050] flex items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl p-6" onClick={() => setWipeTarget(null)}>
           <div className="glass-panel w-96 rounded-2xl p-6 shadow-2xl border border-white/10" onClick={e => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-on-surface mb-2">Wipe {wipeTarget}</h3>
@@ -913,6 +924,7 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing }: { panelNa
         </div>
       )}
 
+    </div>
   );
 }
 
@@ -1759,6 +1771,8 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
   const [isLoadingCores, setIsLoadingCores] = useState(true);
   const [wsPing, setWsPing] = useState<number | null>(null);
   const [apiPing, setApiPing] = useState<number | null>(null);
+  const [coreWsPing, setCoreWsPing] = useState<number | null>(null);
+  const [coreApiPing, setCoreApiPing] = useState<number | null>(null);
 
   // Setup periodic API Ping
   useEffect(() => {
@@ -1872,6 +1886,15 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
                 if (data.type === 'pong' && data.id?.startsWith('ping_')) {
                   const pingTime = parseInt(data.id.split('_')[1]);
                   setWsPing(Date.now() - pingTime);
+                  return;
+                }
+                
+                if (data.type === 'core_ping') {
+                  setCoreWsPing(data.ping);
+                  return;
+                }
+                if (data.type === 'core_api_ping') {
+                  setCoreApiPing(data.ping === -1 ? null : data.ping);
                   return;
                 }
 
@@ -2135,7 +2158,7 @@ export default function DashboardPageClient({ panelName, links }: { panelName: s
             <EmptyStateView onConnect={() => setIsConnectModalOpen(true)} />
           ) : (
             <>
-              {activeApp === "home" && <HomeView panelName={panelName} cores={cores} activeCoreId={activeCoreId} wsPing={wsPing} apiPing={apiPing} />}
+              {activeApp === "home" && <HomeView panelName={panelName} cores={cores} activeCoreId={activeCoreId} wsPing={wsPing} apiPing={apiPing} coreWsPing={coreWsPing} coreApiPing={coreApiPing} />}
               {activeApp === "docker" && <DockerView cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "files" && <FilesView cores={cores} activeCoreId={activeCoreId} />}
               {activeApp === "terminal" && <TerminalView activeCoreId={activeCoreId} />}

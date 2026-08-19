@@ -162,7 +162,7 @@ function MacDock({ apps, activeApp, onSelect }: { apps: DockApp[]; activeApp: Ap
   }, [updateScales]);
 
   return (
-    <div className="fixed bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none">
+    <div className="fixed bottom-6 left-0 right-0 flex justify-center z-[9999] pointer-events-none">
       <div
         ref={dockRef}
         className="flex items-center gap-2 px-4 rounded-[28px] border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.6)] pointer-events-auto"

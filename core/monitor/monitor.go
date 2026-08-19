@@ -415,20 +415,21 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 				}
 			}
 		}
-		if !foundRoot {
-			diskStat, err := disk.UsageWithContext(ctx, "/")
-			if err == nil {
-				stats.Partitions = append(stats.Partitions, PartitionStats{
-					Device:      "rootfs",
-					Mountpoint:  "/",
-					Total:       diskStat.Total,
-					Used:        diskStat.Used,
-					UsedPercent: math.Round(diskStat.UsedPercent*100) / 100,
-				})
-				stats.DiskTotal = diskStat.Total
-				stats.DiskUsed = diskStat.Used
-				stats.DiskUsage = math.Round(diskStat.UsedPercent*100) / 100
-			}
+	}
+	
+	if !foundRoot || len(stats.Partitions) == 0 {
+		diskStat, err := disk.UsageWithContext(ctx, "/")
+		if err == nil {
+			stats.Partitions = append(stats.Partitions, PartitionStats{
+				Device:      "rootfs",
+				Mountpoint:  "/",
+				Total:       diskStat.Total,
+				Used:        diskStat.Used,
+				UsedPercent: math.Round(diskStat.UsedPercent*100) / 100,
+			})
+			stats.DiskTotal = diskStat.Total
+			stats.DiskUsed = diskStat.Used
+			stats.DiskUsage = math.Round(diskStat.UsedPercent*100) / 100
 		}
 	}
 

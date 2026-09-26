@@ -20,12 +20,15 @@ jobs:
         working-directory: core
         run: |
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o ../hex-core-linux-amd64 .
+          cp ../hex-core-linux-amd64 ../hex-linux-amd64
 
       - name: Upload core artifact
         uses: actions/upload-artifact@v4
         with:
           name: hex-core-linux-amd64
-          path: hex-core-linux-amd64
+          path: |
+            hex-core-linux-amd64
+            hex-linux-amd64
 
   build-panel:
     name: Build hex-panel
@@ -101,5 +104,6 @@ jobs:
           files: |
             hex-core-linux-amd64
             hex-panel-linux-amd64
+            hex-linux-amd64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

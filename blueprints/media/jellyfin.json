@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "id": "jellyfin",
+  "name": "Jellyfin",
+  "description": "Deploy Jellyfin using Docker.",
+  "version": "1.0.0",
+  "author": "Hex Team",
+  "homepage": "https://github.com/N1N4U/presets",
+  "category": "Media",
+  "iconUrl": "https://raw.githubusercontent.com/N1N4U/presets/main/icons/jellyfin.png",
+  "runtime": {
+    "default": "jellyfin:latest",
+    "options": [
+      {
+        "id": "jellyfin:10.8",
+        "name": "Jellyfin 10.8",
+        "dockerImage": "jellyfin:10.8"
+      },
+      {
+        "id": "jellyfin:10.9",
+        "name": "Jellyfin 10.9",
+        "dockerImage": "jellyfin:10.9"
+      },
+      {
+        "id": "jellyfin:latest",
+        "name": "Jellyfin latest",
+        "dockerImage": "jellyfin:latest"
+      }
+    ]
+  },
+  "docker": {
+    "image": "jellyfin:10.8",
+    "imagePullPolicy": "always",
+    "workingDirectory": "/home/container",
+    "entrypoint": "",
+    "startupCommand": "",
+    "restartPolicy": "unless-stopped",
+    "networkMode": "bridge",
+    "privileged": false,
+    "readOnlyRootFilesystem": false,
+    "healthcheck": {
+      "enabled": false,
+      "command": "",
+      "interval": "30s",
+      "timeout": "5s",
+      "retries": 3
+    }
+  },
+  "git": {
+    "enabled": false,
+    "repository": "",
+    "branch": "",
+    "autoUpdate": false,
+    "username": "",
+    "accessToken": "",
+    "clonePath": ""
+  },
+  "startup": {
+    "startupFile": "",
+    "packageManager": "",
+    "packageFile": "",
+    "lockFile": "",
+    "installCommand": "",
+    "buildCommand": "",
+    "startCommand": "",
+    "stopCommand": "",
+    "additionalPackages": [],
+    "removeNodeModules": false
+  },
+  "storage": {
+    "persistent": true,
+    "mounts": [
+      {
+        "containerPath": "/home/container",
+        "type": "volume"
+      }
+    ]
+  },
+  "networking": {
+    "ports": [
+      {
+        "name": "Application",
+        "containerPort": [
+          3000
+        ],
+        "protocol": "tcp"
+      }
+    ]
+  },
+  "resources": {
+    "memory": {
+      "default": 1024,
+      "minimum": 512,
+      "maximum": 8192
+    },
+    "cpu": {
+      "default": 100,
+      "minimum": 10,
+      "maximum": 400
+    },
+    "disk": {
+      "default": 2048
+    },
+    "swap": {
+      "default": 0
+    }
+  },
+  "variables": [],
+  "scripts": {
+    "install": "",
+    "update": "",
+    "backup": "",
+    "restore": ""
+  },
+  "metadata": {
+    "featured": false,
+    "official": true,
+    "verified": true,
+    "tags": [
+      "jellyfin",
+      "media"
+    ]
+  }
+}

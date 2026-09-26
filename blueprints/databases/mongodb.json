@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "id": "mongodb",
+  "name": "Mongodb",
+  "description": "Deploy Mongodb using Docker.",
+  "version": "1.0.0",
+  "author": "Hex Team",
+  "homepage": "https://github.com/N1N4U/presets",
+  "category": "Databases",
+  "iconUrl": "https://raw.githubusercontent.com/N1N4U/presets/main/icons/mongodb.png",
+  "runtime": {
+    "default": "mongodb:8.0",
+    "options": [
+      {
+        "id": "mongodb:5.0",
+        "name": "Mongodb 5.0",
+        "dockerImage": "mongodb:5.0"
+      },
+      {
+        "id": "mongodb:6.0",
+        "name": "Mongodb 6.0",
+        "dockerImage": "mongodb:6.0"
+      },
+      {
+        "id": "mongodb:7.0",
+        "name": "Mongodb 7.0",
+        "dockerImage": "mongodb:7.0"
+      },
+      {
+        "id": "mongodb:8.0",
+        "name": "Mongodb 8.0",
+        "dockerImage": "mongodb:8.0"
+      }
+    ]
+  },
+  "docker": {
+    "image": "mongodb:5.0",
+    "imagePullPolicy": "always",
+    "workingDirectory": "/home/container",
+    "entrypoint": "",
+    "startupCommand": "",
+    "restartPolicy": "unless-stopped",
+    "networkMode": "bridge",
+    "privileged": false,
+    "readOnlyRootFilesystem": false,
+    "healthcheck": {
+      "enabled": false,
+      "command": "",
+      "interval": "30s",
+      "timeout": "5s",
+      "retries": 3
+    }
+  },
+  "git": {
+    "enabled": false,
+    "repository": "",
+    "branch": "",
+    "autoUpdate": false,
+    "username": "",
+    "accessToken": "",
+    "clonePath": ""
+  },
+  "startup": {
+    "startupFile": "",
+    "packageManager": "",
+    "packageFile": "",
+    "lockFile": "",
+    "installCommand": "",
+    "buildCommand": "",
+    "startCommand": "",
+    "stopCommand": "",
+    "additionalPackages": [],
+    "removeNodeModules": false
+  },
+  "storage": {
+    "persistent": true,
+    "mounts": [
+      {
+        "containerPath": "/home/container",
+        "type": "volume"
+      }
+    ]
+  },
+  "networking": {
+    "ports": [
+      {
+        "name": "Application",
+        "containerPort": [
+          3000
+        ],
+        "protocol": "tcp"
+      }
+    ]
+  },
+  "resources": {
+    "memory": {
+      "default": 1024,
+      "minimum": 512,
+      "maximum": 8192
+    },
+    "cpu": {
+      "default": 100,
+      "minimum": 10,
+      "maximum": 400
+    },
+    "disk": {
+      "default": 2048
+    },
+    "swap": {
+      "default": 0
+    }
+  },
+  "variables": [],
+  "scripts": {
+    "install": "",
+    "update": "",
+    "backup": "",
+    "restore": ""
+  },
+  "metadata": {
+    "featured": false,
+    "official": true,
+    "verified": true,
+    "tags": [
+      "mongodb",
+      "databases"
+    ]
+  }
+}

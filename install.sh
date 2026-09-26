@@ -180,7 +180,7 @@ if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -
     
     if ! wget -q -O /var/lib/hex/core/hex-core "$DOWNLOAD_URL"; then
          echo -e "${RED}[ERROR] Failed to download Hex Core from $DOWNLOAD_URL.${NC}" >&3
-         echo -e "${YELLOW}Please ensure you have published a GitHub Release with the asset 'hex-linux-$HEX_ARCH'.${NC}" >&3
+         echo -e "${YELLOW}Please ensure you have published a GitHub Release with the asset 'hex-core-linux-$HEX_ARCH'.${NC}" >&3
          if [ -d "$BACKUP_NAME" ]; then
              echo -e "Rolling back..." >&3
              rm -rf /opt/hex

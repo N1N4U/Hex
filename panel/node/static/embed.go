@@ -1,9 +1,9 @@
-﻿package static
+package static
 
 import "embed"
 
 // Dist holds the built Svelte site output.
-// Build the site first: cd panel/site && npm run build
+// all: prefix is required so Go embeds folders starting with _ or . (like _app)
 //
-//go:embed dist
+//go:embed all:dist
 var Dist embed.FS

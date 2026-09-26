@@ -1,12 +1,14 @@
-﻿package server
+package server
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -28,20 +30,22 @@ func New(cfg *config.Config) *Server {
 	if err != nil {
 		log.Printf("[node] WARNING: could not connect to core: %v", err)
 	} else {
+		s.coreClient = coreClient
 		log.Printf("[node] Core connected via %s", modeLabel(coreClient.Mode()))
 	}
-	s.coreClient = coreClient
 
-	s.mux = http.NewServeMux()
-	registerRoutes(s.mux, cfg, coreClient)
+	mux := http.NewServeMux()
+	registerRoutes(mux, s.cfg, s.coreClient)
+	s.mux = mux
 	s.registerSiteHandler()
 
 	return s
 }
 
 func (s *Server) Listen(port int) error {
+	addr := fmt.Sprintf(":%d", port)
 	srv := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
+		Addr:         addr,
 		Handler:      withLogger(s.mux),
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 60 * time.Second,
@@ -63,18 +67,35 @@ func (s *Server) registerSiteHandler() {
 			http.NotFound(w, r)
 			return
 		}
-		// SPA fallback
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		if path == "" {
-			path = "index.html"
+
+		cleanPath := strings.TrimPrefix(r.URL.Path, "/")
+		if cleanPath == "" {
+			cleanPath = "index.html"
 		}
-		if _, err := fs.Stat(sub, path); err != nil {
-			r2 := *r
-			r2.URL.Path = "/"
-			fileServer.ServeHTTP(w, &r2)
+
+		// 1. Direct file match in embedded static dist
+		if f, err := sub.Open(cleanPath); err == nil {
+			f.Close()
+			fileServer.ServeHTTP(w, r)
 			return
 		}
-		fileServer.ServeHTTP(w, r)
+
+		// 2. Missing asset with file extension (e.g. bad .js, .css, .png link) -> 404
+		if strings.Contains(filepath.Base(cleanPath), ".") {
+			http.NotFound(w, r)
+			return
+		}
+
+		// 3. SPA client-side route fallback -> serve index.html
+		indexFile, err := sub.Open("index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		defer indexFile.Close()
+
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		io.Copy(w, indexFile)
 	})
 }
 
@@ -96,7 +117,13 @@ func withLogger(h http.Handler) http.Handler {
 		start := time.Now()
 		rw := &responseRecorder{ResponseWriter: w, code: 200}
 		h.ServeHTTP(rw, r)
-		log.Printf("[node] %s %s %d %s", r.Method, r.URL.Path, rw.code, time.Since(start))
+
+		// Filter out static asset requests (_app/) to avoid console flooding unless there is an error
+		isStaticAsset := strings.HasPrefix(r.URL.Path, "/_app/")
+		if !isStaticAsset || rw.code >= 400 {
+			duration := time.Since(start)
+			log.Printf("[node] %-6s %-32s -> %3d (%v)", r.Method, r.URL.Path, rw.code, duration)
+		}
 	})
 }
 

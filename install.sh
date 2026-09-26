@@ -176,7 +176,7 @@ mkdir -p /etc/hex
 # 6. Install Core
 if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then
     echo -e "${CYAN}[*] Downloading Hex Core ($HEX_ARCH)...${NC}" >&3
-    DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-linux-$HEX_ARCH"
+    DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-core-linux-$HEX_ARCH"
     
     if ! wget -q -O /var/lib/hex/core/hex-core "$DOWNLOAD_URL"; then
          echo -e "${RED}[ERROR] Failed to download Hex Core from $DOWNLOAD_URL.${NC}" >&3
@@ -234,6 +234,41 @@ EOF
     systemctl daemon-reload
     systemctl enable hex-core
     systemctl start hex-core
+fi
+
+
+# 6b. Install Panel
+if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then
+    echo -e "${CYAN}[*] Downloading Hex Panel ($HEX_ARCH)...${NC}" >&3
+    PANEL_DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-panel-linux-$HEX_ARCH"
+    mkdir -p /opt/hex/panel
+    if ! wget -q -O /opt/hex/panel/hex-panel "$PANEL_DOWNLOAD_URL"; then
+        echo -e "${RED}[ERROR] Failed to download Hex Panel from $PANEL_DOWNLOAD_URL.${NC}" >&3
+        exit 1
+    fi
+    chmod +x /opt/hex/panel/hex-panel
+
+    echo -e "${CYAN}[*] Creating Hex Panel Systemd Service...${NC}" >&3
+    cat << EOF > /etc/systemd/system/hex-panel.service
+[Unit]
+Description=Hex Panel (Node BFF + UI)
+After=network.target hex-core.service
+
+[Service]
+ExecStart=/opt/hex/panel/hex-panel
+Restart=always
+User=root
+WorkingDirectory=/opt/hex/panel
+Environment="HEX_NODE_PORT=$PANEL_PORT"
+Environment="HEX_CORE_URL=http://127.0.0.1:$CORE_PORT"
+Environment="HEX_CORE_SOCKET=/var/run/hex/core.sock"
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+    systemctl enable hex-panel
+    systemctl start hex-panel
 fi
 
 # 7. Install CLI tool

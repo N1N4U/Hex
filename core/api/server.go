@@ -31,11 +31,13 @@ import (
 )
 
 type Server struct {
-	port      int
-	mux       *http.ServeMux
-	listener  net.Listener
-	tlsServer *http.Server
-	srv       *http.Server
+	port         int
+	mux          *http.ServeMux
+	listener     net.Listener
+	tlsServer    *http.Server
+	srv          *http.Server
+	unixListener net.Listener
+	unixServer   *http.Server
 }
 
 func NewServer(port int) *Server {
@@ -1112,6 +1114,25 @@ func (s *Server) Start() error {
 		}
 	}()
 
+	// Local Unix domain socket (/var/run/hex/core.sock) for local same-machine IPC
+	socketPath := "/var/run/hex/core.sock"
+	if err := os.MkdirAll("/var/run/hex", 0755); err == nil {
+		_ = os.Remove(socketPath)
+		if unixL, uErr := net.Listen("unix", socketPath); uErr == nil {
+			_ = os.Chmod(socketPath, 0666)
+			s.unixListener = unixL
+			s.unixServer = &http.Server{Handler: s.mux}
+			go func() {
+				log.Printf("Hex Core unix socket listening on %s\n", socketPath)
+				if err := s.unixServer.Serve(unixL); err != nil && err != http.ErrServerClosed {
+					log.Printf("Unix socket server error: %v", err)
+				}
+			}()
+		} else {
+			log.Printf("Note: Unix socket disabled or unavailable: %v\n", uErr)
+		}
+	}
+
 	return m.Serve()
 }
 
@@ -1124,6 +1145,13 @@ func (s *Server) Stop() error {
 	}
 	if s.srv != nil {
 		s.srv.Shutdown(ctx)
+	}
+	if s.unixServer != nil {
+		s.unixServer.Shutdown(ctx)
+	}
+	if s.unixListener != nil {
+		s.unixListener.Close()
+		_ = os.Remove("/var/run/hex/core.sock")
 	}
 	if s.listener != nil {
 		return s.listener.Close()

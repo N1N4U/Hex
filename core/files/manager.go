@@ -18,35 +18,74 @@ type FileInfo struct {
 }
 
 type Manager struct {
-	baseDir string
+	restrictedPaths []string
+	protectedRoots  []string
 }
 
 func NewManager() *Manager {
-	// Root directory for Hex files
-	baseDir := "/var/lib/hex"
-	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
-		baseDir = "./hex_data" // Fallback for local dev
-		os.MkdirAll(baseDir, 0755)
+	return &Manager{
+		restrictedPaths: []string{
+			"/boot",
+			"/proc",
+			"/sys",
+			"/dev",
+			"/etc/shadow",
+			"/etc/gshadow",
+			"/etc/sudoers",
+			"/etc/sudoers.d",
+		},
+		protectedRoots: []string{
+			"/",
+			"/etc",
+			"/usr",
+			"/bin",
+			"/sbin",
+			"/var",
+			"/var/lib",
+			"/var/lib/hex",
+			"/var/lib/hex/core",
+			"/root",
+			"/home",
+			"/opt",
+			"/lib",
+			"/lib64",
+		},
 	}
-	return &Manager{baseDir: baseDir}
 }
 
-// securePath ensures the requested path stays within the baseDir to prevent path traversal
-func (m *Manager) securePath(reqPath string) (string, error) {
-	fullPath := filepath.Clean(filepath.Join(m.baseDir, reqPath))
-	if !strings.HasPrefix(fullPath, m.baseDir) {
-		return "", fmt.Errorf("invalid path: access denied outside base directory")
+// sanitizePath validates and cleans the path, blocking path traversal and restricted directories.
+func (m *Manager) sanitizePath(reqPath string) (string, error) {
+	if reqPath == "" {
+		reqPath = "/"
 	}
-	return fullPath, nil
+
+	// 1. Strict traversal check - block any attempt to use ..
+	if strings.Contains(reqPath, "..") {
+		return "", fmt.Errorf("access denied: path traversal (..) is not allowed")
+	}
+
+	cleanPath := filepath.Clean(reqPath)
+	if !filepath.IsAbs(cleanPath) {
+		cleanPath = filepath.Clean("/" + cleanPath)
+	}
+
+	// 2. Check against restricted internal/system paths
+	for _, restricted := range m.restrictedPaths {
+		if cleanPath == restricted || strings.HasPrefix(cleanPath, restricted+"/") {
+			return "", fmt.Errorf("access denied: '%s' is an internal restricted system area", cleanPath)
+		}
+	}
+
+	return cleanPath, nil
 }
 
 func (m *Manager) ListFiles(dirPath string) ([]FileInfo, error) {
-	secure, err := m.securePath(dirPath)
+	target, err := m.sanitizePath(dirPath)
 	if err != nil {
 		return nil, err
 	}
 
-	entries, err := os.ReadDir(secure)
+	entries, err := os.ReadDir(target)
 	if err != nil {
 		return nil, err
 	}
@@ -57,12 +96,24 @@ func (m *Manager) ListFiles(dirPath string) ([]FileInfo, error) {
 		if err != nil {
 			continue
 		}
-		
-		relPath, _ := filepath.Rel(m.baseDir, filepath.Join(secure, entry.Name()))
+
+		fullEntryPath := filepath.Clean(filepath.Join(target, entry.Name()))
+
+		// Skip displaying restricted entries in root or internal paths
+		skip := false
+		for _, restricted := range m.restrictedPaths {
+			if fullEntryPath == restricted {
+				skip = true
+				break
+			}
+		}
+		if skip {
+			continue
+		}
 
 		files = append(files, FileInfo{
 			Name:     entry.Name(),
-			Path:     relPath,
+			Path:     fullEntryPath,
 			Size:     info.Size(),
 			IsDir:    entry.IsDir(),
 			Mode:     info.Mode().String(),
@@ -73,38 +124,71 @@ func (m *Manager) ListFiles(dirPath string) ([]FileInfo, error) {
 }
 
 func (m *Manager) ReadFile(filePath string) ([]byte, error) {
-	secure, err := m.securePath(filePath)
+	target, err := m.sanitizePath(filePath)
 	if err != nil {
 		return nil, err
 	}
-	return os.ReadFile(secure)
+
+	info, err := os.Stat(target)
+	if err != nil {
+		return nil, err
+	}
+	if info.IsDir() {
+		return nil, fmt.Errorf("cannot read: path is a directory")
+	}
+
+	// Protect against memory exhaustion: limit read to 50MB
+	const maxFileSize = 50 * 1024 * 1024
+	if info.Size() > maxFileSize {
+		return nil, fmt.Errorf("file size (%d bytes) exceeds 50MB limit", info.Size())
+	}
+
+	return os.ReadFile(target)
 }
 
 func (m *Manager) WriteFile(filePath string, content io.Reader) error {
-	secure, err := m.securePath(filePath)
+	target, err := m.sanitizePath(filePath)
 	if err != nil {
 		return err
 	}
-	
-	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(secure), 0755); err != nil {
-		return err
+
+	// Disallow overwriting entire protected root paths directly
+	for _, protected := range m.protectedRoots {
+		if target == protected {
+			return fmt.Errorf("cannot overwrite protected system directory: %s", target)
+		}
 	}
 
-	out, err := os.Create(secure)
+	// Ensure parent directory exists
+	parentDir := filepath.Dir(target)
+	if err := os.MkdirAll(parentDir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	out, err := os.Create(target)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 
-	_, err = io.Copy(out, content)
+	// Limit write stream to 100MB per request
+	limitReader := io.LimitReader(content, 100*1024*1024)
+	_, err = io.Copy(out, limitReader)
 	return err
 }
 
 func (m *Manager) DeleteFile(filePath string) error {
-	secure, err := m.securePath(filePath)
+	target, err := m.sanitizePath(filePath)
 	if err != nil {
 		return err
 	}
-	return os.RemoveAll(secure)
+
+	// Guard against deleting system roots or base directories
+	for _, protected := range m.protectedRoots {
+		if target == protected {
+			return fmt.Errorf("safety violation: cannot delete protected system directory: %s", target)
+		}
+	}
+
+	return os.RemoveAll(target)
 }

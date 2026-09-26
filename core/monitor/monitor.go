@@ -6,7 +6,6 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/user"
 	"path/filepath"
 	"sort"
@@ -15,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	dockerClient "github.com/docker/docker/client"
 	"github.com/shirou/gopsutil/v3/cpu"
 	"github.com/shirou/gopsutil/v3/disk"
 	"github.com/shirou/gopsutil/v3/host"
@@ -23,35 +24,35 @@ import (
 )
 
 type SystemStats struct {
-	CPUUsage      float64          `json:"cpu_usage"`
-	CPUCoresUsage []float64        `json:"cpu_cores_usage"`
-	Load1         float64          `json:"load_1"`
-	Load5         float64          `json:"load_5"`
-	Load15        float64          `json:"load_15"`
-	TaskCount     int              `json:"task_count"`
-	SwapTotal     uint64           `json:"swap_total"`
-	SwapUsed      uint64           `json:"swap_used"`
-	MemTotal      uint64           `json:"mem_total"`
-	MemUsed       uint64           `json:"mem_used"`
-	MemUsage      float64          `json:"mem_usage"`
-	DiskTotal     uint64           `json:"disk_total"`
-	DiskUsed      uint64           `json:"disk_used"`
-	DiskUsage     float64          `json:"disk_usage"`
-	Partitions    []PartitionStats `json:"partitions"`
-	NetSent       uint64           `json:"net_sent"`
-	NetRecv       uint64           `json:"net_recv"`
-	NetTotalSent  uint64           `json:"net_total_sent"`
-	NetTotalRecv  uint64           `json:"net_total_recv"`
-	Timestamp     string           `json:"timestamp"`
-	Uptime        uint64           `json:"uptime"`
-	OSName        string           `json:"os_name"`
-	CPUModel      string           `json:"cpu_model"`
-	CPUCores      int              `json:"cpu_cores"`
-	HostIP        string           `json:"host_ip"`
-	TopProcesses  []ProcessStat    `json:"top_processes"`
-	DockerImagesSize  uint64       `json:"docker_images_size"`
-	DockerLogsSize    uint64       `json:"docker_logs_size"`
-	DockerStorageSize uint64       `json:"docker_storage_size"`
+	CPUUsage          float64          `json:"cpu_usage"`
+	CPUCoresUsage     []float64        `json:"cpu_cores_usage"`
+	Load1             float64          `json:"load_1"`
+	Load5             float64          `json:"load_5"`
+	Load15            float64          `json:"load_15"`
+	TaskCount         int              `json:"task_count"`
+	SwapTotal         uint64           `json:"swap_total"`
+	SwapUsed          uint64           `json:"swap_used"`
+	MemTotal          uint64           `json:"mem_total"`
+	MemUsed           uint64           `json:"mem_used"`
+	MemUsage          float64          `json:"mem_usage"`
+	DiskTotal         uint64           `json:"disk_total"`
+	DiskUsed          uint64           `json:"disk_used"`
+	DiskUsage         float64          `json:"disk_usage"`
+	Partitions        []PartitionStats `json:"partitions"`
+	NetSent           uint64           `json:"net_sent"`
+	NetRecv           uint64           `json:"net_recv"`
+	NetTotalSent      uint64           `json:"net_total_sent"`
+	NetTotalRecv      uint64           `json:"net_total_recv"`
+	Timestamp         string           `json:"timestamp"`
+	Uptime            uint64           `json:"uptime"`
+	OSName            string           `json:"os_name"`
+	CPUModel          string           `json:"cpu_model"`
+	CPUCores          int              `json:"cpu_cores"`
+	HostIP            string           `json:"host_ip"`
+	TopProcesses      []ProcessStat    `json:"top_processes"`
+	DockerImagesSize  uint64           `json:"docker_images_size"`
+	DockerLogsSize    uint64           `json:"docker_logs_size"`
+	DockerStorageSize uint64           `json:"docker_storage_size"`
 }
 
 type ProcessStat struct {
@@ -72,33 +73,33 @@ type PartitionStats struct {
 }
 
 type Manager struct {
-	lastNetSent        uint64
-	lastNetRecv        uint64
-	lastNetTime        time.Time
-	hostIP             string
-	cachedCPUCores     int
-	cachedCPU          float64
+	statsMu             sync.RWMutex
+	lastNetSent         uint64
+	lastNetRecv         uint64
+	lastNetTime         time.Time
+	hostIP              string
+	cachedCPUCores      int
+	cachedCPU           float64
 	cachedCPUCoresUsage []float64
-	cachedLoad1        float64
-	cachedLoad5        float64
-	cachedLoad15       float64
-	cachedTaskCount    int
-	cachedSwapTotal    uint64
-	cachedSwapUsed     uint64
-	cachedMemTotal     uint64
-	cachedMemUsed      uint64
-	cachedMemUsage     float64
-	cachedNetSent      uint64
-	cachedNetRecv      uint64
-	cachedNetTotalSent uint64
-	cachedNetTotalRecv uint64
-	cachedProcesses    []ProcessStat
+	cachedLoad1         float64
+	cachedLoad5         float64
+	cachedLoad15        float64
+	cachedTaskCount     int
+	cachedSwapTotal     uint64
+	cachedSwapUsed      uint64
+	cachedMemTotal      uint64
+	cachedMemUsed       uint64
+	cachedMemUsage      float64
+	cachedNetSent       uint64
+	cachedNetRecv       uint64
+	cachedNetTotalSent  uint64
+	cachedNetTotalRecv  uint64
+	cachedProcesses     []ProcessStat
 	cachedDockerImages  uint64
 	cachedDockerLogs    uint64
 	cachedDockerStorage uint64
-	processMu          sync.Mutex
-	lastProcTimes      map[int32]uint64
-	lastSysTime        uint64
+	lastProcTimes       map[int32]uint64
+	lastSysTime         uint64
 }
 
 func readLoadAvg() (float64, float64, float64) {
@@ -151,7 +152,9 @@ func NewManager() *Manager {
 			if body, err := io.ReadAll(resp.Body); err == nil {
 				ip := strings.TrimSpace(string(body))
 				if ip != "" {
+					m.statsMu.Lock()
 					m.hostIP = ip
+					m.statsMu.Unlock()
 				}
 			}
 		}
@@ -159,32 +162,34 @@ func NewManager() *Manager {
 
 	go func() {
 		tickCount := 0
-		clockTicks := float64(100) // standard CLK_TCK
+		clockTicks := float64(100)
 		for {
-			// Total CPU is calculated from per-core usage below
 			vmStat, err := mem.VirtualMemory()
+			var memTotal, memUsed uint64
+			var memUsage float64
 			if err == nil {
-				m.cachedMemTotal = vmStat.Total
+				memTotal = vmStat.Total
 				used := vmStat.Total - vmStat.Free - vmStat.Buffers - vmStat.Cached
-				m.cachedMemUsed = used
-				m.cachedMemUsage = math.Round((float64(used)/float64(vmStat.Total))*100) / 100
+				memUsed = used
+				memUsage = math.Round((float64(used)/float64(vmStat.Total))*100) / 100
 			}
 
 			netStats, err := net.IOCounters(false)
+			var netSentRate, netRecvRate, netTotalSent, netTotalRecv uint64
 			if err == nil && len(netStats) > 0 {
 				currentSent := netStats[0].BytesSent
 				currentRecv := netStats[0].BytesRecv
-				m.cachedNetTotalSent = currentSent
-				m.cachedNetTotalRecv = currentRecv
+				netTotalSent = currentSent
+				netTotalRecv = currentRecv
 				now := time.Now()
 
 				elapsed := now.Sub(m.lastNetTime).Seconds()
 				if elapsed > 0 {
 					if m.lastNetSent > 0 && currentSent > m.lastNetSent {
-						m.cachedNetSent = uint64(float64(currentSent-m.lastNetSent) / elapsed)
+						netSentRate = uint64(float64(currentSent-m.lastNetSent) / elapsed)
 					}
 					if m.lastNetRecv > 0 && currentRecv > m.lastNetRecv {
-						m.cachedNetRecv = uint64(float64(currentRecv-m.lastNetRecv) / elapsed)
+						netRecvRate = uint64(float64(currentRecv-m.lastNetRecv) / elapsed)
 					}
 				}
 
@@ -193,36 +198,40 @@ func NewManager() *Manager {
 				m.lastNetTime = now
 			}
 
+			var cpuVal float64
+			var cpuCoresUsage []float64
+			var swapTotal, swapUsed uint64
+			var l1, l5, l15 float64
+			var finalProcs []ProcessStat
+			var taskCount int
+
 			if tickCount%2 == 0 {
 				cpuPerCore, err := cpu.Percent(0, true)
 				if err == nil {
-					var roundedCores []float64
 					var sum float64
 					for _, c := range cpuPerCore {
-						roundedCores = append(roundedCores, math.Round(c*100)/100)
+						cpuCoresUsage = append(cpuCoresUsage, math.Round(c*100)/100)
 						sum += c
 					}
-					m.cachedCPUCoresUsage = roundedCores
 					if len(cpuPerCore) > 0 {
-						m.cachedCPU = math.Round((sum/float64(len(cpuPerCore)))*100) / 100
+						cpuVal = math.Round((sum/float64(len(cpuPerCore)))*100) / 100
 					}
 				}
 
 				swapStat, err := mem.SwapMemory()
 				if err == nil {
-					m.cachedSwapTotal = swapStat.Total
-					m.cachedSwapUsed = swapStat.Used
+					swapTotal = swapStat.Total
+					swapUsed = swapStat.Used
 				}
 
-				m.cachedLoad1, m.cachedLoad5, m.cachedLoad15 = readLoadAvg()
+				l1, l5, l15 = readLoadAvg()
 
 				dirs, err := os.ReadDir("/proc")
-				taskCount := 0
-				var procStats []ProcessStat
-				
 				sysTime := uint64(readUptime() * clockTicks)
+				activePIDs := make(map[int32]bool)
 
 				if err == nil {
+					var procStats []ProcessStat
 					for _, d := range dirs {
 						if !d.IsDir() {
 							continue
@@ -231,8 +240,10 @@ func NewManager() *Manager {
 						if err != nil {
 							continue
 						}
+						pid32 := int32(pid)
+						activePIDs[pid32] = true
 						taskCount++
-						
+
 						statData, err := os.ReadFile(filepath.Join("/proc", d.Name(), "stat"))
 						if err != nil {
 							continue
@@ -249,12 +260,12 @@ func NewManager() *Manager {
 							continue
 						}
 						name := statStr[openParen+1 : closeParen]
-						
+
 						fields := strings.Fields(statStr[closeParen+2:])
 						if len(fields) < 22 {
 							continue
 						}
-						
+
 						utime, _ := strconv.ParseUint(fields[11], 10, 64)
 						stime, _ := strconv.ParseUint(fields[12], 10, 64)
 						totalTime := utime + stime
@@ -277,14 +288,14 @@ func NewManager() *Manager {
 							}
 						}
 
-						lastTotal := m.lastProcTimes[int32(pid)]
+						lastTotal := m.lastProcTimes[pid32]
 						var cpuPercent float64
 						if lastTotal > 0 && sysTime > m.lastSysTime {
 							diff := totalTime - lastTotal
 							sysDiff := sysTime - m.lastSysTime
 							cpuPercent = (float64(diff) / float64(sysDiff)) * 100.0 * float64(m.cachedCPUCores)
 						}
-						m.lastProcTimes[int32(pid)] = totalTime
+						m.lastProcTimes[pid32] = totalTime
 
 						totalSecs := float64(totalTime) / clockTicks
 						mins := int(totalSecs / 60)
@@ -301,7 +312,7 @@ func NewManager() *Manager {
 
 						if cpuPercent > 0 || memBytes > 0 {
 							procStats = append(procStats, ProcessStat{
-								PID:         int32(pid),
+								PID:         pid32,
 								Name:        name,
 								User:        uid,
 								TimePlus:    timePlus,
@@ -310,20 +321,24 @@ func NewManager() *Manager {
 							})
 						}
 					}
-					m.cachedTaskCount = taskCount
+
+					for oldPid := range m.lastProcTimes {
+						if !activePIDs[oldPid] {
+							delete(m.lastProcTimes, oldPid)
+						}
+					}
+
 					m.lastSysTime = sysTime
 
 					sort.Slice(procStats, func(i, j int) bool {
 						return procStats[i].CPUPercent > procStats[j].CPUPercent
 					})
-
 					var topCpu []ProcessStat
 					topCpu = append([]ProcessStat(nil), procStats...)
 
 					sort.Slice(procStats, func(i, j int) bool {
 						return procStats[i].MemoryBytes > procStats[j].MemoryBytes
 					})
-
 					var topRam []ProcessStat
 					topRam = append([]ProcessStat(nil), procStats...)
 
@@ -335,39 +350,83 @@ func NewManager() *Manager {
 						mergedMap[p.PID] = p
 					}
 
-					var finalProcs []ProcessStat
 					for _, p := range mergedMap {
 						finalProcs = append(finalProcs, p)
 					}
-
-					m.processMu.Lock()
-					m.cachedProcesses = finalProcs
-					m.processMu.Unlock()
 				}
 			}
+
+			m.statsMu.Lock()
+			if memTotal > 0 {
+				m.cachedMemTotal = memTotal
+				m.cachedMemUsed = memUsed
+				m.cachedMemUsage = memUsage
+			}
+			if netTotalSent > 0 || netTotalRecv > 0 {
+				m.cachedNetSent = netSentRate
+				m.cachedNetRecv = netRecvRate
+				m.cachedNetTotalSent = netTotalSent
+				m.cachedNetTotalRecv = netTotalRecv
+			}
+			if tickCount%2 == 0 {
+				if cpuVal > 0 || len(cpuCoresUsage) > 0 {
+					m.cachedCPU = cpuVal
+					m.cachedCPUCoresUsage = cpuCoresUsage
+				}
+				if swapTotal > 0 {
+					m.cachedSwapTotal = swapTotal
+					m.cachedSwapUsed = swapUsed
+				}
+				m.cachedLoad1 = l1
+				m.cachedLoad5 = l5
+				m.cachedLoad15 = l15
+				m.cachedTaskCount = taskCount
+				m.cachedProcesses = finalProcs
+			}
+			m.statsMu.Unlock()
+
 			tickCount++
 			time.Sleep(1 * time.Second)
 		}
 	}()
 
 	go func() {
+		dockerCli, err := dockerClient.NewClientWithOpts(dockerClient.FromEnv, dockerClient.WithAPIVersionNegotiation())
+		if err != nil {
+			return
+		}
+		defer dockerCli.Close()
+
 		for {
-			var images, logs, total uint64
-			out, err := exec.Command("sh", "-c", "du -sb /var/lib/docker/image 2>/dev/null | awk '{print $1}'").Output()
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			du, err := dockerCli.DiskUsage(ctx, types.DiskUsageOptions{})
+			cancel()
 			if err == nil {
-				images, _ = strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
+				var imagesSize uint64
+				for _, img := range du.Images {
+					if img.Size > 0 {
+						imagesSize += uint64(img.Size)
+					}
+				}
+				var containersSize uint64
+				for _, c := range du.Containers {
+					if c.SizeRw > 0 {
+						containersSize += uint64(c.SizeRw)
+					}
+				}
+				var volumesSize uint64
+				for _, v := range du.Volumes {
+					if v.UsageData != nil && v.UsageData.Size > 0 {
+						volumesSize += uint64(v.UsageData.Size)
+					}
+				}
+
+				m.statsMu.Lock()
+				m.cachedDockerImages = imagesSize
+				m.cachedDockerLogs = containersSize
+				m.cachedDockerStorage = uint64(du.LayersSize) + containersSize + volumesSize
+				m.statsMu.Unlock()
 			}
-			out, err = exec.Command("sh", "-c", "du -sb /var/lib/docker/containers/*/*-json.log 2>/dev/null | awk '{s+=$1} END {print s}'").Output()
-			if err == nil {
-				logs, _ = strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
-			}
-			out, err = exec.Command("sh", "-c", "du -sb /var/lib/docker 2>/dev/null | awk '{print $1}'").Output()
-			if err == nil {
-				total, _ = strconv.ParseUint(strings.TrimSpace(string(out)), 10, 64)
-			}
-			m.cachedDockerImages = images
-			m.cachedDockerLogs = logs
-			m.cachedDockerStorage = total
 			time.Sleep(30 * time.Second)
 		}
 	}()
@@ -376,26 +435,34 @@ func NewManager() *Manager {
 }
 
 func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
+	m.statsMu.RLock()
 	stats := &SystemStats{
-		Timestamp: time.Now().Format(time.RFC3339),
-		HostIP:    m.hostIP,
+		Timestamp:          time.Now().Format(time.RFC3339),
+		HostIP:             m.hostIP,
+		CPUUsage:           m.cachedCPU,
+		CPUCoresUsage:      m.cachedCPUCoresUsage,
+		Load1:              m.cachedLoad1,
+		Load5:              m.cachedLoad5,
+		Load15:             m.cachedLoad15,
+		TaskCount:          m.cachedTaskCount,
+		SwapTotal:          m.cachedSwapTotal,
+		SwapUsed:           m.cachedSwapUsed,
+		MemTotal:           m.cachedMemTotal,
+		MemUsed:            m.cachedMemUsed,
+		MemUsage:           m.cachedMemUsage,
+		NetSent:            m.cachedNetSent,
+		NetRecv:            m.cachedNetRecv,
+		NetTotalSent:       m.cachedNetTotalSent,
+		NetTotalRecv:       m.cachedNetTotalRecv,
+		TopProcesses:       m.cachedProcesses,
+		DockerImagesSize:   m.cachedDockerImages,
+		DockerLogsSize:     m.cachedDockerLogs,
+		DockerStorageSize:  m.cachedDockerStorage,
 	}
-
-	stats.CPUUsage = m.cachedCPU
-	stats.CPUCoresUsage = m.cachedCPUCoresUsage
-	stats.Load1 = m.cachedLoad1
-	stats.Load5 = m.cachedLoad5
-	stats.Load15 = m.cachedLoad15
-	stats.TaskCount = m.cachedTaskCount
-	stats.SwapTotal = m.cachedSwapTotal
-	stats.SwapUsed = m.cachedSwapUsed
-	stats.MemTotal = m.cachedMemTotal
-	stats.MemUsed = m.cachedMemUsed
-	stats.MemUsage = m.cachedMemUsage
+	m.statsMu.RUnlock()
 
 	stats.Partitions = make([]PartitionStats, 0)
-	
-	// 1. Unconditionally add root
+
 	rootStat, err := disk.UsageWithContext(ctx, "/")
 	if err == nil {
 		stats.Partitions = append(stats.Partitions, PartitionStats{
@@ -413,7 +480,9 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	partitions, err := disk.PartitionsWithContext(ctx, false)
 	if err == nil {
 		for _, p := range partitions {
-			if p.Mountpoint == "/" { continue }
+			if p.Mountpoint == "/" {
+				continue
+			}
 			if p.Fstype == "overlay" || p.Fstype == "squashfs" || p.Fstype == "tmpfs" || strings.Contains(p.Mountpoint, "/docker") {
 				continue
 			}
@@ -444,11 +513,6 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 		})
 	}
 
-	stats.NetSent = m.cachedNetSent
-	stats.NetRecv = m.cachedNetRecv
-	stats.NetTotalSent = m.cachedNetTotalSent
-	stats.NetTotalRecv = m.cachedNetTotalRecv
-
 	hostInfo, err := host.InfoWithContext(ctx)
 	if err == nil {
 		stats.Uptime = hostInfo.Uptime
@@ -463,14 +527,6 @@ func (m *Manager) GetStats(ctx context.Context) (*SystemStats, error) {
 	if err == nil {
 		stats.CPUCores = cpuCores
 	}
-
-	m.processMu.Lock()
-	stats.TopProcesses = m.cachedProcesses
-	m.processMu.Unlock()
-
-	stats.DockerImagesSize = m.cachedDockerImages
-	stats.DockerLogsSize = m.cachedDockerLogs
-	stats.DockerStorageSize = m.cachedDockerStorage
 
 	return stats, nil
 }

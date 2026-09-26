@@ -1,14 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
+	"os/exec"
 	"sync"
 	"time"
-	"context"
-	"net"
-	"os/exec"
 
 	"github.com/N1N4U/Hex/core/auth"
 	"github.com/N1N4U/Hex/core/database"
@@ -30,14 +30,25 @@ type WSMessage struct {
 	Error   string          `json:"error,omitempty"`
 }
 
+type SafeConn struct {
+	*websocket.Conn
+	writeMu sync.Mutex
+}
+
+func (s *SafeConn) WriteJSONSafe(v interface{}) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	return s.WriteJSON(v)
+}
+
 type WSManager struct {
-	clients map[*websocket.Conn]bool
+	clients map[*SafeConn]bool
 	mu      sync.Mutex
 }
 
 func NewWSManager() *WSManager {
 	return &WSManager{
-		clients: make(map[*websocket.Conn]bool),
+		clients: make(map[*SafeConn]bool),
 	}
 }
 
@@ -48,33 +59,38 @@ func (m *WSManager) HandleWS(w http.ResponseWriter, r *http.Request, monitorMgr 
 		return
 	}
 
+	safeConn := &SafeConn{Conn: conn}
+
 	m.mu.Lock()
-	m.clients[conn] = true
+	m.clients[safeConn] = true
 	m.mu.Unlock()
 
+	var streamCancel context.CancelFunc
+
 	defer func() {
+		if streamCancel != nil {
+			streamCancel()
+		}
 		m.mu.Lock()
-		delete(m.clients, conn)
+		delete(m.clients, safeConn)
 		m.mu.Unlock()
-		conn.Close()
+		safeConn.Close()
 	}()
 
 	isAuthenticated := false
+	isSubscribed := false
 
-	// Wait for auth
-	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+	safeConn.SetReadDeadline(time.Now().Add(10 * time.Second))
 
 	for {
-		_, msgData, err := conn.ReadMessage()
+		_, msgData, err := safeConn.ReadMessage()
 		if err != nil {
 			break
 		}
 
-		// Wait for next message (no deadline after auth)
-
 		var msg WSMessage
 		if err := json.Unmarshal(msgData, &msg); err != nil {
-			conn.WriteJSON(WSMessage{Error: "Invalid JSON format"})
+			safeConn.WriteJSONSafe(WSMessage{Error: "Invalid JSON format"})
 			continue
 		}
 
@@ -87,53 +103,61 @@ func (m *WSManager) HandleWS(w http.ResponseWriter, r *http.Request, monitorMgr 
 				if err != nil {
 					host = r.RemoteAddr
 				}
-				keyHash := auth.HashAPIKey(authPayload.Token)
-				valid, _ := database.DB.AuthenticateAndBind(keyHash, host)
+
+				valid := false
+				if claims, err := auth.ValidateJWT(authPayload.Token); err == nil && claims != nil {
+					valid = true
+				} else {
+					keyHash := auth.HashAPIKey(authPayload.Token)
+					valid, _ = database.DB.AuthenticateAndBind(keyHash, host)
+				}
+
 				if valid {
 					isAuthenticated = true
-					conn.SetReadDeadline(time.Time{}) // Disable deadline after auth
-					conn.WriteJSON(WSMessage{ID: msg.ID, Type: "auth", Payload: json.RawMessage(`{"success":true}`)})
+					safeConn.SetReadDeadline(time.Time{})
+					safeConn.WriteJSONSafe(WSMessage{ID: msg.ID, Type: "auth", Payload: json.RawMessage(`{"success":true}`)})
 					continue
 				}
 			}
-			conn.WriteJSON(WSMessage{ID: msg.ID, Type: "auth", Error: "Authentication failed"})
-			return // Close connection
+			safeConn.WriteJSONSafe(WSMessage{ID: msg.ID, Type: "auth", Error: "Authentication failed"})
+			return
 		}
 
 		if !isAuthenticated {
-			conn.WriteJSON(WSMessage{ID: msg.ID, Error: "Not authenticated"})
+			safeConn.WriteJSONSafe(WSMessage{ID: msg.ID, Error: "Not authenticated"})
 			continue
 		}
 
-		// Route based on type
 		switch msg.Type {
 		case "ping":
-			conn.WriteJSON(WSMessage{ID: msg.ID, Type: "pong"})
+			safeConn.WriteJSONSafe(WSMessage{ID: msg.ID, Type: "pong"})
 		case "stats.subscribe":
-			// Start pushing stats
-			go m.streamStats(conn, monitorMgr, msg.ID)
+			if !isSubscribed {
+				isSubscribed = true
+				var streamCtx context.Context
+				streamCtx, streamCancel = context.WithCancel(context.Background())
+				go m.streamStats(streamCtx, safeConn, monitorMgr, msg.ID)
+			}
 		case "docker.wipe_images":
-			go func() {
+			go func(reqID string) {
 				exec.Command("docker", "image", "prune", "-a", "-f").Run()
-				conn.WriteJSON(WSMessage{ID: msg.ID, Type: "docker.wipe_images_done"})
-			}()
+				safeConn.WriteJSONSafe(WSMessage{ID: reqID, Type: "docker.wipe_images_done"})
+			}(msg.ID)
 		case "docker.wipe_logs":
-			go func() {
+			go func(reqID string) {
 				exec.Command("sh", "-c", "truncate -s 0 /var/lib/docker/containers/*/*-json.log").Run()
-				conn.WriteJSON(WSMessage{ID: msg.ID, Type: "docker.wipe_logs_done"})
-			}()
+				safeConn.WriteJSONSafe(WSMessage{ID: reqID, Type: "docker.wipe_logs_done"})
+			}(msg.ID)
 		default:
-			conn.WriteJSON(WSMessage{ID: msg.ID, Error: "Unknown event type"})
+			safeConn.WriteJSONSafe(WSMessage{ID: msg.ID, Error: "Unknown event type"})
 		}
 	}
 }
 
-func (m *WSManager) streamStats(conn *websocket.Conn, monitorMgr interface{}, reqId string) {
-	// A simple stream implementation just for this connection
+func (m *WSManager) streamStats(ctx context.Context, safeConn *SafeConn, monitorMgr interface{}, reqId string) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
-	
-	// Check if monitorMgr has GetStats method
+
 	type StatGetter interface {
 		GetStats(context.Context) (*monitor.SystemStats, error)
 	}
@@ -145,42 +169,46 @@ func (m *WSManager) streamStats(conn *websocket.Conn, monitorMgr interface{}, re
 	}
 
 	var lastStorageHash string
-	for range ticker.C {
-		stats, err := getter.GetStats(context.Background())
-		if err == nil {
-			// Extract storage
-			storageData := map[string]interface{}{
-				"partitions":          stats.Partitions,
-				"docker_images_size":  stats.DockerImagesSize,
-				"docker_logs_size":    stats.DockerLogsSize,
-				"docker_storage_size": stats.DockerStorageSize,
-			}
-			storageJson, _ := json.Marshal(storageData)
-			currentStorageHash := string(storageJson)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			stats, err := getter.GetStats(ctx)
+			if err == nil {
+				storageData := map[string]interface{}{
+					"partitions":          stats.Partitions,
+					"docker_images_size":  stats.DockerImagesSize,
+					"docker_logs_size":    stats.DockerLogsSize,
+					"docker_storage_size": stats.DockerStorageSize,
+				}
+				storageJson, _ := json.Marshal(storageData)
+				currentStorageHash := string(storageJson)
 
-			if currentStorageHash != lastStorageHash {
-				lastStorageHash = currentStorageHash
-				conn.WriteJSON(WSMessage{
+				if currentStorageHash != lastStorageHash {
+					lastStorageHash = currentStorageHash
+					if err := safeConn.WriteJSONSafe(WSMessage{
+						ID:      reqId,
+						Type:    "storage.update",
+						Payload: storageJson,
+					}); err != nil {
+						return
+					}
+				}
+
+				stats.Partitions = nil
+				stats.DockerImagesSize = 0
+				stats.DockerLogsSize = 0
+				stats.DockerStorageSize = 0
+
+				payload, _ := json.Marshal(stats)
+				if err := safeConn.WriteJSONSafe(WSMessage{
 					ID:      reqId,
-					Type:    "storage.update",
-					Payload: storageJson,
-				})
-			}
-
-			// Clear from stats to avoid spam
-			stats.Partitions = nil
-			stats.DockerImagesSize = 0
-			stats.DockerLogsSize = 0
-			stats.DockerStorageSize = 0
-
-			payload, _ := json.Marshal(stats)
-			err = conn.WriteJSON(WSMessage{
-				ID:      reqId,
-				Type:    "stats.update",
-				Payload: payload,
-			})
-			if err != nil {
-				return // break if write fails (connection closed)
+					Type:    "stats.update",
+					Payload: payload,
+				}); err != nil {
+					return
+				}
 			}
 		}
 	}

@@ -16,13 +16,11 @@ type SQLiteDB struct {
 var DB *SQLiteDB
 
 func InitSQLite() error {
-	// Use /var/lib/hex/core/hex-core.db in production, fallback to local for dev
 	dbPath := "/var/lib/hex/core/hex-core.db"
 	if _, err := os.Stat("/var/lib/hex/core"); os.IsNotExist(err) {
 		dbPath = "./hex-core.db"
 	}
 
-	// Ensure directory exists for local dev
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0755); err != nil {
 		return fmt.Errorf("failed to create db directory: %w", err)
 	}
@@ -41,7 +39,6 @@ func InitSQLite() error {
 }
 
 func (s *SQLiteDB) createSchema() error {
-	// Add backward compatibility for existing DBs that don't have new columns
 	_, _ = s.db.Exec(`ALTER TABLE api_keys ADD COLUMN expires_at DATETIME`)
 	_, _ = s.db.Exec(`ALTER TABLE api_keys ADD COLUMN bound_endpoint TEXT`)
 
@@ -66,12 +63,28 @@ func (s *SQLiteDB) createSchema() error {
 		endpoint TEXT NOT NULL UNIQUE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
+
+	CREATE TABLE IF NOT EXISTS settings (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL
+	);
 	`
 	_, err := s.db.Exec(query)
 	if err != nil {
 		return fmt.Errorf("failed to create schema: %w", err)
 	}
 	return nil
+}
+
+func (s *SQLiteDB) GetSetting(key string) (string, error) {
+	var val string
+	err := s.db.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&val)
+	return val, err
+}
+
+func (s *SQLiteDB) SetSetting(key, val string) error {
+	_, err := s.db.Exec("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", key, val)
+	return err
 }
 
 func (s *SQLiteDB) SaveAPIKey(name, keyHash string, expiresAt *string) error {
@@ -94,13 +107,9 @@ func (s *SQLiteDB) AuthenticateAndBind(keyHash, endpoint string) (bool, error) {
 		return false, err
 	}
 
-	// If it is a temporary API key (has an expiration), we automatically trust this endpoint and permanently bind the key!
 	if expiresAt != nil {
-		// 1. Add to trusted endpoints
 		s.db.Exec("INSERT OR IGNORE INTO trusted_endpoints (endpoint) VALUES (?)", endpoint)
-		// 2. Remove from pending if it was there
 		s.db.Exec("DELETE FROM pending_endpoints WHERE endpoint = ?", endpoint)
-		// 3. Bind the API key permanently to this endpoint
 		s.db.Exec("UPDATE api_keys SET expires_at = NULL, bound_endpoint = ? WHERE id = ?", endpoint, id)
 	}
 
@@ -120,14 +129,9 @@ func (s *SQLiteDB) HasAPIKey(name string) (bool, error) {
 }
 
 func (s *SQLiteDB) ApproveEndpoint(endpoint string) error {
-	// 1. Add to trusted endpoints
 	_, err := s.db.Exec("INSERT OR IGNORE INTO trusted_endpoints (endpoint) VALUES (?)", endpoint)
 	if err == nil {
-		// 2. Remove from pending
 		s.db.Exec("DELETE FROM pending_endpoints WHERE endpoint = ?", endpoint)
-		
-		// 3. Find the most recently created temporary API key (expires_at IS NOT NULL) and bind it to this endpoint permanently
-		// This assumes the admin runs approve shortly after the panel connects with the temporary key.
 		s.db.Exec(`
 			UPDATE api_keys 
 			SET expires_at = NULL, bound_endpoint = ? 
@@ -172,14 +176,10 @@ type APIKeyInfo struct {
 }
 
 func (s *SQLiteDB) RemoveAPIKey(nameOrKey string) error {
-	// 1. Get the bound endpoint before deleting
 	info, err := s.InfoAPIKey(nameOrKey)
 	if err == nil && info != nil && info.BoundEndpoint != nil {
-		// 2. Delete the trusted endpoint
 		s.db.Exec("DELETE FROM trusted_endpoints WHERE endpoint = ?", *info.BoundEndpoint)
 	}
-
-	// 3. Delete the API Key
 	_, err = s.db.Exec("DELETE FROM api_keys WHERE name = ? OR key_hash = ?", nameOrKey, nameOrKey)
 	return err
 }

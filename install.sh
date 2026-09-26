@@ -241,15 +241,30 @@ echo -e "${CYAN}[*] Installing CLI Tool...${NC}" >&3
 wget -q -O /usr/local/bin/hex "https://raw.githubusercontent.com/N1N4U/Hex/main/cli/hex.sh"
 chmod +x /usr/local/bin/hex
 
-# 8. Firewall
+# 8. Firewall Detection & Configuration
 if [[ "$CONF_FW" == "y" || "$CONF_FW" == "Y" ]]; then
-    echo -e "${CYAN}[*] Configuring Firewall...${NC}" >&3
-    if command -v ufw &> /dev/null; then
+    echo -e "${CYAN}[*] Detecting and Configuring Firewall...${NC}" >&3
+    
+    FW_BACKEND="none"
+    if command -v firewall-cmd &> /dev/null && systemctl is-active --quiet firewalld 2>/dev/null; then
+        FW_BACKEND="firewalld"
+    elif command -v ufw &> /dev/null; then
+        FW_BACKEND="ufw"
+    elif command -v firewall-cmd &> /dev/null; then
+        FW_BACKEND="firewalld"
+    elif command -v nft &> /dev/null; then
+        FW_BACKEND="nftables"
+    elif command -v iptables &> /dev/null; then
+        FW_BACKEND="iptables"
+    fi
+
+    echo -e "${CYAN}[*] Active Firewall Backend: $FW_BACKEND${NC}" >&3
+
+    if [ "$FW_BACKEND" == "ufw" ]; then
         ufw allow ssh > /dev/null 2>&1
         ufw allow 80/tcp > /dev/null 2>&1
         ufw allow 443/tcp > /dev/null 2>&1
         
-        # Only open Core port externally if NOT in Secure Mode (Mode 4)
         if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ]; then 
             ufw allow $CORE_PORT/tcp > /dev/null 2>&1
         fi
@@ -259,9 +274,15 @@ if [[ "$CONF_FW" == "y" || "$CONF_FW" == "Y" ]]; then
         fi
         
         ufw --force enable > /dev/null 2>&1
-    elif command -v firewall-cmd &> /dev/null; then
+        echo -e "${GREEN}[✓] UFW configured successfully${NC}" >&3
+
+    elif [ "$FW_BACKEND" == "firewalld" ]; then
+        systemctl start firewalld 2>/dev/null || true
+        systemctl enable firewalld 2>/dev/null || true
+        firewall-cmd --permanent --add-service=ssh > /dev/null 2>&1
         firewall-cmd --permanent --add-port=80/tcp > /dev/null 2>&1
         firewall-cmd --permanent --add-port=443/tcp > /dev/null 2>&1
+
         if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ]; then 
             firewall-cmd --permanent --add-port=$CORE_PORT/tcp > /dev/null 2>&1
         fi
@@ -270,6 +291,35 @@ if [[ "$CONF_FW" == "y" || "$CONF_FW" == "Y" ]]; then
             firewall-cmd --permanent --add-port=$PANEL_PORT/tcp > /dev/null 2>&1
         fi
         firewall-cmd --reload > /dev/null 2>&1
+        echo -e "${GREEN}[✓] Firewalld configured successfully${NC}" >&3
+
+    elif [ "$FW_BACKEND" == "nftables" ]; then
+        systemctl start nftables 2>/dev/null || true
+        systemctl enable nftables 2>/dev/null || true
+        nft add rule inet filter input tcp dport 22 accept 2>/dev/null || true
+        nft add rule inet filter input tcp dport 80 accept 2>/dev/null || true
+        nft add rule inet filter input tcp dport 443 accept 2>/dev/null || true
+        if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ]; then 
+            nft add rule inet filter input tcp dport $CORE_PORT accept 2>/dev/null || true
+        fi
+        if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then 
+            nft add rule inet filter input tcp dport $PANEL_PORT accept 2>/dev/null || true
+        fi
+        echo -e "${GREEN}[✓] nftables rules applied${NC}" >&3
+
+    elif [ "$FW_BACKEND" == "iptables" ]; then
+        iptables -A INPUT -p tcp --dport 22 -j ACCEPT 2>/dev/null || true
+        iptables -A INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null || true
+        iptables -A INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null || true
+        if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ]; then 
+            iptables -A INPUT -p tcp --dport $CORE_PORT -j ACCEPT 2>/dev/null || true
+        fi
+        if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -eq 4 ]; then 
+            iptables -A INPUT -p tcp --dport $PANEL_PORT -j ACCEPT 2>/dev/null || true
+        fi
+        echo -e "${GREEN}[✓] iptables rules applied${NC}" >&3
+    else
+        echo -e "${YELLOW}[!] No supported firewall manager found. Skipping firewall rules.${NC}" >&3
     fi
 fi
 

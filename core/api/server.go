@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/N1N4U/Hex/core/auth"
@@ -26,7 +27,6 @@ import (
 	"github.com/N1N4U/Hex/core/proxy"
 	"github.com/N1N4U/Hex/core/security"
 	"github.com/N1N4U/Hex/core/system"
-	"github.com/N1N4U/Hex/core/terminal"
 	"github.com/soheilhy/cmux"
 )
 
@@ -40,11 +40,6 @@ type Server struct {
 
 func NewServer(port int) *Server {
 	mux := http.NewServeMux()
-
-	mux.HandleFunc("/health", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Hex Core is healthy"))
-	}))
 
 	dockerClient, err := docker.NewClient()
 	if err != nil {
@@ -66,6 +61,112 @@ func NewServer(port int) *Server {
 	monitorMgr := monitor.NewManager()
 	fileMgr := files.NewManager()
 	wsMgr := NewWSManager()
+
+	// --- Exchange API Key for Short-lived JWT Token ---
+	mux.HandleFunc("/auth/token", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req struct {
+			APIKey string `json:"api_key"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+
+		token := req.APIKey
+		if token == "" {
+			authHeader := r.Header.Get("Authorization")
+			parts := strings.SplitN(authHeader, " ", 2)
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				token = parts[1]
+			} else {
+				token = authHeader
+			}
+		}
+
+		token = strings.TrimSpace(token)
+		if token == "" {
+			http.Error(w, "API Key required", http.StatusBadRequest)
+			return
+		}
+
+		host, _, err := net.SplitHostPort(r.RemoteAddr)
+		if err != nil {
+			host = r.RemoteAddr
+		}
+
+		keyHash := auth.HashAPIKey(token)
+		valid, err := database.DB.AuthenticateAndBind(keyHash, host)
+		if err != nil || !valid {
+			http.Error(w, "Forbidden: Invalid or Expired API Key", http.StatusForbidden)
+			return
+		}
+
+		jwtToken, err := auth.GenerateJWT("hex-panel", host, 1*time.Hour)
+		if err != nil {
+			http.Error(w, "Failed to generate JWT token", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"token":      jwtToken,
+			"token_type": "Bearer",
+			"expires_in": 3600,
+		})
+	})
+
+	// --- Comprehensive Health Check ---
+	mux.HandleFunc("/health", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+		defer cancel()
+
+		dockerStatus := map[string]interface{}{
+			"connected": false,
+		}
+		if dockerClient != nil {
+			containers, err := dockerClient.ListContainers(ctx)
+			if err == nil {
+				dockerStatus["connected"] = true
+				dockerStatus["container_count"] = len(containers)
+			}
+		}
+
+		nginxRunning := false
+		if _, err := exec.LookPath("systemctl"); err == nil {
+			out, err := exec.Command("systemctl", "is-active", "nginx").CombinedOutput()
+			if err == nil && strings.TrimSpace(string(out)) == "active" {
+				nginxRunning = true
+			}
+		}
+
+		stats, _ := monitorMgr.GetStats(ctx)
+
+		healthReport := map[string]interface{}{
+			"status":    "healthy",
+			"version":   "1.0.0-beta",
+			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"docker":    dockerStatus,
+			"nginx": map[string]interface{}{
+				"running": nginxRunning,
+			},
+			"firewall": map[string]interface{}{
+				"backend": firewallMgr.ActiveBackend(),
+			},
+		}
+
+		if stats != nil {
+			healthReport["uptime"] = stats.Uptime
+			healthReport["os"] = stats.OSName
+			healthReport["cpu_usage"] = stats.CPUUsage
+			healthReport["mem_usage"] = stats.MemUsage
+			healthReport["disk_usage"] = stats.DiskUsage
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(healthReport)
+	}))
 
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		wsMgr.HandleWS(w, r, monitorMgr)
@@ -213,42 +314,87 @@ func NewServer(port int) *Server {
 	}))
 
 	mux.HandleFunc("/firewall", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
 		if r.Method == http.MethodGet {
-			rules, err := firewallMgr.ListRules()
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+			action := r.URL.Query().Get("action")
+			switch action {
+			case "backend":
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"active":    firewallMgr.ActiveBackend(),
+					"available": firewallMgr.DetectBackends(),
+				})
+				return
+			case "status":
+				mode := r.URL.Query().Get("mode")
+				out, err := firewallMgr.Status(mode)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"backend": firewallMgr.ActiveBackend(),
+					"status":  out,
+				})
+				return
+			default:
+				rules, err := firewallMgr.ListRules()
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusInternalServerError)
+					return
+				}
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"backend": firewallMgr.ActiveBackend(),
+					"rules":   rules,
+				})
 				return
 			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(rules)
-			return
 		}
 
 		if r.Method == http.MethodPost {
 			var req struct {
-				Port   string `json:"port"`
 				Action string `json:"action"`
+				Port   string `json:"port"`
+				Rule   string `json:"rule"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
+				req.Action = r.URL.Query().Get("action")
+				req.Port = r.URL.Query().Get("port")
+				req.Rule = r.URL.Query().Get("rule")
+			}
+
+			var out string
+			var err error
+
+			switch strings.ToLower(req.Action) {
+			case "allow":
+				out, err = firewallMgr.AllowPort(req.Port)
+			case "deny":
+				out, err = firewallMgr.DenyPort(req.Port)
+			case "remove":
+				out, err = firewallMgr.RemoveRule(req.Rule)
+			case "enable":
+				out, err = firewallMgr.Enable()
+			case "disable":
+				out, err = firewallMgr.Disable()
+			case "reload":
+				out, err = firewallMgr.Reload()
+			default:
+				http.Error(w, "unknown firewall action", http.StatusBadRequest)
 				return
 			}
 
-			if req.Action == "allow" {
-				if err := firewallMgr.AllowPort(req.Port); err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
-			} else if req.Action == "deny" {
-				if err := firewallMgr.DenyPort(req.Port); err != nil {
-					http.Error(w, err.Error(), http.StatusInternalServerError)
-					return
-				}
+			if err != nil {
+				http.Error(w, fmt.Sprintf("%s: %v", out, err), http.StatusInternalServerError)
+				return
 			}
 
-			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"success": true}`))
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success": true,
+				"output":  out,
+				"backend": firewallMgr.ActiveBackend(),
+			})
 			return
 		}
 
@@ -483,19 +629,20 @@ func NewServer(port int) *Server {
 			w.Write([]byte(out))
 		} else if r.Method == http.MethodPost {
 			action := r.URL.Query().Get("action")
-			port := r.URL.Query().Get("port")
+			portStr := r.URL.Query().Get("port")
+			var out string
 			var err error
 			switch action {
-			case "allow": err = firewallMgr.AllowPort(port)
-			case "deny": err = firewallMgr.DenyPort(port)
-			case "enable": err = firewallMgr.Enable()
-			case "disable": err = firewallMgr.Disable()
+			case "allow": out, err = firewallMgr.AllowPort(portStr)
+			case "deny": out, err = firewallMgr.DenyPort(portStr)
+			case "enable": out, err = firewallMgr.Enable()
+			case "disable": out, err = firewallMgr.Disable()
 			}
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			w.Write([]byte(`{"success": true}`))
+			w.Write([]byte(out))
 		}
 	}))
 
@@ -712,11 +859,7 @@ func NewServer(port int) *Server {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
-	mux.HandleFunc("/terminal", func(w http.ResponseWriter, r *http.Request) {
-		// Bypass JWTMiddleware for WebSockets standard upgrader (token passed in query string typically)
-		// token := r.URL.Query().Get("token")
-		terminal.HandleTerminal(w, r)
-	})
+
 
 	mux.HandleFunc("/docker/containers", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if dockerClient == nil {

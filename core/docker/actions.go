@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os/exec"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/N1N4U/Hex/core/firewall"
 	"github.com/docker/go-connections/nat"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -16,16 +16,14 @@ import (
 type CreateContainerRequest struct {
 	Name    string            `json:"name"`
 	Image   string            `json:"image"`
-	Ports   map[string]string `json:"ports"` // map[HostPort]ContainerPort
+	Ports   map[string]string `json:"ports"`
 	Env     []string          `json:"env"`
 	Command []string          `json:"command"`
 }
 
 func (c *Client) CreateContainer(ctx context.Context, req CreateContainerRequest) (string, error) {
-	// Pull the image first if it doesn't exist locally
 	reader, err := c.api.ImagePull(ctx, req.Image, types.ImagePullOptions{})
 	if err == nil {
-		// Wait for pull to complete
 		io.Copy(io.Discard, reader)
 		reader.Close()
 	}
@@ -45,8 +43,8 @@ func (c *Client) CreateContainer(ctx context.Context, req CreateContainerRequest
 			},
 		}
 
-		// Automatically open firewall port
-		exec.Command("ufw", "allow", fmt.Sprintf("%s/tcp", hostPort)).Run()
+		fw := firewall.NewManager()
+		fw.AllowPort(fmt.Sprintf("%s/tcp", hostPort))
 	}
 
 	config := &container.Config{
@@ -91,7 +89,6 @@ func (c *Client) ContainerAction(ctx context.Context, id, action string) error {
 	case "delete":
 		err := c.api.ContainerStop(ctx, id, container.StopOptions{})
 		if err != nil {
-			// ignore stop error
 		}
 		return c.api.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
 	default:

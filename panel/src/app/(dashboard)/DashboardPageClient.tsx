@@ -449,14 +449,14 @@ function HomeView({ panelName, cores, activeCoreId, wsPing, apiPing, coreWsPing,
           
           <div className="flex flex-col gap-1 mt-3 px-1 text-[10px] text-on-surface-variant/50 font-medium bg-black/20 rounded-lg p-2">
               <div className="flex justify-between">
-                <span>Browser ? Panel:</span>
+                <span>Browser - Panel:</span>
                 <span className="flex gap-2">
                   <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${wsPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> WS: {wsPing !== null ? `${wsPing}ms` : '---'}</span>
                   <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${apiPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> API: {apiPing !== null ? `${apiPing}ms` : '---'}</span>
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Panel ? Core:</span>
+                <span>Panel - Core:</span>
                 <span className="flex gap-2">
                   <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${coreWsPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> WS: {coreWsPing !== null ? `${coreWsPing}ms` : '---'}</span>
                   <span className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${coreApiPing !== null ? 'bg-green-400' : 'bg-red-500'}`}></span> API: {coreApiPing !== null ? `${coreApiPing}ms` : '---'}</span>

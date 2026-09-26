@@ -3,9 +3,11 @@ package users
 import (
 	"database/sql"
 	"errors"
+	"os"
+	"path/filepath"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var db *sql.DB
@@ -30,8 +32,13 @@ type Session struct {
 
 // Init opens the SQLite database and creates tables.
 func Init(path string) error {
+	if dir := filepath.Dir(path); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
 	var err error
-	db, err = sql.Open("sqlite3", path+"?_foreign_keys=on&_journal_mode=WAL")
+	db, err = sql.Open("sqlite", path+"?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)")
 	if err != nil {
 		return err
 	}

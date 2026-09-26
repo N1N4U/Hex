@@ -41,7 +41,7 @@ jobs:
       - name: Build Svelte site
         working-directory: panel/site
         run: |
-          npm ci
+          npm install
           npm run build
 
       - name: Copy site dist into node static

@@ -1,0 +1,12 @@
+﻿# Build artifacts
+hex-panel
+hex-panel.exe
+hex-node
+hex-node.exe
+
+# Data (SQLite DB - don't commit prod data)
+data/*.db
+
+# Don't commit site dist here — it's built by CI
+static/dist/
+!static/dist/.gitkeep

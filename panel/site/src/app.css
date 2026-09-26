@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@theme {
+  /* Surface colors */
+  --color-background:               #0b1326;
+  --color-surface:                  #0b1326;
+  --color-surface-dim:              #0b1326;
+  --color-surface-container-lowest: #060e20;
+  --color-surface-container-low:    #131b2e;
+  --color-surface-container:        #171f33;
+  --color-surface-container-high:   #222a3d;
+  --color-surface-variant:          #2d3449;
+
+  /* Primary — green */
+  --color-primary:                  #4be277;
+  --color-primary-container:        #22c55e;
+  --color-primary-fixed:            #6bff8f;
+  --color-primary-fixed-dim:        #4ae176;
+  --color-on-primary:               #003915;
+  --color-on-primary-container:     #004b1e;
+  --color-on-primary-fixed:         #002109;
+  --color-on-primary-fixed-variant: #005321;
+  --color-inverse-primary:          #006e2f;
+
+  /* Secondary — blue */
+  --color-secondary:                #adc6ff;
+  --color-secondary-container:      #0566d9;
+  --color-secondary-fixed:          #d8e2ff;
+  --color-secondary-fixed-dim:      #adc6ff;
+  --color-on-secondary:             #002e6a;
+  --color-on-secondary-fixed-variant: #004395;
+
+  /* Tertiary — purple */
+  --color-tertiary:                 #deb8ff;
+  --color-tertiary-container:       #cb94ff;
+  --color-tertiary-fixed:           #f0dbff;
+  --color-tertiary-fixed-dim:       #ddb7ff;
+  --color-on-tertiary:              #490080;
+  --color-on-tertiary-container:    #5f00a3;
+  --color-on-tertiary-fixed:        #2c0051;
+  --color-on-tertiary-fixed-variant: #6900b3;
+
+  /* Surface text */
+  --color-on-surface:               #dae2fd;
+  --color-on-surface-variant:       #bccbb9;
+  --color-on-background:            #dae2fd;
+  --color-inverse-surface:          #dae2fd;
+  --color-inverse-on-surface:       #283044;
+
+  /* Outline */
+  --color-outline:                  #869585;
+  --color-outline-variant:          #3d4a3d;
+
+  /* Error */
+  --color-error:                    #ffb4ab;
+  --color-error-container:          #93000a;
+  --color-on-error:                 #690005;
+  --color-on-error-container:       #ffdad6;
+
+  /* Surface tint */
+  --color-surface-tint:             #4ae176;
+
+  /* Spacing */
+  --spacing-sidebar:    72px;
+  --spacing-card-pad:   1.25rem;
+  --spacing-page-gap:   1rem;
+
+  /* Fonts */
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+/* ── Global base ─────────────────────────────────────────── */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--color-background);
+  color: var(--color-on-surface);
+  font-family: var(--font-sans);
+  overflow: hidden;
+}
+
+/* ── Glassmorphism card ──────────────────────────────────── */
+.glass {
+  background: rgba(23, 31, 51, 0.72);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+
+/* ── Material Symbol icon utility ───────────────────────── */
+.icon {
+  font-family: "Material Symbols Outlined";
+  font-weight: 400;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 20;
+  user-select: none;
+}
+
+.icon-fill {
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 20;
+}
+
+/* ── No scrollbar utility ────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

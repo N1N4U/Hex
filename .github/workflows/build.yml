@@ -1,62 +1,105 @@
-name: Build and Release Hex Core
+﻿name: Build Hex
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  build:
-    name: Build Go Binary
+  build-core:
+    name: Build hex-core
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Go
+      - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.21' # Adjust this to your Go version if needed
+          go-version: "1.21"
 
-      - name: Build Hex Core
+      - name: Build hex-core (Linux amd64)
+        working-directory: core
         run: |
-          cd core
-          GOOS=linux GOARCH=amd64 go build -o ../hex-linux-amd64 .
-          
-      - name: Upload Artifact
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o ../hex-core-linux-amd64 .
+
+      - name: Upload core artifact
         uses: actions/upload-artifact@v4
         with:
-          name: hex-linux-amd64
-          path: hex-linux-amd64
+          name: hex-core-linux-amd64
+          path: hex-core-linux-amd64
+
+  build-panel:
+    name: Build hex-panel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Build Svelte site
+        working-directory: panel/site
+        run: |
+          npm ci
+          npm run build
+
+      - name: Copy site dist into node static
+        run: |
+          rm -rf panel/node/static/dist/.gitkeep
+          cp -r panel/site/dist/. panel/node/static/dist/
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Build hex-panel (Linux amd64)
+        working-directory: panel/node
+        run: |
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o ../../hex-panel-linux-amd64 .
+
+      - name: Upload panel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hex-panel-linux-amd64
+          path: hex-panel-linux-amd64
 
   release:
-    name: Create Latest Release
-    needs: build
+    name: Publish GitHub Release
+    needs: [build-core, build-panel]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     permissions:
       contents: write
-
-    
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        
-      - name: Download Artifact
+      - uses: actions/checkout@v4
+
+      - name: Download core artifact
         uses: actions/download-artifact@v4
         with:
-          name: hex-linux-amd64
-          
-      - name: Update Latest Release
+          name: hex-core-linux-amd64
+
+      - name: Download panel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: hex-panel-linux-amd64
+
+      - name: Delete existing latest release
+        run: |
+          gh release delete latest --yes || true
+          git push origin :refs/tags/latest || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: Latest Release
-          files: hex-linux-amd64
-          make_latest: true
+          name: "Hex Latest Build"
+          draft: false
+          prerelease: false
+          files: |
+            hex-core-linux-amd64
+            hex-panel-linux-amd64
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

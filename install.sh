@@ -190,17 +190,17 @@ if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -
     fi
     chmod +x /var/lib/hex/core/hex-core
 
-    echo -e "${CYAN}[*] Downloading Hex Blueprints...${NC}" >&3
+    echo -e "${CYAN}[*] Downloading Hex Presets...${NC}" >&3
     rm -rf /tmp/hex-repo
     mkdir -p /tmp/hex-repo
     wget -q -O /tmp/hex-repo/main.tar.gz "https://github.com/N1N4U/Hex/archive/refs/heads/main.tar.gz"
     if [ -f /tmp/hex-repo/main.tar.gz ]; then
         tar -xzf /tmp/hex-repo/main.tar.gz -C /tmp/hex-repo
-        mkdir -p /var/lib/hex/blueprints
-        cp -r /tmp/hex-repo/Hex-main/blueprints/* /var/lib/hex/blueprints/
+        mkdir -p /var/lib/hex/presets
+        cp -r /tmp/hex-repo/Hex-main/presets/* /var/lib/hex/presets/
         rm -rf /tmp/hex-repo
     else
-        echo -e "${YELLOW}[!] Failed to download blueprints. You may need to run 'hex update' later.${NC}" >&3
+        echo -e "${YELLOW}[!] Failed to download presets. You may need to run 'hex update' later.${NC}" >&3
     fi
     
     echo -e "${CYAN}[*] Generating real mTLS certificates...${NC}" >&3
@@ -238,7 +238,7 @@ fi
 
 # 7. Install CLI tool
 echo -e "${CYAN}[*] Installing CLI Tool...${NC}" >&3
-wget -q -O /usr/local/bin/hex "https://raw.githubusercontent.com/N1N4U/Hex/main/cli/hex.sh"
+wget -q -O /usr/local/bin/hex "https://raw.githubusercontent.com/N1N4U/Hex/main/core/cli/hex.sh"
 chmod +x /usr/local/bin/hex
 
 # 8. Firewall Detection & Configuration

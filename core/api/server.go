@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/N1N4U/Hex/core/auth"
-	"github.com/N1N4U/Hex/core/blueprint"
+	"github.com/N1N4U/Hex/core/preset"
 	"github.com/N1N4U/Hex/core/database"
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
@@ -1025,21 +1025,21 @@ func NewServer(port int) *Server {
 		json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	}))
 
-	// --- Blueprints API ---
-	mux.HandleFunc("/blueprints", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+	// --- Presets API ---
+	mux.HandleFunc("/presets", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
-			bpMgr := blueprint.NewManager("../blueprints")
-			bps, err := bpMgr.ListBlueprints()
+			presetMgr := preset.NewManager("../presets")
+			presets, err := presetMgr.ListPresets()
 			if err != nil {
-				bpMgr = blueprint.NewManager("/var/lib/hex/blueprints")
-				bps, err = bpMgr.ListBlueprints()
+				presetMgr = preset.NewManager("/var/lib/hex/presets")
+				presets, err = presetMgr.ListPresets()
 				if err != nil {
 					http.Error(w, err.Error(), http.StatusInternalServerError)
 					return
 				}
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(bps)
+			json.NewEncoder(w).Encode(presets)
 			return
 		}
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

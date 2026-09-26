@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "id": "vaultwarden",
+  "name": "Vaultwarden",
+  "description": "Deploy Vaultwarden using Docker.",
+  "version": "1.0.0",
+  "author": "Hex Team",
+  "homepage": "https://github.com/N1N4U/presets",
+  "category": "Security",
+  "iconUrl": "https://raw.githubusercontent.com/N1N4U/presets/main/icons/vaultwarden.png",
+  "runtime": {
+    "default": "vaultwarden:latest",
+    "options": [
+      {
+        "id": "vaultwarden:1.30",
+        "name": "Vaultwarden 1.30",
+        "dockerImage": "vaultwarden:1.30"
+      },
+      {
+        "id": "vaultwarden:1.31",
+        "name": "Vaultwarden 1.31",
+        "dockerImage": "vaultwarden:1.31"
+      },
+      {
+        "id": "vaultwarden:latest",
+        "name": "Vaultwarden latest",
+        "dockerImage": "vaultwarden:latest"
+      }
+    ]
+  },
+  "docker": {
+    "image": "vaultwarden:1.30",
+    "imagePullPolicy": "always",
+    "workingDirectory": "/home/container",
+    "entrypoint": "",
+    "startupCommand": "",
+    "restartPolicy": "unless-stopped",
+    "networkMode": "bridge",
+    "privileged": false,
+    "readOnlyRootFilesystem": false,
+    "healthcheck": {
+      "enabled": false,
+      "command": "",
+      "interval": "30s",
+      "timeout": "5s",
+      "retries": 3
+    }
+  },
+  "git": {
+    "enabled": false,
+    "repository": "",
+    "branch": "",
+    "autoUpdate": false,
+    "username": "",
+    "accessToken": "",
+    "clonePath": ""
+  },
+  "startup": {
+    "startupFile": "",
+    "packageManager": "",
+    "packageFile": "",
+    "lockFile": "",
+    "installCommand": "",
+    "buildCommand": "",
+    "startCommand": "",
+    "stopCommand": "",
+    "additionalPackages": [],
+    "removeNodeModules": false
+  },
+  "storage": {
+    "persistent": true,
+    "mounts": [
+      {
+        "containerPath": "/home/container",
+        "type": "volume"
+      }
+    ]
+  },
+  "networking": {
+    "ports": [
+      {
+        "name": "Application",
+        "containerPort": [
+          3000
+        ],
+        "protocol": "tcp"
+      }
+    ]
+  },
+  "resources": {
+    "memory": {
+      "default": 1024,
+      "minimum": 512,
+      "maximum": 8192
+    },
+    "cpu": {
+      "default": 100,
+      "minimum": 10,
+      "maximum": 400
+    },
+    "disk": {
+      "default": 2048
+    },
+    "swap": {
+      "default": 0
+    }
+  },
+  "variables": [],
+  "scripts": {
+    "install": "",
+    "update": "",
+    "backup": "",
+    "restore": ""
+  },
+  "metadata": {
+    "featured": false,
+    "official": true,
+    "verified": true,
+    "tags": [
+      "vaultwarden",
+      "security"
+    ]
+  }
+}

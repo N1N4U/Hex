@@ -293,9 +293,9 @@ func performUpdate() error {
 	fmt.Println("    ✓ Installing CLI script")
 	fmt.Println("    ✓ Hex CLI updated successfully\n")
 
-	fmt.Println("  ◉ Updating Blueprints")
-	fmt.Println("    ✓ Fetching latest blueprints")
-	fmt.Println("    ✓ Blueprints updated successfully\n")
+	fmt.Println("  ◉ Updating Presets")
+	fmt.Println("    ✓ Fetching latest presets")
+	fmt.Println("    ✓ Presets updated successfully\n")
 	
 	fmt.Println("  ─────────────────────────────────────────────────────────\n")
 	fmt.Println("╭──────────────────────────────────────────────────────────╮")

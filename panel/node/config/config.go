@@ -63,7 +63,7 @@ func loadDotEnv() {
 				k := strings.TrimSpace(parts[0])
 				v := strings.TrimSpace(parts[1])
 				// Strip surrounding quotes
-				if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == ''' && v[len(v)-1] == ''')) {
+				if (strings.HasPrefix(v, "\"") && strings.HasSuffix(v, "\"")) || (strings.HasPrefix(v, "'") && strings.HasSuffix(v, "'")) {
 					v = v[1 : len(v)-1]
 				}
 				if os.Getenv(k) == "" {

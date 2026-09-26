@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bufio"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds all runtime configuration for hex-node.
@@ -26,6 +28,8 @@ type Config struct {
 }
 
 func Load() *Config {
+	loadDotEnv()
+
 	cfg := &Config{
 		Port:       getInt("HEX_NODE_PORT", 9000),
 		DBPath:     getStr("HEX_NODE_DB", "data/hex-node.db"),
@@ -36,6 +40,39 @@ func Load() *Config {
 		DevMode:    getStr("HEX_DEV", "") == "true",
 	}
 	return cfg
+}
+
+func loadDotEnv() {
+	// Look for .env in current directory or panel/node/.env
+	envPaths := []string{".env", "panel/node/.env", "../.env"}
+	for _, p := range envPaths {
+		file, err := os.Open(p)
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 {
+				k := strings.TrimSpace(parts[0])
+				v := strings.TrimSpace(parts[1])
+				// Strip surrounding quotes
+				if len(v) >= 2 && ((v[0] == '"' && v[len(v)-1] == '"') || (v[0] == ''' && v[len(v)-1] == ''')) {
+					v = v[1 : len(v)-1]
+				}
+				if os.Getenv(k) == "" {
+					os.Setenv(k, v)
+				}
+			}
+		}
+		break // loaded first found .env
+	}
 }
 
 func getStr(key, def string) string {

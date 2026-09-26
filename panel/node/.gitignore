@@ -10,3 +10,6 @@ data/*.db
 # Don't commit site dist here — it's built by CI
 static/dist/
 !static/dist/.gitkeep
+# Local environment secrets
+.env
+!.env.example

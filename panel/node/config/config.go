@@ -1,92 +1,176 @@
 package config
 
 import (
-	"bufio"
+	"encoding/json"
+	"log"
 	"os"
 	"strconv"
-	"strings"
 )
 
-// Config holds all runtime configuration for hex-node.
+type BasicConfig struct {
+	PanelName   string `json:"panel_name"`
+	LabelMadeBy string `json:"label_made_by"`
+	Discord     string `json:"discord"`
+	GitHub      string `json:"github"`
+	Feedback    string `json:"feedback"`
+}
+
+type MasterAuth struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type OAuthProvider struct {
+	Toggle       bool   `json:"toggle"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	RedirectLink string `json:"redirect_link"`
+}
+
+type SMTPConfig struct {
+	Toggle   bool   `json:"toggle"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type AuthConfig struct {
+	Discord   OAuthProvider `json:"discord"`
+	Google    OAuthProvider `json:"google"`
+	GmailSMTP SMTPConfig    `json:"gmail_smtp"`
+}
+
+type SQLiteDB struct {
+	Path string `json:"path"`
+}
+
+type MongoDBConfig struct {
+	Database string `json:"database"`
+	URI      string `json:"uri"`
+}
+
+type MySQLConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Password string `json:"password"`
+	Database string `json:"database"`
+}
+
+type DBSection struct {
+	Type    string        `json:"type"` // sqlite | mongodb | mysql
+	SQLite  SQLiteDB      `json:"sqlite"`
+	MongoDB MongoDBConfig `json:"mogodb"`
+	MySQL   MySQLConfig   `json:"mysql"`
+}
+
+type DatabaseConfig struct {
+	Type string    `json:"type"` // default "sqlite"
+	Core DBSection `json:"core"`
+	Node DBSection `json:"node"`
+}
+
+// Config represents all runtime settings loaded from settings.json
 type Config struct {
-	Port      int
-	DBPath    string
-	JWTSecret string
+	Port       int            `json:"port"`
+	Basic      BasicConfig    `json:"basic"`
+	MasterAuth MasterAuth     `json:"master_auth"`
+	Auth       AuthConfig     `json:"auth"`
+	Database   DatabaseConfig `json:"database"`
 
-	// Core connection — auto-detected at runtime
-	CoreURL      string // e.g. http://192.168.78.129:8080  (remote mode)
-	CoreSocket   string // /var/run/hex/core.sock            (same-machine mode)
-	CoreAPIKey   string // hx_panel_xxx  — used to get core JWTs
+	// Derived / runtime fields
+	NodeDBPath string `json:"-"`
+	CoreDBPath string `json:"-"`
+	JWTSecret  string `json:"-"`
+	DevMode    bool   `json:"-"`
 
-	// TLS (future remote-secure mode)
-	CoreTLSCert string
-	CoreTLSKey  string
-	CoreCACert  string
-
-	// Dev mode — loosens some security checks
-	DevMode bool
+	// Local Core socket
+	CoreSocket string `json:"-"`
+	CoreURL    string `json:"-"`
+	CoreAPIKey string `json:"-"`
 }
 
 func Load() *Config {
-	loadDotEnv()
-
 	cfg := &Config{
-		Port:       getInt("HEX_NODE_PORT", 9000),
-		DBPath:     getStr("HEX_NODE_DB", "data/hex-node.db"),
-		JWTSecret:  getStr("HEX_NODE_JWT_SECRET", "change-me-in-production"),
-		CoreURL:    getStr("HEX_CORE_URL", "http://127.0.0.1:8080"),
-		CoreSocket: getStr("HEX_CORE_SOCKET", "/var/run/hex/core.sock"),
-		CoreAPIKey: getStr("HEX_CORE_API_KEY", ""),
-		DevMode:    getStr("HEX_DEV", "") == "true",
+		Port: 9000,
+		Basic: BasicConfig{
+			PanelName:   "Hex Panel",
+			LabelMadeBy: "N1N4U",
+			Discord:     "https://discord.com/users/1093946948928680008",
+			GitHub:      "https://github.com/N1N4U/Hex",
+			Feedback:    "https://github.com/N1N4U/Hex",
+		},
+		MasterAuth: MasterAuth{
+			Username: "nandu",
+			Password: "password",
+		},
+		Database: DatabaseConfig{
+			Type: "sqlite",
+			Core: DBSection{
+				Type:   "sqlite",
+				SQLite: SQLiteDB{Path: "data/hex-core.db"},
+			},
+			Node: DBSection{
+				Type:   "sqlite",
+				SQLite: SQLiteDB{Path: "data/hex-node.db"},
+			},
+		},
+		CoreSocket: "/var/run/hex/core.sock",
+		JWTSecret:  "hex-node-jwt-secret-key-change-in-prod-32bytes",
+		DevMode:    true,
 	}
+
+	// Try reading settings.json from current directory, panel/node/, or HEX_SETTINGS
+	settingsPaths := []string{"settings.json", "panel/node/settings.json", "../settings.json"}
+	if custom := os.Getenv("HEX_SETTINGS"); custom != "" {
+		settingsPaths = append([]string{custom}, settingsPaths...)
+	}
+
+	var foundPath string
+	for _, p := range settingsPaths {
+		if data, err := os.ReadFile(p); err == nil {
+			if err := json.Unmarshal(data, cfg); err == nil {
+				foundPath = p
+				log.Printf("[node] Loaded settings from %s", p)
+				break
+			} else {
+				log.Printf("[node] Warning: Failed to parse %s: %v", p, err)
+			}
+		}
+	}
+
+	if foundPath == "" {
+		log.Printf("[node] settings.json not found, using default settings")
+	}
+
+	// Environment variable overrides (if any)
+	if p := os.Getenv("PORT"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			cfg.Port = n
+		}
+	}
+	if p := os.Getenv("HEX_NODE_PORT"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil {
+			cfg.Port = n
+		}
+	}
+	if sec := os.Getenv("HEX_NODE_JWT_SECRET"); sec != "" {
+		cfg.JWTSecret = sec
+	}
+
+	// Ensure DB paths
+	if cfg.Database.Node.SQLite.Path != "" {
+		cfg.NodeDBPath = cfg.Database.Node.SQLite.Path
+	} else {
+		cfg.NodeDBPath = "data/hex-node.db"
+	}
+
+	if cfg.Database.Core.SQLite.Path != "" {
+		cfg.CoreDBPath = cfg.Database.Core.SQLite.Path
+	} else {
+		cfg.CoreDBPath = "data/hex-core.db"
+	}
+
 	return cfg
-}
-
-func loadDotEnv() {
-	// Look for .env in current directory or panel/node/.env
-	envPaths := []string{".env", "panel/node/.env", "../.env"}
-	for _, p := range envPaths {
-		file, err := os.Open(p)
-		if err != nil {
-			continue
-		}
-		defer file.Close()
-
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			parts := strings.SplitN(line, "=", 2)
-			if len(parts) == 2 {
-				k := strings.TrimSpace(parts[0])
-				v := strings.TrimSpace(parts[1])
-				// Strip surrounding quotes
-				if (strings.HasPrefix(v, "\"") && strings.HasSuffix(v, "\"")) || (strings.HasPrefix(v, "'") && strings.HasSuffix(v, "'")) {
-					v = v[1 : len(v)-1]
-				}
-				if os.Getenv(k) == "" {
-					os.Setenv(k, v)
-				}
-			}
-		}
-		break // loaded first found .env
-	}
-}
-
-func getStr(key, def string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return def
-}
-
-func getInt(key string, def int) int {
-	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			return n
-		}
-	}
-	return def
 }

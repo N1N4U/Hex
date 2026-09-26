@@ -7,12 +7,26 @@ import (
 	nodeauth "github.com/N1N4U/Hex/panel/auth"
 )
 
-type contextKey string
+type ContextKey string
 
 const (
-	ContextKeyUserID contextKey = "userID"
-	ContextKeyRole   contextKey = "role"
+	ContextKeyUserID ContextKey = "userID"
+	ContextKeyRole   ContextKey = "role"
 )
+
+func UserIDFromContext(ctx context.Context) string {
+	if val, ok := ctx.Value(ContextKeyUserID).(string); ok {
+		return val
+	}
+	return ""
+}
+
+func RoleFromContext(ctx context.Context) string {
+	if val, ok := ctx.Value(ContextKeyRole).(string); ok {
+		return val
+	}
+	return ""
+}
 
 // Auth validates the access token from cookie or header and injects user info into context.
 func Auth(secret string, next http.HandlerFunc) http.HandlerFunc {

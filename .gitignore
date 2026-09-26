@@ -60,3 +60,10 @@ desktop.ini
 /var/lib/Hex/
 /etc/hex/
 /var/log/hex/
+
+# Databases & data directory
+data/
+*.db
+*.db-wal
+*.db-shm
+z*.txt

@@ -9,6 +9,7 @@ import (
 
 	nodeauth "github.com/N1N4U/Hex/panel/auth"
 	"github.com/N1N4U/Hex/panel/config"
+	"github.com/N1N4U/Hex/panel/server/middleware"
 	"github.com/N1N4U/Hex/panel/users"
 )
 
@@ -39,15 +40,27 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := users.GetUserByUsername(body.Username)
-	if err != nil || user == nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
-	}
-	ok, err := nodeauth.VerifyPassword(body.Password, user.PasswordHash)
-	if err != nil || !ok {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
+	var user *users.User
+	var err error
+
+	// Check master auth first
+	if h.cfg.MasterAuth.Username != "" && body.Username == h.cfg.MasterAuth.Username && body.Password == h.cfg.MasterAuth.Password {
+		user, err = users.EnsureMasterUser(body.Username, body.Password)
+		if err != nil {
+			http.Error(w, "Failed to authenticate master user", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		user, err = users.GetUserByUsername(body.Username)
+		if err != nil || user == nil {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
+		ok, err := nodeauth.VerifyPassword(body.Password, user.PasswordHash)
+		if err != nil || !ok {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+			return
+		}
 	}
 
 	accessToken, err := nodeauth.GenerateAccessToken(user.ID, user.Role, h.cfg.JWTSecret)
@@ -66,6 +79,13 @@ func (h *AuthHandlers) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Session creation failed", http.StatusInternalServerError)
 		return
 	}
+
+	// Audit activity log
+	clientIP := r.RemoteAddr
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		clientIP = xff
+	}
+	_ = users.RecordActivity(user.ID, user.Username, "login", "User signed in", clientIP)
 
 	secure := !h.cfg.DevMode
 	nodeauth.SetAuthCookies(w, accessToken, refreshToken, secure)
@@ -121,7 +141,7 @@ func (h *AuthHandlers) Refresh(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/v1/auth/me
 func (h *AuthHandlers) Me(w http.ResponseWriter, r *http.Request) {
-	userID, _ := r.Context().Value(struct{ s string }{"userID"}).(string)
+	userID := middleware.UserIDFromContext(r.Context())
 	if userID == "" {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -139,7 +159,7 @@ func (h *AuthHandlers) Me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// POST /api/v1/auth/setup — creates the first admin user (only when no users exist)
+// POST /api/v1/auth/setup ? creates the first admin user (only when no users exist)
 func (h *AuthHandlers) Setup(w http.ResponseWriter, r *http.Request) {
 	count, err := users.CountUsers()
 	if err != nil || count > 0 {
@@ -154,8 +174,8 @@ func (h *AuthHandlers) Setup(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "username and password required", http.StatusBadRequest)
 		return
 	}
-	if len(body.Password) < 12 {
-		http.Error(w, "Password must be at least 12 characters", http.StatusBadRequest)
+	if len(body.Password) < 8 {
+		http.Error(w, "Password must be at least 8 characters", http.StatusBadRequest)
 		return
 	}
 	hash, err := nodeauth.HashPassword(body.Password)
@@ -169,6 +189,23 @@ func (h *AuthHandlers) Setup(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+// GET /api/v1/config/public
+func (h *AuthHandlers) PublicConfig(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"panel_name":    h.cfg.Basic.PanelName,
+		"label_made_by": h.cfg.Basic.LabelMadeBy,
+		"discord":       h.cfg.Basic.Discord,
+		"github":        h.cfg.Basic.GitHub,
+		"feedback":      h.cfg.Basic.Feedback,
+		"auth": map[string]interface{}{
+			"password": true,
+			"discord":  h.cfg.Auth.Discord.Toggle,
+			"google":   h.cfg.Auth.Google.Toggle,
+		},
+	})
 }
 
 func newID() string {

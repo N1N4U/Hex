@@ -1,0 +1,72 @@
+{
+    "port": 9000,
+    "basic":{
+        "panel_name": "Nandu's Panel",
+        "label_made_by": "N1N4U",
+        "discord": "https://discord.com/users/1093946948928680008",
+        "github": "https://github.com/N1N4U/Hex",
+        "feedback": "https://github.com/N1N4U/Hex"
+    },
+    "master_auth": {
+        "username": "nandu",
+        "password": "123123"
+    },
+    "auth": {
+        "discord": {
+            "toggle": false,
+            "client_id": "",
+            "client_secret": "",
+            "redirect_link": ""
+        },
+        "google": {
+            "toggle": false,
+            "client_id": "",
+            "client_secret": "",
+            "redirect_link": ""
+        },
+        "gmail_smtp": {
+            "toggle": false,
+            "host": "",
+            "port": 587,
+            "email": "",
+            "password": ""
+        }
+    },
+    "database":{
+        "type": "sqlite",
+        "core": {
+            "type": "sqlite",
+            "sqlite": {
+            "path": "data/hex-core.db"
+            },
+            "mogodb": {
+                "datatbase": "hex-core",
+                "uri": "mongodb://localhost:27017/hex-core"
+            },
+            "mysql": {
+                "host": "localhost",
+                "port": 3306,
+                "user": "root",
+                "password": "",
+                "database": "hex-core"
+            }
+        },
+        "node": {
+            "type": "sqlite",
+            "sqlite": {
+                "path": "data/hex-node.db"
+            },
+            "mogodb": {
+                "datatbase": "hex-node",
+                "uri": "mongodb://localhost:27017/hex-node"
+            },
+            "mysql": {
+                "host": "localhost",
+                "port": 3306,
+                "user": "root",
+                "password": "",
+                "database": "hex-node"
+            }
+        }
+    }
+}

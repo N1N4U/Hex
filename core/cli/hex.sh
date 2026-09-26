@@ -101,19 +101,12 @@ manage_service() {
             echo "Hex Core $action executed."
         fi
     elif [ "$target" == "panel" ]; then
-        if [ ! -d "/opt/hex/panel" ]; then
-            echo "Hex Panel is not installed in /opt/hex/panel."
-            return
+        if [[ "$action" == "logs" ]]; then
+            journalctl -u hex-panel -f
+        else
+            systemctl $action hex-panel
+            echo "Hex Panel $action executed."
         fi
-        cd /opt/hex/panel
-        case $action in
-            start) docker compose up -d ;;
-            stop) docker compose down ;;
-            restart) docker compose restart ;;
-            logs) docker compose logs -f ;;
-            status) docker compose ps ;;
-            *) echo "Unsupported action $action for panel." ;;
-        esac
     else
         echo "Unknown target '$target'. Use 'core' or 'panel'."
     fi
@@ -155,10 +148,9 @@ case $COMMAND in
 
     echo "New update found! Downloading..."
     LATEST_JSON=$(curl -s https://api.github.com/repos/N1N4U/Hex/releases/tags/latest)
-    DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep '"browser_download_url"' | grep "hex-linux-$HEX_ARCH" | head -n 1 | cut -d '"' -f 4)
+    DOWNLOAD_URL=$(echo "$LATEST_JSON" | grep '"browser_download_url"' | grep "hex-core-linux-$HEX_ARCH" | head -n 1 | cut -d '"' -f 4)
     if [ -z "$DOWNLOAD_URL" ]; then
-        # Fallback if jq/grep fails
-        DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-linux-$HEX_ARCH"
+        DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-core-linux-$HEX_ARCH"
     fi
     
     rm -f /tmp/hex-core-update
@@ -175,8 +167,17 @@ case $COMMAND in
         echo "Failed to download update from $DOWNLOAD_URL. Make sure the release exists."
     fi
 
-    if [ "$(docker ps -q -f name=hex-panel 2>/dev/null)" ]; then
-        echo "Panel update logic goes here..."
+    if [ -f "/opt/hex/panel/hex-panel" ]; then
+        echo "Updating Hex Panel..."
+        PANEL_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-panel-linux-$HEX_ARCH"
+        rm -f /tmp/hex-panel-update
+        if wget -q -O /tmp/hex-panel-update "$PANEL_URL"; then
+            chmod +x /tmp/hex-panel-update
+            systemctl stop hex-panel || true
+            mv /tmp/hex-panel-update /opt/hex/panel/hex-panel
+            systemctl start hex-panel
+            echo "Hex Panel updated successfully."
+        fi
     fi
     
     echo "Updating Hex CLI script..."

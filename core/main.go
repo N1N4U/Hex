@@ -243,7 +243,7 @@ func performUpdate() error {
 	// 3. Find the correct asset
 	var downloadUrl string
 	for _, asset := range release.Assets {
-		if asset.Name == "hex-core" {
+		if asset.Name == "hex-core-linux-amd64" || asset.Name == "hex-core" {
 			downloadUrl = asset.BrowserDownloadUrl
 			break
 		}

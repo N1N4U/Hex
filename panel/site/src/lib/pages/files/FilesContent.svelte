@@ -2,7 +2,7 @@
   import PageHeader from '$lib/ui/layout/PageHeader.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
   import ContextMenu from '$lib/ui/overlay/ContextMenu.svelte';
-  import { addToast } from '$lib/ui/feedback/toastStore';
+  import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { onMount } from 'svelte';
   import {
     Folder,

@@ -4,7 +4,7 @@
   import Badge from '$lib/ui/primitives/Badge.svelte';
   import Sheet from '$lib/ui/overlay/Sheet.svelte';
   import Input from '$lib/ui/primitives/Input.svelte';
-  import { addToast } from '$lib/ui/feedback/toastStore';
+  import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { Plus, Globe, ArrowRight, ShieldCheck, Trash2, Edit2 } from '@lucide/svelte';
 
   interface ProxyRule {

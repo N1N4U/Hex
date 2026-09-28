@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { toasts, removeToast } from './toastStore';
+  import { toasts, removeToast } from './toastStore.svelte';
   import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from '@lucide/svelte';
   import { slideRight, fade } from '../motion/transitions';
 

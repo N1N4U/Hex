@@ -5,7 +5,7 @@
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
   import Input from '$lib/ui/primitives/Input.svelte';
   import Dropdown from '$lib/ui/primitives/Dropdown.svelte';
-  import { addToast } from '$lib/ui/feedback/toastStore';
+  import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { Plus, Shield, Trash2, AlertTriangle } from '@lucide/svelte';
 
   interface Rule {

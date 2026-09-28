@@ -1,12 +1,12 @@
 <script lang="ts">
   import { Settings, User as UserIcon } from '@lucide/svelte';
-  import { nodeStore, loadNodes } from '$lib/stores/node';
+  import { nodeStore, loadNodes } from '$lib/stores/node.svelte';
   import { user } from '$lib/stores/auth';
   import { onMount } from 'svelte';
   import Tooltip from '../primitives/Tooltip.svelte';
   import Avatar from '../primitives/Avatar.svelte';
   import { goto } from '$app/navigation';
-  import { openDialog } from '../overlay/dialogStore';
+  import { openDialog } from '../overlay/dialogStore.svelte';
   import ProfileDialog from '$lib/pages/profile/ProfileDialog.svelte';
 
   let {

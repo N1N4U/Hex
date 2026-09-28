@@ -3,7 +3,7 @@
   import Button from '$lib/ui/primitives/Button.svelte';
   import Input from '$lib/ui/primitives/Input.svelte';
   import Badge from '$lib/ui/primitives/Badge.svelte';
-  import { addToast } from '$lib/ui/feedback/toastStore';
+  import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { get } from '$lib/api/client';
   import { onMount } from 'svelte';
   import {

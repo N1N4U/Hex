@@ -6,7 +6,7 @@
   import Badge from '$lib/ui/primitives/Badge.svelte';
   import Sheet from '$lib/ui/overlay/Sheet.svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
-  import { addToast } from '$lib/ui/feedback/toastStore';
+  import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { onMount } from 'svelte';
   import { get, post } from '$lib/api/client';
   import {

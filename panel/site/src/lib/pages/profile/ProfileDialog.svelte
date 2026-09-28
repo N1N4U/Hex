@@ -1,13 +1,13 @@
 <script lang="ts">
   import { user } from '$lib/stores/auth';
   import { logout } from '$lib/api/auth';
-  import { closeDialog } from '$lib/ui/overlay/dialogStore';
+  import { closeDialog } from '$lib/ui/overlay/dialogStore.svelte';
   import Avatar from '$lib/ui/primitives/Avatar.svelte';
   import Badge from '$lib/ui/primitives/Badge.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
   import Input from '$lib/ui/primitives/Input.svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
-  import { addToast } from '$lib/ui/feedback/toastStore';
+  import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { Shield, Key, Sliders, AlertTriangle } from '@lucide/svelte';
 
   let activeTab = $state<'sessions' | 'security' | 'preferences' | 'danger'>('sessions');

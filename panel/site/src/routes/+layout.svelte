@@ -9,7 +9,7 @@
   import { onMount } from 'svelte';
   import { connect, disconnect, on } from '$lib/ws/client';
   import { stats, wsStatus } from '$lib/stores/core';
-  import { dialogStore } from '$lib/ui/overlay/dialogStore';
+  import { dialogStore } from '$lib/ui/overlay/dialogStore.svelte';
 
   let { children }: { children?: Snippet } = $props();
 

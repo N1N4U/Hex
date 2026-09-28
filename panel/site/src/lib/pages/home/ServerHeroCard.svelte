@@ -2,9 +2,9 @@
   import Card from '$lib/ui/layout/Card.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
-  import { openDialog, closeDialog } from '$lib/ui/overlay/dialogStore';
+  import { openDialog, closeDialog } from '$lib/ui/overlay/dialogStore.svelte';
   import { stats, wsStatus } from '$lib/stores/core';
-  import { addToast } from '$lib/ui/feedback/toastStore';
+  import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { onMount } from 'svelte';
   import {
     Clock,

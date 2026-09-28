@@ -12,13 +12,13 @@ export { default as Avatar } from './primitives/Avatar.svelte';
 export { default as Toast } from './feedback/Toast.svelte';
 export { default as Alert } from './feedback/Alert.svelte';
 export { default as Progress } from './feedback/Progress.svelte';
-export { addToast, removeToast, toasts } from './feedback/toastStore';
+export { addToast, removeToast, toasts } from './feedback/toastStore.svelte';
 
 // overlay
 export { default as Dialog } from './overlay/Dialog.svelte';
 export { default as ContextMenu } from './overlay/ContextMenu.svelte';
 export { default as Sheet } from './overlay/Sheet.svelte';
-export { openDialog, closeDialog, closeAllDialogs, dialogStore } from './overlay/dialogStore';
+export { openDialog, closeDialog, closeAllDialogs, dialogStore } from './overlay/dialogStore.svelte';
 
 // layout
 export { default as AppShell } from './layout/AppShell.svelte';

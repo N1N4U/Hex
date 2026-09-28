@@ -1,29 +1,57 @@
 <script lang="ts">
-  import "../app.css";
-  import { onMount } from "svelte";
-  import { page } from "$app/stores";
-  import { goto } from "$app/navigation";
-  import { loadUser, user, ready } from "$lib/stores/auth";
+  import '../app.css';
+  import type { Snippet } from 'svelte';
+  import Toast from '$lib/ui/feedback/Toast.svelte';
+  import { user } from '$lib/stores/auth';
+  import { me } from '$lib/api/auth';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
+  import { connect, disconnect, on } from '$lib/ws/client';
+  import { stats, wsStatus } from '$lib/stores/core';
+  import { dialogStore } from '$lib/ui/overlay/dialogStore';
 
-  onMount(loadUser);
+  let { children }: { children?: Snippet } = $props();
 
-  // Redirect to login if not authenticated and not already on login page
-  $: if ($ready && !$user && !$page.url.pathname.startsWith("/login")) {
-    goto("/login");
-  }
-  $: if ($ready && $user && $page.url.pathname === "/login") {
-    goto("/");
-  }
+  onMount(async () => {
+    try {
+      const u = await me();
+      if (u) {
+        user.set(u);
+        if ($page.url.pathname === '/login') {
+          goto('/home');
+        }
+      } else {
+        if ($page.url.pathname !== '/login') {
+          goto('/login');
+        }
+      }
+    } catch {
+      if ($page.url.pathname !== '/login') {
+        goto('/login');
+      }
+    }
+
+    // Connect WebSocket
+    connect();
+    const offStatus = on('__status__', (s) => wsStatus.set(s as any));
+    const offStats = on('stats', (msg: any) => stats.set(msg.data));
+
+    return () => {
+      offStatus();
+      offStats();
+      disconnect();
+    };
+  });
 </script>
 
-{#if !$ready}
-  <!-- Loading splash -->
-  <div class="fixed inset-0 flex items-center justify-center bg-[#0b1326]">
-    <div class="flex flex-col items-center gap-3">
-      <span class="icon text-primary text-5xl icon-fill">hexagon</span>
-      <span class="text-on-surface-variant text-sm">Loading...</span>
-    </div>
-  </div>
-{:else}
-  <slot />
+<Toast />
+
+{#if dialogStore.current}
+  {@const CurrentDialog = dialogStore.current.component}
+  <CurrentDialog {...dialogStore.current.props} />
+{/if}
+
+{#if children}
+  {@render children()}
 {/if}

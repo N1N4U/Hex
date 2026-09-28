@@ -1,0 +1,54 @@
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  import Topbar from './Topbar.svelte';
+  import Dock from '../dock/Dock.svelte';
+
+  let {
+    panelName = "Hex Panel",
+    children
+  }: {
+    panelName?: string;
+    children?: Snippet;
+  } = $props();
+</script>
+
+<div class="app-shell">
+  <Topbar {panelName} />
+
+  <main class="content-viewport">
+    <div class="content-wrapper">
+      {#if children}
+        {@render children()}
+      {/if}
+    </div>
+  </main>
+
+  <Dock />
+</div>
+
+<style>
+  .app-shell {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-base);
+  }
+
+  .content-viewport {
+    flex: 1;
+    overflow-y: auto;
+    padding-top: 52px; /* Topbar height */
+    padding-bottom: calc(var(--dock-height) + 28px); /* Dock clearance */
+    display: flex;
+    justify-content: center;
+  }
+
+  .content-wrapper {
+    width: 100%;
+    max-width: 1400px;
+    padding: var(--space-5) var(--space-6);
+  }
+</style>

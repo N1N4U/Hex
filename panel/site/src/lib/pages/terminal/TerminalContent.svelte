@@ -122,6 +122,9 @@
       <div class="tabs-list">
         {#each tabs as tab}
           <div
+            role="tab"
+            tabindex="0"
+            onkeydown={(e) => { if (e.key === "Enter") activeTabId = tab.id; }}
             class="tab-item"
             class:is-active={activeTabId === tab.id}
             onclick={() => (activeTabId = tab.id)}
@@ -214,9 +217,7 @@
     background: rgba(0, 255, 136, 0.05);
   }
 
-  .tab-icon {
-    flex-shrink: 0;
-  }
+  
 
   .tab-close {
     display: flex;

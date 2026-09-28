@@ -202,7 +202,7 @@
       </div>
     {:else}
       {#each filteredContainers as item (item.id)}
-        <div class="container-card" onclick={() => (selectedContainer = item)}>
+        <div class="container-card" role="button" tabindex="0" onkeydown={(e) => { if (e.key === "Enter") selectedContainer = item; }} onclick={() => (selectedContainer = item)}>
           <div class="container-info">
             <span class="status-dot {item.status}"></span>
             <div class="name-column">
@@ -232,7 +232,7 @@
           </div>
 
           <!-- Actions right -->
-          <div class="container-actions" onclick={(e) => e.stopPropagation()}>
+          <div class="container-actions" role="toolbar" tabindex="0" onkeydown={(e) => e.stopPropagation()} onclick={(e) => e.stopPropagation()}>
             {#if item.status === 'running'}
               <Button
                 variant="ghost"

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	hexcore "github.com/N1N4U/Hex/panel/core"
 )
@@ -34,9 +35,14 @@ func (p *CoreProxy) Proxy(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 	}
 
-	resp, err := p.client.Do(context.Background(), r.Method, corePath, body)
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	resp, err := p.client.Do(ctx, r.Method, corePath, body)
 	if err != nil {
-		http.Error(w, "Core unreachable: "+err.Error(), http.StatusBadGateway)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadGateway)
+		w.Write([]byte(`{"error":"Core unreachable"}`))
 		return
 	}
 	defer resp.Body.Close()

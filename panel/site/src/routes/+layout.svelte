@@ -14,6 +14,9 @@
   let { children }: { children?: Snippet } = $props();
 
   onMount(async () => {
+    let offStatus: (() => void) | undefined;
+    let offStats: (() => void) | undefined;
+
     try {
       const u = await me();
       if (u) {
@@ -21,6 +24,10 @@
         if ($page.url.pathname === '/login') {
           goto('/home');
         }
+        // Connect WebSocket only when backend is available and user is authenticated
+        connect();
+        offStatus = on('__status__', (s) => wsStatus.set(s as any));
+        offStats = on('stats', (msg: any) => stats.set(msg.data));
       } else {
         if ($page.url.pathname !== '/login') {
           goto('/login');
@@ -32,14 +39,9 @@
       }
     }
 
-    // Connect WebSocket
-    connect();
-    const offStatus = on('__status__', (s) => wsStatus.set(s as any));
-    const offStats = on('stats', (msg: any) => stats.set(msg.data));
-
     return () => {
-      offStatus();
-      offStats();
+      if (offStatus) offStatus();
+      if (offStats) offStats();
       disconnect();
     };
   });

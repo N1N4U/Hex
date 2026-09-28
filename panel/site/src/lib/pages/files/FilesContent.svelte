@@ -139,6 +139,9 @@
       <div class="nodes-list">
         {#each fileTree as node}
           <div
+            role="button"
+            tabindex="0"
+            onkeydown={(e) => { if (e.key === "Enter") handleSelectNode(node); }}
             class="tree-node"
             class:is-active={selectedFile?.path === node.path}
             onclick={() => handleFileClick(node)}
@@ -277,13 +280,7 @@
     font-weight: 500;
   }
 
-  .node-icon.folder-icon {
-    color: var(--amber);
-  }
-
-  .node-icon.file-icon {
-    color: var(--text-muted);
-  }
+  
 
   .editor-panel {
     background: var(--bg-surface);

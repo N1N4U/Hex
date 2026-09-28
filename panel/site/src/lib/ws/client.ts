@@ -1,38 +1,68 @@
-// WebSocket client — connects to node WS proxy, never to core directly.
+// WebSocket client ? connects to node WS proxy, never to core directly.
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let reconnectAttempts = 0;
 const listeners = new Map<string, Set<(data: unknown) => void>>();
 
 export function connect() {
-  if (socket?.readyState === WebSocket.OPEN) return;
+  if (typeof window === 'undefined') return;
+  if (socket?.readyState === WebSocket.OPEN || socket?.readyState === WebSocket.CONNECTING) return;
 
-  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const url = `${proto}://${location.host}/api/v1/ws`;
-  socket = new WebSocket(url);
+
+  try {
+    socket = new WebSocket(url);
+  } catch {
+    scheduleReconnect();
+    return;
+  }
 
   socket.onopen = () => {
-    emit("__status__", "connected");
-    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    reconnectAttempts = 0;
+    emit('__status__', 'connected');
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
   };
 
   socket.onmessage = (ev) => {
     try {
       const msg = JSON.parse(ev.data);
       if (msg.type) emit(msg.type, msg);
-    } catch { /* ignore non-JSON */ }
+    } catch {
+      /* ignore non-JSON */
+    }
   };
 
   socket.onclose = () => {
-    emit("__status__", "disconnected");
-    reconnectTimer = setTimeout(connect, 3000);
+    emit('__status__', 'disconnected');
+    scheduleReconnect();
   };
 
-  socket.onerror = () => { socket?.close(); };
+  socket.onerror = () => {
+    socket?.close();
+  };
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) return;
+  const delay = Math.min(15000, 2000 * Math.pow(1.5, Math.min(reconnectAttempts, 5)));
+  reconnectAttempts++;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, delay);
 }
 
 export function disconnect() {
-  if (reconnectTimer) clearTimeout(reconnectTimer);
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  reconnectAttempts = 0;
   socket?.close();
   socket = null;
 }
@@ -50,5 +80,5 @@ export function on(type: string, fn: (data: unknown) => void) {
 }
 
 function emit(type: string, data: unknown) {
-  listeners.get(type)?.forEach(fn => fn(data));
+  listeners.get(type)?.forEach((fn) => fn(data));
 }

@@ -185,9 +185,7 @@
     gap: var(--space-2);
   }
 
-  .globe-icon {
-    color: var(--accent);
-  }
+  
 
   .domain-text {
     font-size: var(--text-md);

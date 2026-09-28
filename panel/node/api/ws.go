@@ -68,10 +68,12 @@ func (p *WSProxy) ProxyWS(w http.ResponseWriter, r *http.Request) {
 		if jwt := p.client.JWT(); jwt != "" {
 			hdr.Set("Authorization", "Bearer "+jwt)
 		}
-		coreConn, _, err = websocket.DefaultDialer.Dial(coreURLParsed.String(), hdr)
+		dialer := websocket.Dialer{HandshakeTimeout: 3 * time.Second}
+		coreConn, _, err = dialer.Dial(coreURLParsed.String(), hdr)
 	}
 	if err != nil {
 		log.Printf("[ws] core dial failed: %v", err)
+		clientConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseServiceRestart, "core unreachable"), time.Now().Add(time.Second))
 		return
 	}
 	defer coreConn.Close()

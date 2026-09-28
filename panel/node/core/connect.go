@@ -46,7 +46,7 @@ func NewClient(socketPath, coreURL, apiKey string) (*Client, error) {
 					return (&net.Dialer{}).DialContext(ctx, "unix", socketPath)
 				},
 			},
-			Timeout: 30 * time.Second,
+			Timeout: 5 * time.Second,
 		}
 		c.baseURL = "http://hex-core" // hostname doesn't matter for unix socket
 		return c, nil
@@ -59,7 +59,7 @@ func NewClient(socketPath, coreURL, apiKey string) (*Client, error) {
 	c.mode = ModeRemoteHTTP
 	c.baseURL = coreURL
 	c.http = &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 5 * time.Second,
 	}
 	return c, nil
 }

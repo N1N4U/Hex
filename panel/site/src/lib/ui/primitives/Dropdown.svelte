@@ -49,7 +49,7 @@
 
 <div class="dropdown-group" bind:this={dropdownRef}>
   {#if label}
-    <label class="dropdown-label">{label}</label>
+    <span class="dropdown-label">{label}</span>
   {/if}
 
   <button

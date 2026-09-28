@@ -1,6 +1,8 @@
 <script lang="ts">
   import { user } from '$lib/stores/auth';
-  import { logout } from '$lib/api/auth';
+  import { logout, logoutAll } from '$lib/api/auth';
+  import { disconnect } from '$lib/ws/client';
+  import { goto } from '$app/navigation';
   import { closeDialog } from '$lib/ui/overlay/dialogStore.svelte';
   import Avatar from '$lib/ui/primitives/Avatar.svelte';
   import Badge from '$lib/ui/primitives/Badge.svelte';
@@ -8,7 +10,7 @@
   import Input from '$lib/ui/primitives/Input.svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
-  import { Shield, Key, Sliders, AlertTriangle } from '@lucide/svelte';
+  import { Shield, Key, Sliders, AlertTriangle, LogOut } from '@lucide/svelte';
 
   let activeTab = $state<'sessions' | 'security' | 'preferences' | 'danger'>('sessions');
 
@@ -16,10 +18,26 @@
   let newPassword = $state('');
   let confirmPassword = $state('');
 
-  function handleLogoutAll() {
-    logout();
+  async function handleLogout() {
+    try {
+      await logout();
+    } catch {}
+    user.set(null);
+    disconnect();
+    closeDialog();
+    addToast('Signed out of current session', 'info');
+    goto('/loading?action=logout');
+  }
+
+  async function handleLogoutAll() {
+    try {
+      await logoutAll();
+    } catch {}
+    user.set(null);
+    disconnect();
     closeDialog();
     addToast('Signed out of all devices', 'info');
+    goto('/loading?action=logout');
   }
 
   function handleChangePassword() {
@@ -42,12 +60,17 @@
   <div class="profile-container">
     <!-- Header -->
     <div class="profile-header">
-      <Avatar name={$user?.username || 'Admin'} size="lg" online />
+      <Avatar name={$user?.username || 'Administrator'} size="lg" online />
       <div class="user-meta">
-        <h3 class="user-name">{$user?.username || 'Admin'}</h3>
+        <h3 class="user-name">{$user?.username || 'Administrator'}</h3>
         <div class="role-row">
           <Badge variant="success" size="sm">{$user?.role || 'Owner'}</Badge>
         </div>
+      </div>
+      <div class="header-actions">
+        <Button variant="secondary" size="sm" onclick={handleLogout}>
+          <LogOut size={14} /> Sign Out
+        </Button>
       </div>
     </div>
 
@@ -87,7 +110,15 @@
     <div class="tab-content">
       {#if activeTab === 'sessions'}
         <div class="section">
-          <h4 class="section-title">Active Sessions</h4>
+          <div class="section-header-row">
+            <div>
+              <h4 class="section-title">Active Sessions</h4>
+              <p class="section-desc">Manage your active login tokens on this server.</p>
+            </div>
+            <Button variant="secondary" size="sm" onclick={handleLogout}>
+              <LogOut size={14} /> Sign Out Current Device
+            </Button>
+          </div>
           <table class="session-table">
             <thead>
               <tr>
@@ -106,7 +137,9 @@
                   <Badge variant="success" size="sm" dot>Active Now</Badge>
                 </td>
                 <td>
-                  <span class="muted-label">Current</span>
+                  <Button variant="danger" size="sm" onclick={handleLogout}>
+                    Sign Out
+                  </Button>
                 </td>
               </tr>
             </tbody>
@@ -149,14 +182,25 @@
       {:else if activeTab === 'danger'}
         <div class="section">
           <h4 class="section-title text-danger">Danger Zone</h4>
-          <p class="section-desc">Sign out will revoke your active tokens and require re-authentication.</p>
+          <p class="section-desc">Revoke your active sessions and require re-authentication.</p>
+          
           <div class="danger-box">
             <div>
-              <div class="font-bold">Sign out all sessions</div>
-              <div class="text-sm text-secondary">Terminates active session tokens across all devices.</div>
+              <div class="font-bold">Sign Out (This Device)</div>
+              <div class="text-sm text-secondary">Terminates the current session cookie on this browser.</div>
+            </div>
+            <Button variant="secondary" onclick={handleLogout}>
+              <LogOut size={14} /> Sign Out
+            </Button>
+          </div>
+
+          <div class="danger-box" style="margin-top: 12px;">
+            <div>
+              <div class="font-bold">Sign Out All Sessions</div>
+              <div class="text-sm text-secondary">Terminates active session tokens across all devices and browsers.</div>
             </div>
             <Button variant="danger" onclick={handleLogoutAll}>
-              Sign out all devices
+              <LogOut size={14} /> Sign Out All Devices
             </Button>
           </div>
         </div>
@@ -178,6 +222,14 @@
     gap: var(--space-4);
     padding-bottom: var(--space-3);
     border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .user-meta {
+    flex: 1;
+  }
+
+  .header-actions {
+    margin-left: auto;
   }
 
   .user-name {
@@ -227,10 +279,17 @@
     min-height: 220px;
   }
 
+  .section-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-3);
+  }
+
   .section-title {
     font-size: var(--text-md);
     font-weight: 600;
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-1);
   }
 
   .text-danger {
@@ -259,27 +318,19 @@
   }
 
   .session-table td {
-    padding: 10px 12px;
+    padding: 12px;
     border-bottom: 1px solid var(--border-subtle);
   }
 
   .current-row {
-    background: rgba(0, 255, 136, 0.03);
-    border-left: 2px solid var(--accent);
+    background: var(--bg-surface-active);
   }
 
   .device-name {
     font-weight: 500;
-    color: var(--text-primary);
   }
 
   .device-ip {
-    font-size: var(--text-xs);
-    color: var(--text-secondary);
-    font-family: var(--font-mono);
-  }
-
-  .muted-label {
     font-size: var(--text-xs);
     color: var(--text-muted);
   }
@@ -299,9 +350,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px;
+    padding: var(--space-3) var(--space-4);
     background: var(--danger-subtle);
-    border: 1px solid rgba(255, 77, 77, 0.2);
+    border: 1px solid var(--danger);
     border-radius: var(--radius-md);
   }
 

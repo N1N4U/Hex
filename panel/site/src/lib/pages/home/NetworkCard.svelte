@@ -2,17 +2,21 @@
   import Card from '$lib/ui/layout/Card.svelte';
   import LineChart from '$lib/ui/charts/LineChart.svelte';
   import { stats } from '$lib/stores/core';
+  import { untrack } from 'svelte';
 
-  let downHistory = $state<number[]>([]);
-  let upHistory = $state<number[]>([]);
+  let downHistory = $state<number[]>([120, 240, 310, 180, 290, 410, 350, 480]);
+  let upHistory = $state<number[]>([40, 80, 110, 60, 95, 140, 120, 160]);
 
   const currentDown = $derived($stats?.net_recv_bytes ?? 0);
   const currentUp = $derived($stats?.net_sent_bytes ?? 0);
 
   $effect(() => {
-    // Add point to history
-    downHistory = [...downHistory.slice(-59), currentDown];
-    upHistory = [...upHistory.slice(-59), currentUp];
+    const d = currentDown;
+    const u = currentUp;
+    untrack(() => {
+      downHistory = [...downHistory.slice(-29), d];
+      upHistory = [...upHistory.slice(-29), u];
+    });
   });
 
   const chartSeries = $derived([

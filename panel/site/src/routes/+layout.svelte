@@ -17,25 +17,26 @@
     let offStatus: (() => void) | undefined;
     let offStats: (() => void) | undefined;
 
+    const publicRoutes = ['/lockscreen', '/login', '/loading'];
+
     try {
       const u = await me();
       if (u) {
         user.set(u);
-        if ($page.url.pathname === '/login') {
+        if ($page.url.pathname === '/lockscreen' || $page.url.pathname === '/login') {
           goto('/home');
         }
-        // Connect WebSocket only when backend is available and user is authenticated
         connect();
         offStatus = on('__status__', (s) => wsStatus.set(s as any));
         offStats = on('stats', (msg: any) => stats.set(msg.data));
       } else {
-        if ($page.url.pathname !== '/login') {
-          goto('/login');
+        if (!publicRoutes.includes($page.url.pathname)) {
+          goto('/lockscreen');
         }
       }
     } catch {
-      if ($page.url.pathname !== '/login') {
-        goto('/login');
+      if (!publicRoutes.includes($page.url.pathname)) {
+        goto('/lockscreen');
       }
     }
 

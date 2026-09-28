@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { Settings, User as UserIcon } from '@lucide/svelte';
+  import { Settings, LogOut, User as UserIcon } from '@lucide/svelte';
+  import { logout } from '$lib/api/auth';
+  import { disconnect } from '$lib/ws/client';
   import { nodeStore, loadNodes } from '$lib/stores/node.svelte';
   import { user } from '$lib/stores/auth';
   import { onMount } from 'svelte';
@@ -21,6 +23,15 @@
 
   function openProfile() {
     openDialog(ProfileDialog);
+  }
+
+  async function handleQuickLogout() {
+    try {
+      await logout();
+    } catch {}
+    user.set(null);
+    disconnect();
+    goto('/loading?action=logout');
   }
 </script>
 
@@ -72,6 +83,18 @@
     >
       <Avatar name={$user?.username || 'Admin'} size="sm" online />
     </button>
+
+    <Tooltip content="Sign Out" position="bottom">
+      <button
+        type="button"
+        class="icon-btn"
+        onclick={handleQuickLogout}
+        title="Sign Out"
+        aria-label="Sign Out"
+      >
+        <LogOut size={18} />
+      </button>
+    </Tooltip>
   </div>
 </header>
 

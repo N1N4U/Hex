@@ -25,8 +25,9 @@ export default defineConfig({
       '@xterm/xterm',
       '@xterm/addon-fit',
       '@xterm/addon-web-links',
-      'monaco-editor'
-    ]
+      // monaco-editor excluded
+    ],
+    exclude: ['monaco-editor']
   },
   server: {
     port: 5173,

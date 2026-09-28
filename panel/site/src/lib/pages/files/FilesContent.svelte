@@ -47,6 +47,13 @@
   onMount(async () => {
     // Dynamic import of Monaco Editor only when on this page
     try {
+      if (typeof window !== 'undefined' && !(window as any).MonacoEnvironment) {
+        (window as any).MonacoEnvironment = {
+          getWorkerUrl: function () {
+            return 'data:text/javascript;charset=utf-8,';
+          }
+        };
+      }
       monacoInstance = await import('monaco-editor');
       if (editorContainer) {
         initEditor();

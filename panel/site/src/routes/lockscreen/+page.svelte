@@ -2,4 +2,4 @@
   import LockScreen from '$lib/pages/auth/LockScreen.svelte';
 </script>
 
-<LockScreen initialUnlocked={true} />
+<LockScreen initialUnlocked={false} />

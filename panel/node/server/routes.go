@@ -19,6 +19,7 @@ func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreClient *core.Cli
 	// ?? Public auth & config endpoints ???????????????????????????????????????
 	mux.HandleFunc("/api/v1/auth/login", middleware.RateLimit(10, 60e9, authH.Login))
 	mux.HandleFunc("/api/v1/auth/logout", authH.Logout)
+	mux.HandleFunc("/api/v1/auth/logout-all", authH.LogoutAll)
 	mux.HandleFunc("/api/v1/auth/refresh", authH.Refresh)
 	mux.HandleFunc("/api/v1/auth/setup", authH.Setup)
 	mux.HandleFunc("/api/v1/config/public", authH.PublicConfig)

@@ -107,6 +107,18 @@ func (h *AuthHandlers) Logout(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
+// POST /api/v1/auth/logout-all
+func (h *AuthHandlers) LogoutAll(w http.ResponseWriter, r *http.Request) {
+	if c, err := r.Cookie(nodeauth.RefreshCookieName); err == nil {
+		if session, err := users.GetSessionByRefreshToken(c.Value); err == nil && session != nil {
+			_ = users.DeleteSessionsByUserID(session.UserID)
+		}
+	}
+	nodeauth.ClearAuthCookies(w)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
 // POST /api/v1/auth/refresh
 func (h *AuthHandlers) Refresh(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie(nodeauth.RefreshCookieName)

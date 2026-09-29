@@ -52,10 +52,12 @@
 
 <style>
   .card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
+    background: rgba(18, 22, 30, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-card);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.35);
     transition: all var(--transition-base);
     display: flex;
     flex-direction: column;
@@ -63,10 +65,11 @@
   }
 
   .glass-card {
-    background: rgba(20, 20, 24, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(15, 19, 28, 0.82);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 32px rgba(0, 0, 0, 0.45);
   }
 
   .is-navigable:hover {

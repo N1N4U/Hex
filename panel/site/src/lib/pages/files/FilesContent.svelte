@@ -44,8 +44,11 @@
     { name: 'hex-core.log', path: '/var/lib/hex/hex-core.log', isDir: false, size: '24.1 KB', modified: 'Just now' }
   ];
 
-  onMount(async () => {
-    // Dynamic import of Monaco Editor only when on this page
+  let editorLoading = $state(false);
+
+  async function ensureMonaco() {
+    if (monacoInstance) return monacoInstance;
+    editorLoading = true;
     try {
       if (typeof window !== 'undefined' && !(window as any).MonacoEnvironment) {
         (window as any).MonacoEnvironment = {
@@ -55,16 +58,28 @@
         };
       }
       monacoInstance = await import('monaco-editor');
-      if (editorContainer) {
-        initEditor();
-      }
-    } catch {
-      // fallback
+      return monacoInstance;
+    } finally {
+      editorLoading = false;
     }
+  }
+
+  onMount(() => {
+    // Non-blocking background initialization - keeps tab switching instantaneous
+    const timer = setTimeout(async () => {
+      try {
+        await ensureMonaco();
+        if (editorContainer && !monacoEditor) {
+          initEditor();
+        }
+      } catch {}
+    }, 120);
 
     return () => {
+      clearTimeout(timer);
       if (monacoEditor) {
         monacoEditor.dispose();
+        monacoEditor = null;
       }
     };
   });
@@ -90,7 +105,12 @@
     } else {
       selectedFile = node;
       fileContent = `// Contents of ${node.name}\n{\n  "name": "${node.name}",\n  "path": "${node.path}"\n}`;
-      if (monacoEditor) {
+      if (!monacoEditor) {
+        ensureMonaco().then(() => {
+          if (editorContainer && !monacoEditor) initEditor();
+          else if (monacoEditor) monacoEditor.setValue(fileContent);
+        });
+      } else {
         monacoEditor.setValue(fileContent);
       }
     }

@@ -19,7 +19,8 @@
     Server,
     Cpu,
     MapPin,
-    Layers
+    Layers,
+    AlertTriangle
   } from '@lucide/svelte';
 
   let currentTime = $state('');
@@ -171,9 +172,12 @@
     onclose={() => (confirmAction = null)}
   >
     <div class="confirm-content">
-      <p class="confirm-warning">
-        ?? This action will immediately {confirmAction === 'reboot' ? 'restart' : 'power off'} the system. All running containers will be halted.
-      </p>
+      <div class="warning-row">
+        <AlertTriangle size={18} class="warn-icon" />
+        <p class="confirm-warning">
+          This action will immediately {confirmAction === 'reboot' ? 'restart' : 'power off'} the system. All running containers will be halted.
+        </p>
+      </div>
       <div class="confirm-buttons">
         <Button variant="ghost" onclick={() => (confirmAction = null)}>
           Cancel
@@ -337,7 +341,23 @@
   .confirm-content {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: 16px;
+  }
+
+  .warning-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+  }
+
+  :global(.warn-icon) {
+    color: #ef4444;
+    flex-shrink: 0;
+    margin-top: 1px;
   }
 
   .confirm-warning {

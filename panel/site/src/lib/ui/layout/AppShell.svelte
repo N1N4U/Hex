@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import Topbar from './Topbar.svelte';
   import Dock from '../dock/Dock.svelte';
+  import BottomFooter from './BottomFooter.svelte';
   import WallpaperBackground from './WallpaperBackground.svelte';
 
   let {
@@ -26,6 +27,7 @@
   </main>
 
   <Dock />
+  <BottomFooter />
 </div>
 
 <style>
@@ -45,7 +47,7 @@
     flex: 1;
     overflow-y: auto;
     padding-top: 52px; /* Topbar height */
-    padding-bottom: calc(var(--dock-height) + 28px); /* Dock clearance */
+    padding-bottom: 96px; /* Clearance for Dock and BottomFooter */
     display: flex;
     justify-content: center;
   }

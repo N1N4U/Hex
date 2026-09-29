@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="100%" height="100%">
+  <defs>
+    <linearGradient id="gearGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <rect x="3" y="3" width="42" height="42" rx="10" fill="url(#gearGrad)"/>
+  <circle cx="24" cy="24" r="6" fill="none" stroke="#ffffff" stroke-width="3"/>
+  <path d="M24 11V14M24 34V37M11 24H14M34 24H37M14.8 14.8L17 17M31 31L33.2 33.2M14.8 33.2L17 31M31 17L33.2 14.8" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+</svg>

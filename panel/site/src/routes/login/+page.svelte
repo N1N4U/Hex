@@ -7,7 +7,7 @@
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import WallpaperBackground from '$lib/ui/layout/WallpaperBackground.svelte';
 
-  let username = $state('Administrator');
+  let username = $state('');
   let password = $state('');
   let loading = $state(false);
   let errorMsg = $state('');
@@ -366,7 +366,7 @@
   .provider-pill {
     flex: 1;
     height: 38px;
-    border-radius: 19px;
+    border-radius: 12px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.12);
     color: #cbd5e1;
@@ -400,7 +400,7 @@
 
   .cancel-btn {
     padding: 8px 24px;
-    border-radius: 18px;
+    border-radius: 10px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.12);
     color: #94a3b8;

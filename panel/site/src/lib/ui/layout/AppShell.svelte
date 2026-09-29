@@ -2,6 +2,7 @@
   import type { Snippet } from 'svelte';
   import Topbar from './Topbar.svelte';
   import Dock from '../dock/Dock.svelte';
+  import WallpaperBackground from './WallpaperBackground.svelte';
 
   let {
     panelName = "Hex Panel",
@@ -13,6 +14,7 @@
 </script>
 
 <div class="app-shell">
+  <WallpaperBackground />
   <Topbar {panelName} />
 
   <main class="content-viewport">
@@ -34,10 +36,12 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--bg-base);
+    background: transparent;
   }
 
   .content-viewport {
+    position: relative;
+    z-index: 10;
     flex: 1;
     overflow-y: auto;
     padding-top: 52px; /* Topbar height */

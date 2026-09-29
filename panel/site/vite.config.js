@@ -16,7 +16,9 @@ export default defineConfig({
   customLogger,
   resolve: {
     alias: {
-      $lib: path.resolve('./src/lib')
+      $lib: path.resolve('./src/lib'),
+      '$lib/assets': path.resolve('./src/lib/assects'),
+      '$lib/assects': path.resolve('./src/lib/assects')
     }
   },
   optimizeDeps: {

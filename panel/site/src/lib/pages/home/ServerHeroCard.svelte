@@ -40,11 +40,11 @@
     return () => clearInterval(timer);
   });
 
-  const uptime = $derived($stats?.uptime ?? '0m');
+  const uptime = $derived($stats?.uptime ?? '-');
   const osName = $derived($stats?.os_name ?? 'Linux');
   const cpuModel = $derived($stats?.cpu_model ?? 'Virtual CPU');
   const ipAddress = $derived($stats?.ip_address ?? '127.0.0.1');
-  const maskedIp = $derived(showIp ? ipAddress : '???.???.???.???');
+  const maskedIp = $derived(showIp ? ipAddress : '');
 
   function triggerAction(action: 'reboot' | 'shutdown' | 'update' | 'logs') {
     if (action === 'reboot' || action === 'shutdown') {

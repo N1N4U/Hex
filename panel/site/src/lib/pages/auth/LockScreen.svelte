@@ -13,7 +13,7 @@
   let dateStr = $state('');
 
   // Form states
-  let username = $state('Administrator');
+  let username = $state('');
   let password = $state('');
   let loading = $state(false);
   let errorMsg = $state('');

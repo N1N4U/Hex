@@ -216,6 +216,7 @@ func (h *AuthHandlers) PublicConfig(w http.ResponseWriter, r *http.Request) {
 			"password": true,
 			"discord":  h.cfg.Auth.Discord.Toggle,
 			"google":   h.cfg.Auth.Google.Toggle,
+			"gmail":    h.cfg.Auth.GmailSMTP.Toggle,
 		},
 	})
 }

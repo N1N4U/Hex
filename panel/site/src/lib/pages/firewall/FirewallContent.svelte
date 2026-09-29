@@ -28,14 +28,42 @@
   let newSource = $state('Anywhere');
   let newDesc = $state('');
 
-  let rules = $state<Rule[]>([
-    { id: 'r-1', port: '22', protocol: 'TCP', direction: 'In', action: 'Allow', source: 'Anywhere', desc: 'SSH remote management' },
-    { id: 'r-2', port: '80, 443', protocol: 'TCP', direction: 'In', action: 'Allow', source: 'Anywhere', desc: 'HTTP/HTTPS web traffic' },
-    { id: 'r-3', port: '9000', protocol: 'TCP', direction: 'In', action: 'Allow', source: 'Anywhere', desc: 'Hex Node Web Panel' },
-    { id: 'r-4', port: '8080', protocol: 'TCP', direction: 'In', action: 'Allow', source: '192.168.0.0/16', desc: 'Hex Core internal API' }
-  ]);
+  let rules = $state<Rule[]>([]);
+  let isLoading = $state(false);
 
-  function handleAddRule() {
+  import { onMount } from 'svelte';
+
+  async function loadFirewallRules() {
+    isLoading = true;
+    try {
+      const res = await fetch('/api/v1/core/firewall', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : data.rules || [];
+        rules = list.map((r: any, idx: number) => ({
+          id: r.id || `r-${idx}`,
+          port: r.port || r.ports || '',
+          protocol: r.protocol || 'TCP',
+          direction: r.direction || 'In',
+          action: r.action || 'Allow',
+          source: r.source || 'Anywhere',
+          desc: r.comment || r.desc || ''
+        }));
+      } else {
+        rules = [];
+      }
+    } catch {
+      rules = [];
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  onMount(() => {
+    loadFirewallRules();
+  });
+
+  async function handleAddRule() {
     if (!newPort) {
       addToast('Port is required', 'error');
       return;
@@ -49,8 +77,25 @@
       source: newSource || 'Anywhere',
       desc: newDesc || 'Custom rule'
     };
-    rules = [...rules, rule];
-    addToast(`Rule for port ${newPort} added`, 'success');
+    try {
+      await fetch('/api/v1/core/firewall', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          port: newPort,
+          protocol: newProtocol,
+          action: newAction,
+          source: newSource,
+          comment: newDesc
+        })
+      });
+      addToast(`Rule for port ${newPort} added to core`, 'success');
+      await loadFirewallRules();
+    } catch {
+      rules = [...rules, rule];
+      addToast(`Rule for port ${newPort} created locally`, 'info');
+    }
     showAddDialog = false;
     newPort = '';
     newDesc = '';
@@ -236,4 +281,32 @@
     gap: var(--space-2);
     margin-top: var(--space-3);
   }
+  .empty-rules-box {
+    background: rgba(12, 16, 22, 0.65);
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 60px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    backdrop-filter: blur(12px);
+  }
+
+  .empty-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin: 0;
+  }
+
+  .empty-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    max-width: 420px;
+    margin: 0;
+  }
+
 </style>

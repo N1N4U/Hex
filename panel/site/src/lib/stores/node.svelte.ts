@@ -10,34 +10,16 @@ export interface NodeInfo {
   color?: string;
 }
 
-const DEFAULT_CORES: NodeInfo[] = [
-  {
-    id: 'core-mine',
-    name: 'Mine',
-    ip_address: '127.0.0.1',
-    port: 8080,
-    protocol: 'http',
-    status: 'online'
-  },
-  {
-    id: 'core-test',
-    name: 'Test',
-    ip_address: '192.168.1.42',
-    port: 8080,
-    protocol: 'http',
-    status: 'offline'
-  }
-];
-
-let nodesState = $state<NodeInfo[]>(DEFAULT_CORES);
-let activeNodeIdState = $state<string>('core-mine');
+// Initialized empty - loads purely from real backend SQLite database
+let nodesState = $state<NodeInfo[]>([]);
+let activeNodeIdState = $state<string>('');
 
 export const nodeStore = {
   get nodes() {
     return nodesState;
   },
   get activeNode() {
-    return nodesState.find((n) => n.id === activeNodeIdState) || nodesState[0] || DEFAULT_CORES[0];
+    return nodesState.find((n) => n.id === activeNodeIdState) || nodesState[0] || null;
   },
   get activeId() {
     return activeNodeIdState;
@@ -53,7 +35,7 @@ export const nodeStore = {
 export async function loadNodes(): Promise<NodeInfo[]> {
   try {
     const list = await get<any[]>('/nodes');
-    if (Array.isArray(list) && list.length > 0) {
+    if (Array.isArray(list)) {
       const mapped: NodeInfo[] = list.map((item, idx) => ({
         id: item.id || `node-${idx}`,
         name: item.name || 'Remote Core',
@@ -63,13 +45,13 @@ export async function loadNodes(): Promise<NodeInfo[]> {
         status: item.status === 'online' ? 'online' : 'offline'
       }));
       nodesState = mapped;
-      if (!nodesState.some(n => n.id === activeNodeIdState)) {
-        activeNodeIdState = nodesState[0].id;
+      if (mapped.length > 0 && (!activeNodeIdState || !nodesState.some(n => n.id === activeNodeIdState))) {
+        activeNodeIdState = mapped[0].id;
       }
       return mapped;
     }
   } catch {
-    // If backend nodes table is empty or dev offline, keep fallback
+    nodesState = [];
   }
   return nodesState;
 }
@@ -91,8 +73,8 @@ export async function deleteCoreNode(id: string): Promise<boolean> {
     await del(`/nodes?id=${encodeURIComponent(id)}`);
   } catch {}
   nodesState = nodesState.filter((n) => n.id !== id);
-  if (activeNodeIdState === id && nodesState.length > 0) {
-    activeNodeIdState = nodesState[0].id;
+  if (activeNodeIdState === id) {
+    activeNodeIdState = nodesState.length > 0 ? nodesState[0].id : '';
   }
   return true;
 }

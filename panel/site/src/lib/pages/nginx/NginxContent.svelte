@@ -16,24 +16,41 @@
     websocket: boolean;
   }
 
-  let proxies = $state<ProxyRule[]>([
-    {
-      id: 'p-1',
-      domain: 'panel.hex.local',
-      target: '127.0.0.1:9000',
-      ssl: true,
-      status: 'active',
-      websocket: true
-    },
-    {
-      id: 'p-2',
-      domain: 'api.hex.local',
-      target: '127.0.0.1:8080',
-      ssl: true,
-      status: 'active',
-      websocket: false
+  let proxies = $state<ProxyRule[]>([]);
+  let isLoading = $state(false);
+
+  async function loadProxies() {
+    isLoading = true;
+    try {
+      const res = await fetch('/api/v1/core/proxy', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          proxies = data.map((p: any) => ({
+            id: p.name || p.id || 'p-' + Math.random().toString(36).substring(2, 6),
+            domain: p.domain || p.server_name || p.name || '',
+            target: p.target || p.upstream || '',
+            ssl: !!p.ssl,
+            status: p.disabled ? 'disabled' : 'active',
+            websocket: !!p.websocket
+          }));
+        } else {
+          proxies = [];
+        }
+      } else {
+        proxies = [];
+      }
+    } catch {
+      proxies = [];
+    } finally {
+      isLoading = false;
     }
-  ]);
+  }
+
+  import { onMount } from 'svelte';
+  onMount(() => {
+    loadProxies();
+  });
 
   let showSheet = $state(false);
   let newDomain = $state('');
@@ -41,7 +58,7 @@
   let newSSL = $state(true);
   let newWS = $state(true);
 
-  function handleAddProxy() {
+  async function handleAddProxy() {
     if (!newDomain || !newTarget) {
       addToast('Domain and Target are required', 'error');
       return;
@@ -54,8 +71,25 @@
       status: 'active',
       websocket: newWS
     };
-    proxies = [...proxies, p];
-    addToast(`Proxy rule created for ${newDomain}`, 'success');
+    try {
+      await fetch('/api/v1/core/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: newDomain,
+          domain: newDomain,
+          target: newTarget,
+          ssl: newSSL,
+          websocket: newWS
+        })
+      });
+      addToast(`Proxy rule created for ${newDomain}`, 'success');
+      await loadProxies();
+    } catch {
+      proxies = [...proxies, p];
+      addToast(`Proxy rule created locally for ${newDomain}`, 'info');
+    }
     showSheet = false;
     newDomain = '';
     newTarget = '';
@@ -232,4 +266,32 @@
   .form-btn {
     margin-top: var(--space-3);
   }
+  .empty-proxies-box {
+    background: rgba(12, 16, 22, 0.65);
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 60px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 8px;
+    backdrop-filter: blur(12px);
+  }
+
+  .empty-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin: 0;
+  }
+
+  .empty-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    max-width: 420px;
+    margin: 0;
+  }
+
 </style>

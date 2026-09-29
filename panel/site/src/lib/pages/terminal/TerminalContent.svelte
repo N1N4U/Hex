@@ -51,32 +51,34 @@
         xterm.open(terminalElement);
         fitAddon.fit();
 
-        xterm.writeln('\x1b[1;32m????????????????????????????????????????????????\x1b[0m');
-        xterm.writeln('\x1b[1;32m?  Hex VPS Shell ? Connected to Local Core    ?\x1b[0m');
-        xterm.writeln('\x1b[1;32m????????????????????????????????????????????????\x1b[0m\r\n');
-        xterm.write('root@hex:~# ');
+        // Connect to real WebSocket terminal stream via node proxy
+        let termSocket: WebSocket | null = null;
 
-        let inputLine = '';
+        function connectTerminalWS() {
+          const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+          const wsUrl = `${proto}://${location.host}/api/v1/ws?type=terminal&session=${activeTabId}`;
+          try {
+            termSocket = new WebSocket(wsUrl);
+            termSocket.onopen = () => {
+              xterm?.writeln('\x1b[1;32m[Connected to VPS Core PTY via Hex Node Proxy]\x1b[0m\r\n');
+            };
+            termSocket.onmessage = (ev) => {
+              xterm?.write(typeof ev.data === 'string' ? ev.data : new Uint8Array(ev.data));
+            };
+            termSocket.onclose = () => {
+              xterm?.writeln('\r\n\x1b[33m[VPS Core Terminal stream closed. Connect a live Core in Core Management.]\x1b[0m\r\n');
+            };
+            termSocket.onerror = () => {
+              termSocket?.close();
+            };
+          } catch {}
+        }
+
+        connectTerminalWS();
+
         xterm.onData((data: string) => {
-          if (data === '\r') {
-            xterm.write('\r\n');
-            if (inputLine.trim() === 'help') {
-              xterm.writeln('Hex Core CLI Commands: hex status, hex core update, docker ps, ufw status');
-            } else if (inputLine.trim() === 'clear') {
-              xterm.clear();
-            } else if (inputLine.trim()) {
-              xterm.writeln(`Executed: ${inputLine}`);
-            }
-            inputLine = '';
-            xterm.write('root@hex:~# ');
-          } else if (data === '\u007F') { // Backspace
-            if (inputLine.length > 0) {
-              inputLine = inputLine.slice(0, -1);
-              xterm.write('\b \b');
-            }
-          } else {
-            inputLine += data;
-            xterm.write(data);
+          if (termSocket && termSocket.readyState === WebSocket.OPEN) {
+            termSocket.send(data);
           }
         });
 

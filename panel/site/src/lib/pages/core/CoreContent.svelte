@@ -90,9 +90,21 @@
     </button>
   </div>
 
-  <!-- Cards Grid matching screenshot -->
-  <div class="cores-grid">
-    {#each nodeStore.nodes as core (core.id)}
+  <!-- Cards Grid or Empty State -->
+  {#if nodeStore.nodes.length === 0}
+    <div class="empty-cores-card">
+      <div class="empty-icon-wrap">
+        <Server size={38} />
+      </div>
+      <h3 class="empty-title">No Connected Hex Cores</h3>
+      <p class="empty-desc">
+        There are currently no VPS Cores registered with this panel.
+        Click <strong>+ Add Core</strong> to link your first VPS node.
+      </p>
+    </div>
+  {:else}
+    <div class="cores-grid">
+      {#each nodeStore.nodes as core (core.id)}
       {@const isOnline = core.status === 'online'}
       {@const isActive = nodeStore.activeId === core.id}
       <div class="core-card">
@@ -167,9 +179,10 @@
             <span>Remove</span>
           </button>
         </div>
-      </div>
-    {/each}
-  </div>
+        </div>
+      {/each}
+    </div>
+  {/if}
 </div>
 
 <!-- Add Core Dialog (Strictly implements user specification) -->
@@ -607,4 +620,45 @@
     gap: 10px;
     margin-top: 8px;
   }
+  /* Empty state */
+  .empty-cores-card {
+    background: rgba(12, 16, 22, 0.65);
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    padding: 60px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    backdrop-filter: blur(12px);
+  }
+
+  .empty-icon-wrap {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    margin-bottom: 16px;
+  }
+
+  .empty-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin: 0 0 6px 0;
+  }
+
+  .empty-desc {
+    font-size: 13.5px;
+    color: #94a3b8;
+    max-width: 440px;
+    margin: 0;
+    line-height: 1.5;
+  }
+
 </style>

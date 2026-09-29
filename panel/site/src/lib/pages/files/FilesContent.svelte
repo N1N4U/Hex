@@ -35,14 +35,37 @@
   let contextY = $state(0);
   let targetNode = $state<FileNode | null>(null);
 
-  const fileTree: FileNode[] = [
-    { name: 'configs', path: '/var/lib/hex/configs', isDir: true },
-    { name: 'data', path: '/var/lib/hex/data', isDir: true },
-    { name: 'logs', path: '/var/lib/hex/logs', isDir: true },
-    { name: 'settings.json', path: '/var/lib/hex/settings.json', isDir: false, size: '1.4 KB', modified: '2 hours ago' },
-    { name: 'docker-compose.yml', path: '/var/lib/hex/docker-compose.yml', isDir: false, size: '3.2 KB', modified: 'Yesterday' },
-    { name: 'hex-core.log', path: '/var/lib/hex/hex-core.log', isDir: false, size: '24.1 KB', modified: 'Just now' }
-  ];
+  let fileTree = $state<FileNode[]>([]);
+  let isLoadingFiles = $state(false);
+
+  async function fetchFiles(targetPath: string) {
+    isLoadingFiles = true;
+    try {
+      const res = await fetch(`/api/v1/core/files?path=${encodeURIComponent(targetPath)}`, {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          fileTree = data.map((f: any) => ({
+            name: f.name || f.path?.split('/').pop() || 'file',
+            path: f.path || `${targetPath}/${f.name}`,
+            isDir: !!f.is_dir || !!f.isDir,
+            size: f.size ? `${(f.size / 1024).toFixed(1)} KB` : undefined,
+            modified: f.modified || undefined
+          }));
+        } else {
+          fileTree = [];
+        }
+      } else {
+        fileTree = [];
+      }
+    } catch {
+      fileTree = [];
+    } finally {
+      isLoadingFiles = false;
+    }
+  }
 
   let editorLoading = $state(false);
 
@@ -65,6 +88,8 @@
   }
 
   onMount(() => {
+    fetchFiles(currentPath);
+
     // Non-blocking background initialization - keeps tab switching instantaneous
     const timer = setTimeout(async () => {
       try {
@@ -99,12 +124,23 @@
     });
   }
 
-  function handleFileClick(node: FileNode) {
+  async function handleFileClick(node: FileNode) {
     if (node.isDir) {
       currentPath = node.path;
     } else {
       selectedFile = node;
-      fileContent = `// Contents of ${node.name}\n{\n  "name": "${node.name}",\n  "path": "${node.path}"\n}`;
+      try {
+        const res = await fetch(`/api/v1/core/files?action=read&path=${encodeURIComponent(node.path)}`, {
+          credentials: 'include'
+        });
+        if (res.ok) {
+          fileContent = await res.text();
+        } else {
+          fileContent = `// Unable to read ${node.name}: Core returned status ${res.status}`;
+        }
+      } catch {
+        fileContent = `// Error reading ${node.name} from core`;
+      }
       if (!monacoEditor) {
         ensureMonaco().then(() => {
           if (editorContainer && !monacoEditor) initEditor();
@@ -164,6 +200,11 @@
         <span class="tree-title">Explorer</span>
       </div>
       <div class="nodes-list">
+        {#if fileTree.length === 0}
+          <div class="empty-tree-node">
+            <span class="text-muted">{isLoadingFiles ? 'Loading files...' : 'No files in directory'}</span>
+          </div>
+        {/if}
         {#each fileTree as node}
           <div
             role="button"

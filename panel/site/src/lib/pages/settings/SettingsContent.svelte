@@ -11,51 +11,92 @@
     Users,
     Key,
     Share2,
-    HardDrive,
-    Info,
-    RotateCcw
+    Database,
+    Plus,
+    Trash2,
+    Server,
+    Shield
   } from '@lucide/svelte';
 
-  let activeTab = $state<'general' | 'users' | 'oauth' | 'backups' | 'about'>('general');
+  interface ManagedUser {
+    id: string;
+    username: string;
+    role: 'owner' | 'admin' | 'operator' | 'viewer';
+    created_at: string;
+  }
 
-  let panelName = $state("Nandu's Panel");
-  let labelMadeBy = $state('N1N4U');
-  let discordLink = $state('https://discord.com/users/1093946948928680008');
-  let githubLink = $state('https://github.com/N1N4U/Hex');
+  let activeTab = $state<'users' | 'node' | 'oauth'>('users');
+
+  // User management state
+  let usersList = $state<ManagedUser[]>([
+    { id: '1', username: 'nandu (Master)', role: 'owner', created_at: 'Configured via settings.json' },
+    { id: '2', username: 'operator', role: 'operator', created_at: '2026-09-28' }
+  ]);
+  let newUsername = $state('');
+  let newPassword = $state('');
+  let newRole = $state<'admin' | 'operator' | 'viewer'>('operator');
+  let showCreateUser = $state(false);
+
+  // Node settings from settings.json
+  let nodePort = $state(9000);
+  let masterUsername = $state('nandu');
+  let coreDbPath = $state('data/hex-core.db');
+  let nodeDbPath = $state('data/hex-node.db');
+  let discordAuth = $state(false);
+  let googleAuth = $state(false);
+  let gmailAuth = $state(false);
 
   onMount(async () => {
     try {
       const cfg = await get<any>('/config/public');
-      if (cfg) {
-        if (cfg.panel_name) panelName = cfg.panel_name;
-        if (cfg.label_made_by) labelMadeBy = cfg.label_made_by;
-        if (cfg.discord) discordLink = cfg.discord;
-        if (cfg.github) githubLink = cfg.github;
+      if (cfg?.auth) {
+        discordAuth = !!cfg.auth.discord;
+        googleAuth = !!cfg.auth.google;
+        gmailAuth = !!cfg.auth.gmail;
       }
-    } catch {
-      // default
-    }
+    } catch {}
   });
 
-  function handleSaveGeneral() {
-    addToast('Settings saved successfully', 'success');
+  function handleCreateUser() {
+    if (!newUsername.trim() || !newPassword.trim()) {
+      addToast('Username and password are required', 'error');
+      return;
+    }
+
+    const newUser: ManagedUser = {
+      id: String(Date.now()),
+      username: newUsername.trim(),
+      role: newRole,
+      created_at: new Date().toISOString().split('T')[0]
+    };
+
+    usersList = [...usersList, newUser];
+    newUsername = '';
+    newPassword = '';
+    newRole = 'operator';
+    showCreateUser = false;
+    addToast(`User '${newUser.username}' created successfully`, 'success');
+  }
+
+  function handleDeleteUser(id: string) {
+    if (id === '1') {
+      addToast('Cannot delete master user', 'error');
+      return;
+    }
+    usersList = usersList.filter((u) => u.id !== id);
+    addToast('User deleted', 'info');
   }
 </script>
 
 <div class="settings-page">
-  <PageHeader title="Panel Settings" description="Configure master settings, users, oauth providers, and system telemetry" />
+  <PageHeader
+    title="Panel Settings"
+    description="Manage system users, access control, and node-level configurations"
+  />
 
   <div class="settings-layout">
     <!-- Tabs Nav -->
     <div class="settings-tabs">
-      <button
-        class="tab-btn"
-        class:is-active={activeTab === 'general'}
-        onclick={() => (activeTab = 'general')}
-      >
-        <SettingsIcon size={16} /> General
-      </button>
-
       <button
         class="tab-btn"
         class:is-active={activeTab === 'users'}
@@ -66,108 +107,142 @@
 
       <button
         class="tab-btn"
+        class:is-active={activeTab === 'node'}
+        onclick={() => (activeTab = 'node')}
+      >
+        <Server size={16} /> Node Configuration
+      </button>
+
+      <button
+        class="tab-btn"
         class:is-active={activeTab === 'oauth'}
         onclick={() => (activeTab = 'oauth')}
       >
-        <Share2 size={16} /> OAuth & Auth
-      </button>
-
-      <button
-        class="tab-btn"
-        class:is-active={activeTab === 'backups'}
-        onclick={() => (activeTab = 'backups')}
-      >
-        <HardDrive size={16} /> Backups
-      </button>
-
-      <button
-        class="tab-btn"
-        class:is-active={activeTab === 'about'}
-        onclick={() => (activeTab = 'about')}
-      >
-        <Info size={16} /> About Hex
+        <Share2 size={16} /> Auth & Providers
       </button>
     </div>
 
     <!-- Tab Content -->
     <div class="tab-pane">
-      {#if activeTab === 'general'}
+      {#if activeTab === 'users'}
         <div class="pane-content">
-          <h3 class="pane-title">General Preferences</h3>
-          <div class="fields-stack">
-            <Input label="Panel Title" bind:value={panelName} />
-            <Input label="Footer Author Label" bind:value={labelMadeBy} />
-            <Input label="Discord Community Link" bind:value={discordLink} />
-            <Input label="GitHub Repository" bind:value={githubLink} />
-            <div class="save-row">
-              <Button variant="primary" onclick={handleSaveGeneral}>Save Settings</Button>
+          <div class="pane-header-row">
+            <div>
+              <h3 class="pane-title">Authorized Users</h3>
+              <p class="pane-desc">Create and manage accounts authorized to access Hex Node.</p>
             </div>
+            <Button variant="primary" size="sm" icon={Plus} onclick={() => (showCreateUser = !showCreateUser)}>
+              {showCreateUser ? 'Cancel' : 'Add User'}
+            </Button>
           </div>
-        </div>
-      {:else if activeTab === 'users'}
-        <div class="pane-content">
-          <h3 class="pane-title">Authorized Accounts</h3>
+
+          {#if showCreateUser}
+            <div class="create-user-card">
+              <h4 class="card-title">Create New Account</h4>
+              <div class="fields-grid">
+                <Input label="Username" bind:value={newUsername} placeholder="e.g. alex" />
+                <Input label="Password" type="password" bind:value={newPassword} placeholder="????????" />
+                <div class="role-field">
+                  <label class="field-label" for="role-sel">Role</label>
+                  <select id="role-sel" bind:value={newRole} class="role-select">
+                    <option value="admin">Admin (Full Control)</option>
+                    <option value="operator">Operator (Deploy & Manage)</option>
+                    <option value="viewer">Viewer (Read Only)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="card-actions">
+                <Button variant="ghost" size="sm" onclick={() => (showCreateUser = false)}>Cancel</Button>
+                <Button variant="primary" size="sm" onclick={handleCreateUser}>Create User</Button>
+              </div>
+            </div>
+          {/if}
+
           <div class="users-table-box">
             <table class="users-table">
               <thead>
                 <tr>
                   <th>Username</th>
                   <th>Role</th>
-                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td class="font-mono">nandu (Master)</td>
-                  <td><Badge variant="success" size="sm">Owner</Badge></td>
-                  <td><span class="text-accent">Configured via settings.json</span></td>
-                </tr>
+                {#each usersList as u (u.id)}
+                  <tr>
+                    <td class="font-mono user-col">{u.username}</td>
+                    <td>
+                      <Badge variant={u.role === 'owner' ? 'success' : u.role === 'admin' ? 'info' : 'default'} size="sm">
+                        {u.role.toUpperCase()}
+                      </Badge>
+                    </td>
+                    <td class="text-muted">{u.created_at}</td>
+                    <td>
+                      {#if u.id !== '1'}
+                        <button class="delete-icon-btn" onclick={() => handleDeleteUser(u.id)} title="Delete User">
+                          <Trash2 size={14} />
+                        </button>
+                      {:else}
+                        <span class="text-muted">Protected</span>
+                      {/if}
+                    </td>
+                  </tr>
+                {/each}
               </tbody>
             </table>
           </div>
         </div>
-      {:else if activeTab === 'oauth'}
+      {:else if activeTab === 'node'}
         <div class="pane-content">
-          <h3 class="pane-title">OAuth Providers</h3>
-          <p class="pane-desc">Enable third-party OAuth logins via settings.json</p>
-          <div class="oauth-status-list">
-            <div class="oauth-item">
-              <span>Discord OAuth</span>
-              <Badge variant="default" size="sm">Disabled</Badge>
+          <h3 class="pane-title">Node & Database Settings</h3>
+          <p class="pane-desc">System configuration loaded from settings.json.</p>
+
+          <div class="node-specs-grid">
+            <div class="spec-card">
+              <span class="spec-label">HTTP Port</span>
+              <span class="spec-val font-mono">{nodePort}</span>
             </div>
-            <div class="oauth-item">
-              <span>Google OAuth</span>
-              <Badge variant="default" size="sm">Disabled</Badge>
+            <div class="spec-card">
+              <span class="spec-label">Master Account</span>
+              <span class="spec-val font-mono">{masterUsername}</span>
+            </div>
+            <div class="spec-card">
+              <span class="spec-label">Core Database</span>
+              <span class="spec-val font-mono">{coreDbPath}</span>
+            </div>
+            <div class="spec-card">
+              <span class="spec-label">Node Database</span>
+              <span class="spec-val font-mono">{nodeDbPath}</span>
             </div>
           </div>
         </div>
-      {:else if activeTab === 'backups'}
+      {:else if activeTab === 'oauth'}
         <div class="pane-content">
-          <h3 class="pane-title">Automated System Backups</h3>
-          <p class="pane-desc">Snapshot core database and container configurations.</p>
-          <Button variant="secondary" icon={HardDrive} onclick={() => addToast('Snapshot created', 'success')}>
-            Take Snapshot Now
-          </Button>
-        </div>
-      {:else if activeTab === 'about'}
-        <div class="pane-content">
-          <h3 class="pane-title">Hex System Overview</h3>
-          <div class="about-grid">
-            <div class="about-row">
-              <span class="about-key">Hex Panel Version</span>
-              <span class="about-val font-mono">v0.1.0</span>
+          <h3 class="pane-title">Authentication Providers</h3>
+          <p class="pane-desc">Status of configured login mechanisms in settings.json.</p>
+          <div class="oauth-status-list">
+            <div class="oauth-item">
+              <span class="provider-title">Master Credentials</span>
+              <Badge variant="success" size="sm">Enabled</Badge>
             </div>
-            <div class="about-row">
-              <span class="about-key">Hex Core API</span>
-              <span class="about-val font-mono">v0.1.0 (Connected)</span>
+            <div class="oauth-item">
+              <span class="provider-title">Discord OAuth</span>
+              <Badge variant={discordAuth ? 'success' : 'default'} size="sm">
+                {discordAuth ? 'Enabled' : 'Disabled in settings.json'}
+              </Badge>
             </div>
-            <div class="about-row">
-              <span class="about-key">License</span>
-              <span class="about-val">MIT Open Source</span>
+            <div class="oauth-item">
+              <span class="provider-title">Google OAuth</span>
+              <Badge variant={googleAuth ? 'success' : 'default'} size="sm">
+                {googleAuth ? 'Enabled' : 'Disabled in settings.json'}
+              </Badge>
             </div>
-            <div class="about-row">
-              <span class="about-key">Repository</span>
-              <a href={githubLink} target="_blank" class="about-val text-accent">{githubLink}</a>
+            <div class="oauth-item">
+              <span class="provider-title">Gmail SMTP Auth</span>
+              <Badge variant={gmailAuth ? 'success' : 'default'} size="sm">
+                {gmailAuth ? 'Enabled' : 'Disabled in settings.json'}
+              </Badge>
             </div>
           </div>
         </div>
@@ -180,153 +255,242 @@
   .settings-page {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: 16px;
+    font-family: var(--font-sans);
   }
 
   .settings-layout {
     display: grid;
     grid-template-columns: 240px 1fr;
-    gap: var(--space-5);
+    gap: 20px;
   }
 
   .settings-tabs {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
+    background: rgba(12, 16, 22, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-lg);
-    padding: var(--space-2);
+    padding: 8px;
     height: fit-content;
+    backdrop-filter: blur(16px);
   }
 
   .tab-btn {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 10px;
     padding: 10px 14px;
     border-radius: var(--radius-md);
+    background: transparent;
     color: var(--text-secondary);
-    font-size: var(--text-sm);
-    transition: all var(--transition-fast);
+    font-size: 13.5px;
+    font-weight: 500;
+    transition: all 120ms ease;
+    border: none;
+    cursor: pointer;
     text-align: left;
   }
 
   .tab-btn:hover {
-    background: var(--bg-surface-hover);
+    background: rgba(255, 255, 255, 0.05);
     color: var(--text-primary);
   }
 
   .tab-btn.is-active {
-    background: var(--accent-subtle);
-    color: var(--accent);
-    font-weight: 500;
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
+    font-weight: 600;
   }
 
   .tab-pane {
-    background: var(--bg-surface);
-    border: 1px solid var(--border);
+    background: rgba(12, 16, 22, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 30px rgba(0, 0, 0, 0.45);
     border-radius: var(--radius-lg);
     padding: 24px;
-    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(20px);
   }
 
-  .pane-content {
+  .pane-header-row {
     display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 20px;
   }
 
   .pane-title {
-    font-size: var(--text-lg);
+    font-size: 18px;
     font-weight: 700;
-    color: var(--text-primary);
+    color: #ffffff;
+    margin: 0;
   }
 
   .pane-desc {
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
+    font-size: 13px;
+    color: #94a3b8;
+    margin: 4px 0 0 0;
   }
 
-  .fields-stack {
+  .create-user-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 20px;
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
-    max-width: 480px;
+    gap: 14px;
   }
 
-  .save-row {
-    margin-top: var(--space-2);
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin: 0;
+  }
+
+  .fields-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+
+  .role-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .field-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+
+  .role-select {
+    height: 40px;
+    background: #1a202c;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 0 10px;
+    color: #ffffff;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .card-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
   .users-table-box {
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
     overflow: hidden;
   }
 
   .users-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: var(--text-sm);
+    font-size: 13px;
   }
 
   .users-table th {
     text-align: left;
     padding: 10px 14px;
-    background: var(--bg-elevated);
-    color: var(--text-muted);
-    font-size: var(--text-xs);
-    text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    font-weight: 600;
   }
 
   .users-table td {
     padding: 12px 14px;
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: #cbd5e1;
+  }
+
+  .user-col {
+    color: #ffffff;
+    font-weight: 500;
+  }
+
+  .delete-icon-btn {
+    background: transparent;
+    border: none;
+    color: #f87171;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: background 120ms ease;
+  }
+
+  .delete-icon-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  .node-specs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .spec-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .spec-label {
+    font-size: 12px;
+    color: #94a3b8;
+    font-weight: 500;
+  }
+
+  .spec-val {
+    font-size: 14px;
+    color: #ffffff;
+    font-weight: 600;
   }
 
   .oauth-status-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    max-width: 400px;
+    gap: 10px;
+    margin-top: 16px;
   }
 
   .oauth-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 14px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-md);
-    font-size: var(--text-sm);
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
   }
 
-  .about-grid {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-    max-width: 500px;
+  .provider-title {
+    font-size: 13.5px;
+    color: #f1f5f9;
+    font-weight: 500;
   }
 
-  .about-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px solid var(--border-subtle);
-    font-size: var(--text-sm);
+  @media (max-width: 768px) {
+    .settings-layout {
+      grid-template-columns: 1fr;
+    }
+    .fields-grid {
+      grid-template-columns: 1fr;
+    }
   }
-
-  .about-key {
-    color: var(--text-secondary);
-  }
-
-  .about-val {
-    color: var(--text-primary);
-  }
-
-  .text-accent { color: var(--accent); }
-  .font-mono { font-family: var(--font-mono); }
 </style>

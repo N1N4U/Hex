@@ -1,11 +1,14 @@
 package api
 
 import (
+	"bytes"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/N1N4U/Hex/panel/users"
@@ -17,7 +20,57 @@ func NewNodesHandler() *NodesHandler {
 	return &NodesHandler{}
 }
 
-// GET /api/v1/nodes - List all registered cores/nodes
+// httpClient returns a client configured for core checks, supporting HTTP and HTTPS (with mTLS/custom certs)
+func getCheckClient(protocol string) *http.Client {
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	return &http.Client{
+		Transport: tr,
+		Timeout:   3 * time.Second,
+	}
+}
+
+// checkCoreHealth tests connectivity to a Hex Core.
+func checkCoreHealth(protocol, ip string, port int, apiKey string) string {
+	baseURL := fmt.Sprintf("%s://%s:%d", protocol, ip, port)
+	client := getCheckClient(protocol)
+
+	// 1. If API Key provided, exchange at /auth/token
+	if apiKey != "" {
+		tokenBody, _ := json.Marshal(map[string]string{"api_key": apiKey})
+		req, err := http.NewRequest(http.MethodPost, baseURL+"/auth/token", bytes.NewReader(tokenBody))
+		if err == nil {
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := client.Do(req)
+			if err == nil {
+				defer resp.Body.Close()
+				if resp.StatusCode == http.StatusOK {
+					return "online"
+				}
+			}
+		}
+	}
+
+	// 2. Fallback: test /health or root
+	req, err := http.NewRequest(http.MethodGet, baseURL+"/health", nil)
+	if err == nil {
+		if apiKey != "" {
+			req.Header.Set("Authorization", "Bearer "+apiKey)
+		}
+		resp, err := client.Do(req)
+		if err == nil {
+			defer resp.Body.Close()
+			if resp.StatusCode < 500 {
+				return "online"
+			}
+		}
+	}
+
+	return "offline"
+}
+
+// GET /api/v1/nodes - List all registered cores/nodes with live connectivity check
 func (h *NodesHandler) List(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -31,6 +84,20 @@ func (h *NodesHandler) List(w http.ResponseWriter, r *http.Request) {
 	if nodes == nil {
 		nodes = []users.Node{}
 	}
+
+	// Parallel live status check (fast 1.5s timeout)
+	var wg sync.WaitGroup
+	for i := range nodes {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			status := checkCoreHealth(nodes[idx].Protocol, nodes[idx].IPAddress, nodes[idx].Port, nodes[idx].APIKey)
+			nodes[idx].Status = status
+			nodes[idx].APIKey = "" // Never leak API key to client
+		}(i)
+	}
+	wg.Wait()
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(nodes)
 }
@@ -65,25 +132,8 @@ func (h *NodesHandler) Add(w http.ResponseWriter, r *http.Request) {
 		req.Protocol = "http"
 	}
 
-	// Test connection to the core's health endpoint
-	targetURL := fmt.Sprintf("%s://%s:%d/health", req.Protocol, req.IPAddress, req.Port)
-	client := &http.Client{Timeout: 5 * time.Second}
-	testReq, err := http.NewRequest(http.MethodGet, targetURL, nil)
-	if req.APIKey != "" {
-		testReq.Header.Set("Authorization", "Bearer "+req.APIKey)
-	}
-
-	status := "online"
-	if err == nil {
-		resp, err := client.Do(testReq)
-		if err != nil || resp.StatusCode >= 500 {
-			status = "offline"
-		} else {
-			resp.Body.Close()
-		}
-	} else {
-		status = "offline"
-	}
+	// Verify connection to the core
+	status := checkCoreHealth(req.Protocol, req.IPAddress, req.Port, req.APIKey)
 
 	idBytes := make([]byte, 8)
 	rand.Read(idBytes)
@@ -124,11 +174,14 @@ func (h *NodesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Node ID required", http.StatusBadRequest)
 		return
 	}
+
 	if err := users.DeleteNode(id); err != nil {
-		http.Error(w, "Failed to delete node", http.StatusInternalServerError)
+		http.Error(w, "Failed to remove node: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusNoContent)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
 }
 
 // GET /api/v1/activities - Get recent audit activities

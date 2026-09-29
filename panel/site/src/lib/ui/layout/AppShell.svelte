@@ -46,7 +46,7 @@
     z-index: 10;
     flex: 1;
     overflow-y: auto;
-    padding-top: 68px; /* Topbar height */
+    padding-top: 62px; /* Content sits cleanly right beneath Topbar */
     padding-bottom: 96px; /* Clearance for Dock and BottomFooter */
     display: flex;
     justify-content: center;
@@ -55,6 +55,7 @@
   .content-wrapper {
     width: 100%;
     max-width: 1400px;
-    padding: var(--space-5) var(--space-6);
+    padding: 16px 28px;
+    box-sizing: border-box;
   }
 </style>

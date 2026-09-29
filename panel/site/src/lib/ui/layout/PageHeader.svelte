@@ -32,31 +32,43 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--space-5);
-    gap: var(--space-4);
+    margin-bottom: 20px;
+    gap: 16px;
+    user-select: none;
   }
 
   .title-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
   }
 
   .page-title {
-    font-size: var(--text-xl);
+    font-size: 24px;
     font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.3px;
+    color: #ffffff;
+    letter-spacing: -0.4px;
+    margin: 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   .page-desc {
-    font-size: var(--text-sm);
-    color: var(--text-secondary);
+    font-size: 13.5px;
+    color: #94a3b8;
+    margin: 0;
   }
 
   .header-actions {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 10px;
+  }
+
+  @media (max-width: 640px) {
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+    }
   }
 </style>

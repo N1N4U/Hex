@@ -293,30 +293,54 @@
     -webkit-backdrop-filter: blur(8px);
   }
 
-  /* Mobile responsiveness */
+  /* Mobile responsiveness: Big dock filling the length, right above bottom footer */
   @media (max-width: 640px) {
     .dock-container {
-      bottom: 24px;
+      bottom: 26px;
+      left: 0;
+      right: 0;
+      width: 100%;
+      padding: 0 8px;
+      box-sizing: border-box;
     }
 
     .dock {
-      padding: 4px 8px;
-      max-width: 96vw;
-      overflow-x: auto;
+      width: 100%;
+      max-width: 100%;
+      padding: 6px 6px;
+      border-radius: 16px;
+      box-sizing: border-box;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.14);
     }
 
     .dock-list {
-      gap: 3px;
+      width: 100%;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      gap: 0;
     }
 
     .app {
-      width: 38px;
-      height: 38px;
+      width: 40px;
+      height: 40px;
+      flex: 1;
+      max-width: 44px;
+    }
+
+    .circle-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .app-icon {
+      width: 58%;
+      height: 58%;
     }
 
     .app:hover {
-      width: 38px;
-      height: 38px;
+      width: 40px;
+      height: 40px;
       margin-top: 0;
     }
 
@@ -324,8 +348,8 @@
     .app:has(+ .app:hover),
     .app:hover + .app + .app,
     .app:has(+ .app + .app:hover) {
-      width: 38px;
-      height: 38px;
+      width: 40px;
+      height: 40px;
       margin-top: 0;
     }
 

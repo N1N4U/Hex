@@ -166,7 +166,7 @@ func hashPasswordInternal(password string) (string, error) {
 // ── Node Operations ──────────────────────────────────────────────────────────
 
 func ListNodes() ([]Node, error) {
-	rows, err := db.Query(`SELECT id, name, ip_address, port, protocol, status, last_seen, created_at FROM nodes ORDER BY name ASC`)
+	rows, err := db.Query(`SELECT id, name, ip_address, port, protocol, api_key, status, last_seen, created_at FROM nodes ORDER BY name ASC`)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func ListNodes() ([]Node, error) {
 	var nodes []Node
 	for rows.Next() {
 		var n Node
-		if err := rows.Scan(&n.ID, &n.Name, &n.IPAddress, &n.Port, &n.Protocol, &n.Status, &n.LastSeen, &n.CreatedAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.Name, &n.IPAddress, &n.Port, &n.Protocol, &n.APIKey, &n.Status, &n.LastSeen, &n.CreatedAt); err != nil {
 			continue
 		}
 		nodes = append(nodes, n)

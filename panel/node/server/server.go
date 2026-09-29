@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/N1N4U/Hex/panel/config"
 	hexcore "github.com/N1N4U/Hex/panel/core"
+	"github.com/N1N4U/Hex/panel/logger"
 	"github.com/N1N4U/Hex/panel/static"
 )
 
@@ -31,10 +31,10 @@ func New(cfg *config.Config) *Server {
 	if cfg.CoreSocket != "" || cfg.CoreURL != "" {
 		c, err := hexcore.NewClient(cfg.CoreSocket, cfg.CoreURL, cfg.CoreAPIKey)
 		if err != nil {
-			log.Printf("[node] Notice: Local core socket/URL not available: %v", err)
+			logger.Node("Notice: Local core socket/URL not available: %v", err)
 		} else {
 			coreClient = c
-			log.Printf("[node] Local Core connected via %s", modeLabel(c.Mode()))
+			logger.Core("Local Core connected via %s", modeLabel(c.Mode()))
 		}
 	}
 
@@ -64,7 +64,7 @@ func (s *Server) Listen(port int) error {
 func (s *Server) registerSiteHandler() {
 	sub, err := fs.Sub(static.Dist, "dist")
 	if err != nil {
-		log.Printf("[node] No embedded site — API-only mode")
+		logger.Site("No embedded site — API-only mode")
 		return
 	}
 	fileServer := http.FileServer(http.FS(sub))
@@ -128,7 +128,13 @@ func withLogger(h http.Handler) http.Handler {
 		isStaticAsset := strings.HasPrefix(r.URL.Path, "/_app/")
 		if !isStaticAsset || rw.code >= 400 {
 			duration := time.Since(start)
-			log.Printf("[node] %-6s %-32s -> %3d (%v)", r.Method, r.URL.Path, rw.code, duration)
+			if strings.HasPrefix(r.URL.Path, "/api/v1/core/") {
+				logger.Core("%-6s %-32s -> %3d (%v)", r.Method, r.URL.Path, rw.code, duration)
+			} else if strings.HasPrefix(r.URL.Path, "/api/") {
+				logger.Node("%-6s %-32s -> %3d (%v)", r.Method, r.URL.Path, rw.code, duration)
+			} else {
+				logger.Site("%-6s %-32s -> %3d (%v)", r.Method, r.URL.Path, rw.code, duration)
+			}
 		}
 	})
 }

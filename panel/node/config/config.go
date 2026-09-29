@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"log"
 	"os"
 	"strconv"
 )
@@ -71,12 +70,24 @@ type DatabaseConfig struct {
 	Node DBSection `json:"node"`
 }
 
+type DebugLogConfig struct {
+	Toggle bool `json:"toggle"`
+	Core   bool `json:"core"`
+}
+
+type LoggerConfig struct {
+	Timestamp bool           `json:"timestamp"`
+	Color     bool           `json:"color"`
+	Debug     DebugLogConfig `json:"debug"`
+}
+
 // Config represents all runtime settings loaded from settings.json
 type Config struct {
 	Port       int            `json:"port"`
 	Basic      BasicConfig    `json:"basic"`
 	MasterAuth MasterAuth     `json:"master_auth"`
 	Auth       AuthConfig     `json:"auth"`
+	Logger     LoggerConfig   `json:"logger"`
 	Database   DatabaseConfig `json:"database"`
 
 	// Derived / runtime fields
@@ -127,21 +138,12 @@ func Load() *Config {
 		settingsPaths = append([]string{custom}, settingsPaths...)
 	}
 
-	var foundPath string
 	for _, p := range settingsPaths {
 		if data, err := os.ReadFile(p); err == nil {
 			if err := json.Unmarshal(data, cfg); err == nil {
-				foundPath = p
-				log.Printf("[node] Loaded settings from %s", p)
 				break
-			} else {
-				log.Printf("[node] Warning: Failed to parse %s: %v", p, err)
 			}
 		}
-	}
-
-	if foundPath == "" {
-		log.Printf("[node] settings.json not found, using default settings")
 	}
 
 	// Environment variable overrides (if any)

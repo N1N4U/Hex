@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	hexcore "github.com/N1N4U/Hex/panel/core"
+	"github.com/N1N4U/Hex/panel/logger"
 )
 
 var wsUpgrader = websocket.Upgrader{
@@ -55,20 +55,76 @@ func (s *safeWS) Close() error {
 func (p *WSProxy) ProxyWS(w http.ResponseWriter, r *http.Request) {
 	conn, err := wsUpgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[ws] upgrade failed: %v", err)
+		logger.Site("WS upgrade failed: %v", err)
 		return
 	}
 	clientWS := &safeWS{conn: conn}
 	defer clientWS.Close()
 
 	nodeID := r.URL.Query().Get("node_id")
+	logger.Site("WebSocket client connected from %s (target node: %s)", r.RemoteAddr, nodeID)
+	defer logger.Site("WebSocket client disconnected (%s)", r.RemoteAddr)
 
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	// Goroutine 1: Ping ticker measuring Core-Node pings every 5s
+	// Connect to Core WS if client is available
+	var coreWS *safeWS
+	coreClient, _ := p.manager.GetClient(nodeID)
+
+	if coreClient != nil && coreClient.BaseURL() != "" {
+		jwtCtx, jwtCancel := context.WithTimeout(ctx, 3*time.Second)
+		_ = coreClient.EnsureJWT(jwtCtx)
+		jwtCancel()
+
+		cConn := dialCoreWS(coreClient, r.URL.RawQuery)
+		if cConn != nil {
+			coreWS = &safeWS{conn: cConn}
+			defer coreWS.Close()
+			logger.Core("Core WS connected successfully to %s", coreClient.BaseURL())
+
+			// Authenticate with Core
+			token := coreClient.JWT()
+			if token == "" {
+				token = coreClient.APIKey()
+			}
+			authPayload, _ := json.Marshal(map[string]string{"token": token})
+			_ = coreWS.WriteJSON(map[string]interface{}{
+				"id":      "node_auth",
+				"type":    "auth",
+				"payload": json.RawMessage(authPayload),
+			})
+
+			// Request telemetry stream
+			_ = coreWS.WriteJSON(map[string]interface{}{
+				"id":   "node_sub",
+				"type": "stats.subscribe",
+			})
+			logger.Core("Subscribed to telemetry stream on %s", coreClient.BaseURL())
+
+			// Forward Core -> Browser
+			go func() {
+				for {
+					msgType, data, err := coreWS.conn.ReadMessage()
+					if err != nil {
+						logger.Core("Core WS stream closed: %v", err)
+						return
+					}
+					if err := clientWS.WriteMessage(msgType, data); err != nil {
+						return
+					}
+				}
+			}()
+		} else {
+			logger.Core("Could not establish WS connection to %s", coreClient.BaseURL())
+		}
+	} else {
+		logger.Core("No active Core client configured for WS bridge")
+	}
+
+	// Ping ticker measuring Core-Node pings every 3s
 	go func() {
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(3 * time.Second)
 		defer ticker.Stop()
 
 		// Initial measure
@@ -93,49 +149,6 @@ func (p *WSProxy) ProxyWS(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}()
-
-	// Connect to Core WS if client is available
-	var coreWS *safeWS
-	coreClient, _ := p.manager.GetClient(nodeID)
-
-	if coreClient != nil && coreClient.BaseURL() != "" {
-		cConn := dialCoreWS(coreClient, r.URL.RawQuery)
-		if cConn != nil {
-			coreWS = &safeWS{conn: cConn}
-			defer coreWS.Close()
-
-			// Authenticate with Core
-			token := coreClient.APIKey()
-			if jwt := coreClient.JWT(); jwt != "" {
-				token = jwt
-			}
-			authPayload, _ := json.Marshal(map[string]string{"token": token})
-			_ = coreWS.WriteJSON(map[string]interface{}{
-				"id":      "node_auth",
-				"type":    "auth",
-				"payload": json.RawMessage(authPayload),
-			})
-
-			// Request telemetry stream
-			_ = coreWS.WriteJSON(map[string]interface{}{
-				"id":   "node_sub",
-				"type": "stats.subscribe",
-			})
-
-			// Forward Core -> Browser
-			go func() {
-				for {
-					msgType, data, err := coreWS.conn.ReadMessage()
-					if err != nil {
-						return
-					}
-					if err := clientWS.WriteMessage(msgType, data); err != nil {
-						return
-					}
-				}
-			}()
-		}
-	}
 
 	// Browser message reader: handles browser pings and forwards to core
 	for {

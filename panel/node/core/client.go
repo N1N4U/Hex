@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/N1N4U/Hex/panel/logger"
 )
 
 var mu sync.Mutex
@@ -23,9 +25,9 @@ func (c *Client) JWT() string {
 	return c.jwt
 }
 
-// ensureJWT obtains or refreshes the core JWT.
+// EnsureJWT obtains or refreshes the core JWT.
 // On same-machine mode (Unix socket), no JWT is needed.
-func (c *Client) ensureJWT(ctx context.Context) error {
+func (c *Client) EnsureJWT(ctx context.Context) error {
 	if c == nil {
 		return fmt.Errorf("core client is nil")
 	}
@@ -45,11 +47,13 @@ func (c *Client) ensureJWT(ctx context.Context) error {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.http.Do(req)
 	if err != nil {
+		logger.Core("JWT exchange failed for %s: %v", c.baseURL, err)
 		return fmt.Errorf("core JWT exchange failed: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(resp.Body)
+		logger.Core("JWT exchange rejected by %s (HTTP %d): %s", c.baseURL, resp.StatusCode, string(b))
 		return fmt.Errorf("core JWT exchange: status %d: %s", resp.StatusCode, b)
 	}
 	var result struct {
@@ -61,6 +65,7 @@ func (c *Client) ensureJWT(ctx context.Context) error {
 	}
 	c.jwt = result.Token
 	c.jwtExp = time.Now().Add(time.Duration(result.ExpiresIn) * time.Second)
+	logger.Core("Authenticated with Core at %s (token expires in %ds)", c.baseURL, result.ExpiresIn)
 	return nil
 }
 
@@ -69,7 +74,7 @@ func (c *Client) Do(ctx context.Context, method, path string, body io.Reader) (*
 	if c == nil {
 		return nil, fmt.Errorf("core client is nil")
 	}
-	if err := c.ensureJWT(ctx); err != nil {
+	if err := c.EnsureJWT(ctx); err != nil {
 		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)

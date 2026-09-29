@@ -12,6 +12,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/N1N4U/Hex/panel/config"
+	"github.com/N1N4U/Hex/panel/logger"
 	"github.com/N1N4U/Hex/panel/users"
 )
 
@@ -70,8 +71,10 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 		}
 		c, err := NewRemoteClient(node.Protocol, node.IPAddress, node.Port, node.APIKey)
 		if err != nil {
+			logger.Core("Failed to initialize client for node '%s': %v", node.Name, err)
 			return nil, err
 		}
+		logger.Core("Initialized client for node '%s' (%s://%s:%d)", node.Name, node.Protocol, node.IPAddress, node.Port)
 		m.remoteClients[nodeID] = c
 		return c, nil
 	}
@@ -85,6 +88,7 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 		if err == nil && node != nil {
 			c, err := NewRemoteClient(node.Protocol, node.IPAddress, node.Port, node.APIKey)
 			if err == nil {
+				logger.Core("Initialized client for active node '%s' (%s://%s:%d)", node.Name, node.Protocol, node.IPAddress, node.Port)
 				m.remoteClients[m.activeNodeID] = c
 				return c, nil
 			}
@@ -101,6 +105,7 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 		}
 		c, err := NewRemoteClient(target.Protocol, target.IPAddress, target.Port, target.APIKey)
 		if err == nil {
+			logger.Core("Connected to default node '%s' (%s://%s:%d)", target.Name, target.Protocol, target.IPAddress, target.Port)
 			m.remoteClients[target.ID] = c
 			return c, nil
 		}
@@ -162,8 +167,12 @@ func (m *Manager) MeasurePings(nodeID string) (int, int, error) {
 		wsConn, _, err := dialer.Dial(u.String(), nil)
 		if err == nil {
 			defer wsConn.Close()
-			// Send probe auth
-			authPayload, _ := json.Marshal(map[string]string{"token": client.APIKey()})
+			// Send probe auth using JWT or API key
+			token := client.JWT()
+			if token == "" {
+				token = client.APIKey()
+			}
+			authPayload, _ := json.Marshal(map[string]string{"token": token})
 			_ = wsConn.WriteJSON(map[string]interface{}{
 				"id":      "ping_probe",
 				"type":    "auth",
@@ -177,7 +186,11 @@ func (m *Manager) MeasurePings(nodeID string) (int, int, error) {
 				if wsMs == 0 {
 					wsMs = 1
 				}
+			} else {
+				logger.CoreDebug("WS probe read failed for %s: %v", baseURL, readErr)
 			}
+		} else {
+			logger.CoreDebug("WS dial failed for %s: %v", baseURL, err)
 		}
 	}
 
@@ -186,5 +199,6 @@ func (m *Manager) MeasurePings(nodeID string) (int, int, error) {
 		wsMs = apiMs + 2
 	}
 
+	logger.CoreDebug("Measured Core latency (%s): API=%dms WS=%dms", baseURL, apiMs, wsMs)
 	return apiMs, wsMs, nil
 }

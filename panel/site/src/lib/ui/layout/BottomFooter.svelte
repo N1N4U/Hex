@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getPublicConfig, type PublicConfig } from '$lib/api/auth';
+  import { MessageSquare, Code2, MessageSquareWarning } from '@lucide/svelte';
 
   let config = $state<PublicConfig | null>(null);
 
@@ -34,13 +35,22 @@
 
   <div class="footer-right">
     {#if discordUrl}
-      <a href={discordUrl} target="_blank" rel="noopener noreferrer" class="footer-link">Discord</a>
+      <a href={discordUrl} target="_blank" rel="noopener noreferrer" class="footer-link">
+        <MessageSquare size={12} class="footer-icon" />
+        <span>Discord</span>
+      </a>
     {/if}
     {#if githubUrl}
-      <a href={githubUrl} target="_blank" rel="noopener noreferrer" class="footer-link">GitHub</a>
+      <a href={githubUrl} target="_blank" rel="noopener noreferrer" class="footer-link">
+        <Code2 size={12} class="footer-icon" />
+        <span>GitHub</span>
+      </a>
     {/if}
     {#if feedbackUrl}
-      <a href={feedbackUrl} target="_blank" rel="noopener noreferrer" class="footer-link">Feedback</a>
+      <a href={feedbackUrl} target="_blank" rel="noopener noreferrer" class="footer-link">
+        <MessageSquareWarning size={12} class="footer-icon" />
+        <span>Feedback</span>
+      </a>
     {/if}
   </div>
 </footer>
@@ -51,16 +61,16 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 22px;
+    height: 24px;
     z-index: 45;
-    background: rgba(6, 8, 12, 0.88);
+    background: rgba(6, 8, 12, 0.92);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 14px;
+    padding: 0 16px;
     font-size: 11px;
     line-height: 1;
     color: rgba(255, 255, 255, 0.55);
@@ -95,19 +105,30 @@
   .footer-right {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 16px;
   }
 
   .footer-link {
-    color: rgba(255, 255, 255, 0.55);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: rgba(255, 255, 255, 0.65);
     text-decoration: none;
     transition: color 120ms ease;
     font-weight: 500;
+    font-size: 11px;
+  }
+
+  :global(.footer-icon) {
+    opacity: 0.75;
   }
 
   .footer-link:hover {
     color: #ffffff;
-    text-decoration: underline;
+  }
+
+  .footer-link:hover :global(.footer-icon) {
+    opacity: 1;
   }
 
   @media (max-width: 480px) {
@@ -116,7 +137,7 @@
       padding: 0 8px;
     }
     .footer-right {
-      gap: 8px;
+      gap: 10px;
     }
   }
 </style>

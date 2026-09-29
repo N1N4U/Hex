@@ -11,7 +11,7 @@ const STORAGE_KEY = 'hex_user_wallpaper';
 // ============================================================================
 // GLOBAL DEVELOPER DEFAULTS (Change here to set default wallpaper tint globally)
 // ============================================================================
-export const GLOBAL_DEFAULT_TINT = 0.55; // 0.0 (clean image) to 1.0 (pure black overlay)
+export const GLOBAL_DEFAULT_TINT = 0.60; // 0.0 (clean image) to 1.0 (pure black overlay)
 export const GLOBAL_DEFAULT_BLUR = 0;    // default blur in pixels
 
 function loadInitial(): WallpaperConfig {

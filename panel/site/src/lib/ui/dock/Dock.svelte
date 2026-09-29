@@ -8,6 +8,7 @@
   import nginxIcon from '$lib/assects/icons/nginx.svg';
   import firewallIcon from '$lib/assects/icons/firewall.svg';
   import terminalIcon from '$lib/assects/icons/terminal.svg';
+  import coreIcon from '$lib/assects/icons/core.svg';
   import settingsIcon from '$lib/assects/icons/settings.svg';
 
   interface DockApp {
@@ -24,6 +25,7 @@
     { id: 'nginx', label: 'Reverse Proxy', href: '/nginx', icon: nginxIcon },
     { id: 'firewall', label: 'Firewall', href: '/firewall', icon: firewallIcon },
     { id: 'terminal', label: 'Terminal', href: '/terminal', icon: terminalIcon },
+    { id: 'core', label: 'Core', href: '/core', icon: coreIcon },
     { id: 'settings', label: 'Settings', href: '/settings', icon: settingsIcon }
   ];
 
@@ -108,7 +110,7 @@
             onclick={() => navigateTo(app.href)}
             aria-label={app.label}
           >
-            <div class="icon-frame">
+            <div class="circle-btn">
               <img src={app.icon} alt={app.label} class="app-icon" draggable="false" />
             </div>
             <span class="tooltip">{app.label}</span>
@@ -136,18 +138,18 @@
     user-select: none;
   }
 
+  /* Dock background matching user reference image: deep dark rounded pill */
   .dock {
     pointer-events: auto;
-    border-radius: 20px;
-    padding: 6px 10px;
-    background: rgba(18, 22, 30, 0.75);
-    background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+    border-radius: 9999px;
+    padding: 6px 12px;
+    background: rgba(10, 12, 16, 0.88);
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 12px 32px rgba(0, 0, 0, 0.45),
-      0 0 0 1px rgba(255, 255, 255, 0.1);
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 16px 36px rgba(0, 0, 0, 0.6),
+      0 0 0 1px rgba(255, 255, 255, 0.08);
   }
 
   .dock-list {
@@ -160,8 +162,8 @@
   }
 
   .app {
-    width: 52px;
-    height: 52px;
+    width: 48px;
+    height: 48px;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -174,36 +176,36 @@
 
   /* Magnification for hovered item */
   .app:hover {
-    width: 76px;
-    height: 76px;
-    margin-top: -24px;
+    width: 68px;
+    height: 68px;
+    margin-top: -20px;
   }
 
   /* Right-side immediate neighbor */
   .app:hover + .app {
-    width: calc(64px + var(--dock-offset-right, 0px));
-    height: calc(64px + var(--dock-offset-right, 0px));
-    margin-top: calc(-12px + var(--dock-offset-right, 0px) * -1);
+    width: calc(58px + var(--dock-offset-right, 0px));
+    height: calc(58px + var(--dock-offset-right, 0px));
+    margin-top: calc(-10px + var(--dock-offset-right, 0px) * -1);
   }
 
   /* Right-side secondary neighbor */
   .app:hover + .app + .app {
-    width: calc(56px + var(--dock-offset-right, 0px));
-    height: calc(56px + var(--dock-offset-right, 0px));
+    width: calc(52px + var(--dock-offset-right, 0px));
+    height: calc(52px + var(--dock-offset-right, 0px));
     margin-top: calc(-4px + var(--dock-offset-right, 0px) * -1);
   }
 
   /* Left-side immediate neighbor */
   .app:has(+ .app:hover) {
-    width: calc(64px + var(--dock-offset-left, 0px));
-    height: calc(64px + var(--dock-offset-left, 0px));
-    margin-top: calc(-12px + var(--dock-offset-left, 0px) * -1);
+    width: calc(58px + var(--dock-offset-left, 0px));
+    height: calc(58px + var(--dock-offset-left, 0px));
+    margin-top: calc(-10px + var(--dock-offset-left, 0px) * -1);
   }
 
   /* Left-side secondary neighbor */
   .app:has(+ .app + .app:hover) {
-    width: calc(56px + var(--dock-offset-left, 0px));
-    height: calc(56px + var(--dock-offset-left, 0px));
+    width: calc(52px + var(--dock-offset-left, 0px));
+    height: calc(52px + var(--dock-offset-left, 0px));
     margin-top: calc(-4px + var(--dock-offset-left, 0px) * -1);
   }
 
@@ -221,43 +223,46 @@
     outline: none;
   }
 
-  .icon-frame {
+  /* Circular dark button container matching user image */
+  .circle-btn {
     width: 100%;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 12px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: background 150ms ease, border-color 150ms ease;
+  }
+
+  .app:hover .circle-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .app.is-active .circle-btn {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Standalone vector glyph icon */
+  .app-icon {
+    width: 52%;
+    height: 52%;
+    object-fit: contain;
     transition: transform 120ms ease;
   }
 
-  .app-icon {
-    width: 86%;
-    height: 86%;
-    object-fit: contain;
-    transition: filter 180ms ease, transform 120ms ease;
-    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.35));
-  }
-
-  /* Active state: light white / grey icon matching macOS style */
-  .app.is-active .app-icon {
-    filter: brightness(0) invert(0.92) drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
-  }
-
-  /* Inactive state: full colorful SVG as requested */
-  .app:not(.is-active) .app-icon {
-    /* Colorful SVG unchanged */
-  }
-
-  /* Active indicator dot */
+  /* Active indicator dot matching screenshot: centered dot underneath */
   .active-indicator {
     position: absolute;
     bottom: -6px;
     width: 4px;
     height: 4px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
+    background: #ffffff;
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
   }
 
   /* Tooltip */
@@ -269,20 +274,20 @@
 
   .tooltip {
     position: absolute;
-    top: -36px;
+    top: -34px;
     left: 50%;
     transform: translateX(-50%) translateY(4px);
     opacity: 0;
     pointer-events: none;
     transition: opacity 120ms ease, transform 120ms ease;
-    background: rgba(15, 18, 24, 0.9);
+    background: rgba(10, 12, 16, 0.92);
     border: 1px solid rgba(255, 255, 255, 0.14);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
     color: #f1f5f9;
     font-size: 11px;
     font-weight: 500;
-    padding: 4px 10px;
-    border-radius: 8px;
+    padding: 3px 9px;
+    border-radius: 7px;
     white-space: nowrap;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -295,25 +300,23 @@
     }
 
     .dock {
-      padding: 4px 6px;
-      border-radius: 16px;
-      max-width: 95vw;
+      padding: 4px 8px;
+      max-width: 96vw;
       overflow-x: auto;
     }
 
     .dock-list {
-      gap: 4px;
+      gap: 3px;
     }
 
     .app {
-      width: 40px;
-      height: 40px;
+      width: 38px;
+      height: 38px;
     }
 
-    /* Disable heavy magnification on mobile touch */
     .app:hover {
-      width: 40px;
-      height: 40px;
+      width: 38px;
+      height: 38px;
       margin-top: 0;
     }
 
@@ -321,8 +324,8 @@
     .app:has(+ .app:hover),
     .app:hover + .app + .app,
     .app:has(+ .app + .app:hover) {
-      width: 40px;
-      height: 40px;
+      width: 38px;
+      height: 38px;
       margin-top: 0;
     }
 

@@ -1,100 +1,60 @@
 <script lang="ts">
-  import { Settings, LogOut, User as UserIcon } from '@lucide/svelte';
-  import { logout } from '$lib/api/auth';
-  import { disconnect } from '$lib/ws/client';
-  import { nodeStore, loadNodes } from '$lib/stores/node.svelte';
-  import { user } from '$lib/stores/auth';
+  import { Settings, User as UserIcon } from '@lucide/svelte';
   import { onMount } from 'svelte';
-  import Tooltip from '../primitives/Tooltip.svelte';
-  import Avatar from '../primitives/Avatar.svelte';
+  import { getPublicConfig } from '$lib/api/auth';
   import { goto } from '$app/navigation';
   import { openDialog } from '../overlay/dialogStore.svelte';
   import ProfileDialog from '$lib/pages/profile/ProfileDialog.svelte';
 
   let {
-    panelName = "Hex Panel"
+    panelName = "Nandu's Panel"
   }: {
     panelName?: string;
   } = $props();
 
-  onMount(() => {
-    loadNodes();
+  let livePanelName = $state(panelName);
+
+  onMount(async () => {
+    try {
+      const cfg = await getPublicConfig();
+      if (cfg?.panel_name) {
+        livePanelName = cfg.panel_name;
+      }
+    } catch {}
   });
 
   function openProfile() {
     openDialog(ProfileDialog);
   }
-
-  async function handleQuickLogout() {
-    try {
-      await logout();
-    } catch {}
-    user.set(null);
-    disconnect();
-    goto('/loading?action=logout');
-  }
 </script>
 
 <header class="topbar">
   <div class="topbar-left">
-    <div class="brand">
-      <span class="brand-name">{panelName}</span>
-    </div>
-
-    <!-- Multi-node switcher dots -->
-    <div class="server-dots">
-      {#each nodeStore.nodes as node}
-        <Tooltip content="{node.name} ({node.ip_address}) - {node.status}" position="bottom">
-          <button
-            type="button"
-            class="server-dot-btn"
-            class:is-active={nodeStore.activeId === node.id}
-            onclick={() => nodeStore.setActive(node.id)}
-            aria-label="Switch to {node.name}"
-          >
-            <span
-              class="server-dot"
-              class:filled={nodeStore.activeId === node.id}
-              style="--node-color: {node.color};"
-            ></span>
-          </button>
-        </Tooltip>
-      {/each}
-    </div>
+    <span class="brand-name">{livePanelName}</span>
   </div>
 
   <div class="topbar-right">
+    <!-- Settings icon for personalized settings -->
     <button
       type="button"
-      class="icon-btn"
+      class="circle-action-btn"
       onclick={() => goto('/settings')}
-      title="Settings"
+      title="Personalized Settings"
       aria-label="Settings"
     >
       <Settings size={18} />
     </button>
 
+    <!-- Account Details (opens dialog with user details & logout) -->
     <button
       type="button"
-      class="avatar-btn"
+      class="circle-action-btn"
       onclick={openProfile}
-      title="Account profile"
-      aria-label="Profile"
+      title="Account details & Logout"
+      aria-label="Account"
     >
-      <Avatar name={$user?.username || 'Admin'} size="sm" online />
+      <UserIcon size={18} />
     </button>
-
-    <Tooltip content="Sign Out" position="bottom">
-      <button
-        type="button"
-        class="icon-btn"
-        onclick={handleQuickLogout}
-        title="Sign Out"
-        aria-label="Sign Out"
-      >
-        <LogOut size={18} />
-      </button>
-    </Tooltip>
   </div>
 </header>
 
@@ -104,88 +64,77 @@
     top: 0;
     left: 0;
     width: 100%;
-    height: 52px;
-    z-index: var(--z-topbar);
-    background: var(--bg-surface);
-    border-bottom: 1px solid var(--border-subtle);
+    height: 58px;
+    z-index: 40;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 var(--space-4);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    padding: 0 28px;
+    user-select: none;
+    box-sizing: border-box;
   }
 
   .topbar-left {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
   }
 
   .brand-name {
-    font-size: var(--text-md);
+    font-size: 20px;
     font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.2px;
-  }
-
-  .server-dots {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    padding: 4px 8px;
-    border-radius: var(--radius-full);
-  }
-
-  .server-dot-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2px;
-  }
-
-  .server-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2px solid var(--node-color);
-    background: transparent;
-    transition: all var(--transition-fast);
-  }
-
-  .server-dot.filled {
-    background: var(--node-color);
-    box-shadow: 0 0 8px var(--node-color);
+    color: #ffffff;
+    letter-spacing: -0.3px;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
   }
 
   .topbar-right {
     display: flex;
     align-items: center;
-    gap: var(--space-3);
+    gap: 10px;
   }
 
-  .icon-btn {
+  /* Circular buttons matching user reference screenshot */
+  .circle-action-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(20, 24, 32, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: var(--radius-md);
-    color: var(--text-secondary);
-    transition: all var(--transition-fast);
+    color: #cbd5e1;
+    cursor: pointer;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+    padding: 0;
+    outline: none;
   }
 
-  .icon-btn:hover {
-    background: var(--bg-surface-hover);
-    color: var(--text-primary);
+  .circle-action-btn:hover {
+    background: rgba(30, 36, 48, 0.85);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
   }
 
-  .avatar-btn {
-    display: flex;
-    align-items: center;
-    border-radius: 50%;
-    padding: 2px;
+  .circle-action-btn:active {
+    transform: scale(0.96);
+  }
+
+  @media (max-width: 640px) {
+    .topbar {
+      padding: 0 16px;
+      height: 52px;
+    }
+    .brand-name {
+      font-size: 18px;
+    }
+    .circle-action-btn {
+      width: 34px;
+      height: 34px;
+    }
   }
 </style>

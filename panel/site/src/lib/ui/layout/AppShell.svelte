@@ -46,7 +46,7 @@
     z-index: 10;
     flex: 1;
     overflow-y: auto;
-    padding-top: 52px; /* Topbar height */
+    padding-top: 68px; /* Topbar height */
     padding-bottom: 96px; /* Clearance for Dock and BottomFooter */
     display: flex;
     justify-content: center;

@@ -1,10 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="100%" height="100%">
-  <defs>
-    <linearGradient id="homeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#6366f1"/>
-      <stop offset="100%" stop-color="#4338ca"/>
-    </linearGradient>
-  </defs>
-  <rect x="3" y="3" width="42" height="42" rx="10" fill="url(#homeGrad)"/>
-  <path d="M24 12L12 22V35C12 35.55 12.45 36 13 36H20V27C20 26.45 20.45 26 21 26H27C27.55 26 28 26.45 28 27V36H35C35.55 36 36 35.55 36 35V22L24 12Z" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="100%" height="100%" fill="none">
+  <path d="M3 10.5L12 3L21 10.5V20C21 20.55 20.55 21 20 21H14V14H10V21H4C3.45 21 3 20.55 3 20V10.5Z" fill="#ffffff"/>
 </svg>

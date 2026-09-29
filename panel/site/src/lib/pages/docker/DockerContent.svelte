@@ -61,51 +61,19 @@
   async function fetchContainers() {
     try {
       const data = await get<any[]>('/core/docker/containers');
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         containers = data.map((c) => ({
           id: c.id || c.ID,
           name: c.name || c.Names?.[0]?.replace(/^\//, '') || 'container',
           image: c.image || c.Image || 'unknown',
-          status: c.status?.toLowerCase().includes('up') ? 'running' : 'stopped',
-          uptime: c.uptime || c.Status || '1d',
+          status: (c.state || c.status || '').toLowerCase().includes('running') || (c.status || '').toLowerCase().includes('up') ? 'running' : 'stopped',
+          uptime: c.status || c.uptime || 'Unknown',
           cpu_percent: c.cpu_percent || 0,
-          mem_usage: c.mem_usage || '45 MB',
+          mem_usage: c.mem_usage || '--',
           ports: c.ports || []
         }));
       } else {
-        // Fallback demo containers if docker engine is empty or offline
-        containers = [
-          {
-            id: 'c-web-1',
-            name: 'nginx-ingress',
-            image: 'nginx:alpine',
-            status: 'running',
-            uptime: 'Up 3 days',
-            cpu_percent: 1.2,
-            mem_usage: '24 MB',
-            ports: ['80:80', '443:443']
-          },
-          {
-            id: 'c-db-1',
-            name: 'postgres-main',
-            image: 'postgres:16-alpine',
-            status: 'running',
-            uptime: 'Up 5 days',
-            cpu_percent: 3.5,
-            mem_usage: '112 MB',
-            ports: ['5432:5432']
-          },
-          {
-            id: 'c-redis-1',
-            name: 'redis-cache',
-            image: 'redis:7-alpine',
-            status: 'stopped',
-            uptime: 'Exited (0) 2 hours ago',
-            cpu_percent: 0,
-            mem_usage: '0 MB',
-            ports: ['6379:6379']
-          }
-        ];
+        containers = [];
       }
     } catch {
       containers = [];

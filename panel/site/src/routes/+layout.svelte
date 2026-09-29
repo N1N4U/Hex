@@ -13,6 +13,8 @@
 
   let { children }: { children?: Snippet } = $props();
 
+  import { nodeStore, loadNodes } from '$lib/stores/node.svelte';
+
   onMount(async () => {
     let offStatus: (() => void) | undefined;
     let offStats: (() => void) | undefined;
@@ -26,9 +28,12 @@
         if ($page.url.pathname === '/lockscreen' || $page.url.pathname === '/login') {
           goto('/home');
         }
+        await loadNodes();
         connect();
         offStatus = on('__status__', (s) => wsStatus.set(s as any));
-        offStats = on('stats', (msg: any) => stats.set(msg.data));
+        offStats = on('stats.update', (data: any) => {
+          if (data) stats.set(data);
+        });
       } else {
         if (!publicRoutes.includes($page.url.pathname)) {
           goto('/lockscreen');

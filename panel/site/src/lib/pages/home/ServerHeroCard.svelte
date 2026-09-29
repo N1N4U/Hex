@@ -2,20 +2,18 @@
   import Card from '$lib/ui/layout/Card.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
-  import { openDialog, closeDialog } from '$lib/ui/overlay/dialogStore.svelte';
-  import { stats, wsStatus } from '$lib/stores/core';
+  import { stats, wsStatus, pingStore } from '$lib/stores/core';
+  import { nodeStore } from '$lib/stores/node.svelte';
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
+  import { post } from '$lib/api/client';
   import { onMount } from 'svelte';
   import {
-    Clock,
     RotateCw,
     DownloadCloud,
     FileText,
     Power,
     Eye,
     EyeOff,
-    CheckCircle2,
-    XCircle,
     Server,
     Cpu,
     MapPin,
@@ -33,7 +31,8 @@
   onMount(() => {
     const updateTime = () => {
       const now = new Date();
-      currentTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      // Remove seconds per spec: HH:MM
+      currentTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       currentDate = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     };
     updateTime();
@@ -41,29 +40,77 @@
     return () => clearInterval(timer);
   });
 
-  const uptime = $derived($stats?.uptime ?? '-');
-  const osName = $derived($stats?.os_name ?? 'Linux');
-  const cpuModel = $derived($stats?.cpu_model ?? 'Virtual CPU');
-  const ipAddress = $derived($stats?.ip_address ?? '127.0.0.1');
-  const maskedIp = $derived(showIp ? ipAddress : '');
+  function formatUptime(secondsVal: number | string | undefined): string {
+    if (!secondsVal) return '-';
+    if (typeof secondsVal === 'string') return secondsVal;
+    const s = Math.floor(secondsVal);
+    const d = Math.floor(s / 86400);
+    const h = Math.floor((s % 86400) / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m`;
+    if (m > 0) return `${m}m ${sec}s`;
+    return `${sec}s`;
+  }
+
+  const uptime = $derived(formatUptime($stats?.uptime));
+  const osName = $derived($stats?.os_name || 'Linux');
+  const cpuModel = $derived($stats?.cpu_model || 'Virtual CPU');
+  const ipAddress = $derived($stats?.host_ip || nodeStore.activeNode?.ip_address || '127.0.0.1');
+  const maskedIp = $derived(showIp ? ipAddress : (ipAddress ? '••••••••••••' : '--'));
+
+  let locationStr = $state('Local VPS Node');
+  $effect(() => {
+    const ip = ipAddress;
+    if (ip && !ip.startsWith('127.') && ip !== 'localhost' && !ip.startsWith('192.168.') && !ip.startsWith('10.')) {
+      fetch(`https://ip-api.com/json/${ip}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && data.city && data.country) {
+            locationStr = `${data.city}, ${data.country}`;
+          }
+        })
+        .catch(() => {
+          locationStr = 'Remote VPS';
+        });
+    } else {
+      locationStr = 'Local VPS Node';
+    }
+  });
+
+  const coreApiPing = $derived($pingStore.coreApiPing);
+  const coreWsPing = $derived($pingStore.coreWsPing);
+  const siteApiPing = $derived($pingStore.siteApiPing);
+  const siteWsPing = $derived($pingStore.siteWsPing);
 
   function triggerAction(action: 'reboot' | 'shutdown' | 'update' | 'logs') {
     if (action === 'reboot' || action === 'shutdown') {
       confirmAction = action;
     } else if (action === 'update') {
-      addToast('Checking for system and container updates...', 'info');
+      addToast('Checking for system and container updates on Core...', 'info');
+      post('/core/system/update', {}).then(() => {
+        addToast('Update triggered', 'info');
+      }).catch(() => {});
     } else if (action === 'logs') {
       addToast('Navigating to system logs...', 'info');
     }
   }
 
-  function executeConfirmedAction() {
-    if (confirmAction === 'reboot') {
-      addToast('Initiating server reboot sequence...', 'warning');
-    } else if (confirmAction === 'shutdown') {
-      addToast('Powering down system now...', 'danger');
-    }
+  async function executeConfirmedAction() {
+    const act = confirmAction;
     confirmAction = null;
+    if (act === 'reboot') {
+      addToast('Initiating server reboot sequence...', 'warning');
+      try {
+        await post('/core/system/reboot', {});
+      } catch {}
+    } else if (act === 'shutdown') {
+      addToast('Powering down system now...', 'danger');
+      try {
+        await post('/core/system/shutdown', {});
+      } catch {}
+    }
   }
 </script>
 
@@ -71,7 +118,7 @@
   <div class="hero-container">
     <!-- Clock & Date -->
     <div class="clock-section">
-      <div class="clock-display">{currentTime || '--:--:--'}</div>
+      <div class="clock-display">{currentTime || '--:--'}</div>
       <div class="date-display">{currentDate}</div>
     </div>
 
@@ -128,7 +175,7 @@
           <MapPin size={14} class="text-muted" />
           <span>Location</span>
         </div>
-        <span class="info-val">Local VPS Node</span>
+        <span class="info-val">{locationStr}</span>
       </div>
     </div>
 
@@ -151,15 +198,42 @@
       </div>
     </div>
 
-    <!-- Latency & Connection Status Bar -->
-    <div class="status-bar">
-      <div class="status-pair">
-        <span class="status-indicator" class:online={$wsStatus === 'connected'} class:offline={$wsStatus !== 'connected'}></span>
-        <span class="status-text">WS: {$wsStatus === 'connected' ? 'Connected' : 'Offline'}</span>
+    <!-- Dual Tier Ping Latency Matrix -->
+    <div class="ping-matrix">
+      <!-- Core - Node -->
+      <div class="ping-tier">
+        <span class="ping-tier-header">Core - Node</span>
+        <div class="ping-rows">
+          <div class="ping-row">
+            <span class="ping-dot" class:online={coreApiPing > 0} class:offline={coreApiPing <= 0}></span>
+            <span class="ping-key">API:</span>
+            <span class="ping-val font-mono">{coreApiPing > 0 ? `${coreApiPing} ms` : 'Offline'}</span>
+          </div>
+          <div class="ping-row">
+            <span class="ping-dot" class:online={coreWsPing > 0} class:offline={coreWsPing <= 0}></span>
+            <span class="ping-key">WS:</span>
+            <span class="ping-val font-mono">{coreWsPing > 0 ? `${coreWsPing} ms` : 'Offline'}</span>
+          </div>
+        </div>
       </div>
-      <div class="status-pair">
-        <span class="status-indicator online"></span>
-        <span class="status-text">API: 8ms</span>
+
+      <div class="ping-divider"></div>
+
+      <!-- Node - site -->
+      <div class="ping-tier">
+        <span class="ping-tier-header">Node - site</span>
+        <div class="ping-rows">
+          <div class="ping-row">
+            <span class="ping-dot" class:online={siteApiPing > 0} class:offline={siteApiPing <= 0}></span>
+            <span class="ping-key">API:</span>
+            <span class="ping-val font-mono">{siteApiPing > 0 ? `${siteApiPing} ms` : 'Offline'}</span>
+          </div>
+          <div class="ping-row">
+            <span class="ping-dot" class:online={siteWsPing > 0 && $wsStatus === 'connected'} class:offline={siteWsPing <= 0 || $wsStatus !== 'connected'}></span>
+            <span class="ping-key">WS:</span>
+            <span class="ping-val font-mono">{siteWsPing > 0 && $wsStatus === 'connected' ? `${siteWsPing} ms` : 'Offline'}</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -277,6 +351,9 @@
     align-items: center;
     color: var(--text-muted);
     padding: 2px;
+    background: none;
+    border: none;
+    cursor: pointer;
   }
 
   .eye-btn:hover {
@@ -302,20 +379,72 @@
     gap: var(--space-2);
   }
 
-  .status-bar {
+  .ping-matrix {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding-top: var(--space-2);
     border-top: 1px solid var(--border-subtle);
-    font-family: var(--font-mono);
     font-size: var(--text-xs);
   }
 
-  .status-pair {
+  .ping-tier {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+  }
+
+  .ping-tier-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+  }
+
+  .ping-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .ping-row {
     display: flex;
     align-items: center;
     gap: 6px;
+  }
+
+  .ping-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .ping-dot.online {
+    background: #22c55e;
+  }
+
+  .ping-dot.offline {
+    background: #ef4444;
+  }
+
+  .ping-key {
+    color: var(--text-secondary);
+    font-size: 11px;
+  }
+
+  .ping-val {
+    color: var(--text-primary);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .ping-divider {
+    width: 1px;
+    height: 38px;
+    background: var(--border-subtle);
+    margin: 0 var(--space-3);
   }
 
   .status-indicator {
@@ -325,17 +454,7 @@
   }
 
   .status-indicator.online {
-    background: var(--status-online);
-    box-shadow: 0 0 6px var(--status-online);
-  }
-
-  .status-indicator.offline {
-    background: var(--status-offline);
-    box-shadow: 0 0 6px var(--status-offline);
-  }
-
-  .status-text {
-    color: var(--text-secondary);
+    background: #22c55e;
   }
 
   .confirm-content {

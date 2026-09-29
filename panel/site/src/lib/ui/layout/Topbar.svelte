@@ -14,13 +14,14 @@
     panelName?: string;
   } = $props();
 
-  let livePanelName = $state(panelName);
+  let fetchedPanelName = $state('');
+  const displayPanelName = $derived(fetchedPanelName || panelName);
 
   onMount(async () => {
     try {
       const cfg = await getPublicConfig();
       if (cfg?.panel_name) {
-        livePanelName = cfg.panel_name;
+        fetchedPanelName = cfg.panel_name;
       }
     } catch {}
     await loadNodes();
@@ -46,7 +47,7 @@
 <header class="topbar">
   <!-- Left Side: Big Panel Name + Cores Pill List aligned left-to-right -->
   <div class="topbar-left">
-    <span class="brand-name">{livePanelName}</span>
+    <span class="brand-name">{displayPanelName}</span>
 
     <div class="cores-pill-list">
       {#each nodeStore.nodes as core (core.id)}

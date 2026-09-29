@@ -95,6 +95,8 @@
     bind:this={dockRef}
     onmouseleave={handleMouseLeave}
     role="toolbar"
+    tabindex="0"
+    aria-label="Application dock"
   >
     <ul class="dock-list">
       {#each apps as app (app.id)}

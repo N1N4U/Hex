@@ -7,8 +7,8 @@
   let downHistory = $state<number[]>([120, 240, 310, 180, 290, 410, 350, 480]);
   let upHistory = $state<number[]>([40, 80, 110, 60, 95, 140, 120, 160]);
 
-  const currentDown = $derived($stats?.net_recv_bytes ?? 0);
-  const currentUp = $derived($stats?.net_sent_bytes ?? 0);
+  const currentDown = $derived($stats?.net_recv ?? $stats?.net_recv_bytes ?? 0);
+  const currentUp = $derived($stats?.net_sent ?? $stats?.net_sent_bytes ?? 0);
 
   $effect(() => {
     const d = currentDown;

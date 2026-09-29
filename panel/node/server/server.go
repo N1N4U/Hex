@@ -19,24 +19,29 @@ import (
 )
 
 type Server struct {
-	cfg        *config.Config
-	coreClient *hexcore.Client
-	mux        *http.ServeMux
+	cfg         *config.Config
+	coreManager *hexcore.Manager
+	mux         *http.ServeMux
 }
 
 func New(cfg *config.Config) *Server {
 	s := &Server{cfg: cfg}
 
-	coreClient, err := hexcore.NewClient(cfg.CoreSocket, cfg.CoreURL, cfg.CoreAPIKey)
-	if err != nil {
-		log.Printf("[node] WARNING: could not connect to core: %v", err)
-	} else {
-		s.coreClient = coreClient
-		log.Printf("[node] Core connected via %s", modeLabel(coreClient.Mode()))
+	var coreClient *hexcore.Client
+	if cfg.CoreSocket != "" || cfg.CoreURL != "" {
+		c, err := hexcore.NewClient(cfg.CoreSocket, cfg.CoreURL, cfg.CoreAPIKey)
+		if err != nil {
+			log.Printf("[node] Notice: Local core socket/URL not available: %v", err)
+		} else {
+			coreClient = c
+			log.Printf("[node] Local Core connected via %s", modeLabel(c.Mode()))
+		}
 	}
 
+	s.coreManager = hexcore.NewManager(cfg, coreClient)
+
 	mux := http.NewServeMux()
-	registerRoutes(mux, s.cfg, s.coreClient)
+	registerRoutes(mux, s.cfg, s.coreManager)
 	s.mux = mux
 	s.registerSiteHandler()
 

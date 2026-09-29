@@ -4,7 +4,7 @@
   import Progress from '$lib/ui/feedback/Progress.svelte';
   import { stats } from '$lib/stores/core';
 
-  const cpuPercent = $derived($stats?.cpu_percent ?? 0);
+  const cpuPercent = $derived($stats?.cpu_usage ?? $stats?.cpu_percent ?? $stats?.cpu ?? 0);
   const cpuCores = $derived($stats?.cpu_cores ?? 2);
   const cpuModel = $derived($stats?.cpu_model ?? 'Virtual CPU');
 </script>

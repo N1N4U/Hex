@@ -10,11 +10,11 @@ import (
 	"github.com/N1N4U/Hex/panel/server/middleware"
 )
 
-func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreClient *core.Client) {
+func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manager) {
 	authH := api.NewAuthHandlers(cfg)
 	nodesH := api.NewNodesHandler()
-	proxy := api.NewCoreProxy(coreClient)
-	wsProxy := api.NewWSProxy(coreClient)
+	proxy := api.NewCoreProxy(coreMgr)
+	wsProxy := api.NewWSProxy(coreMgr)
 
 	// ?? Public auth & config endpoints ???????????????????????????????????????
 	mux.HandleFunc("/api/v1/auth/login", middleware.RateLimit(10, 60e9, authH.Login))

@@ -7,7 +7,7 @@
   const used = $derived($stats?.disk_used ?? 0);
   const total = $derived($stats?.disk_total ?? 0);
   const free = $derived(total > 0 ? Math.max(0, total - used) : 0);
-  const percent = $derived(total > 0 ? (used / total) * 100 : 0);
+  const percent = $derived($stats?.disk_usage ?? (total > 0 ? (used / total) * 100 : 0));
 
   function formatGB(bytes: number) {
     if (bytes <= 0) return '0.0 GB';
@@ -16,15 +16,21 @@
 
   // Purely dynamic: only displays real mounts from connected core, no fake /boot/efi
   const mountItems = $derived(
-    total > 0
-      ? [
-          {
-            label: '/',
-            used: used,
-            total: total
-          }
-        ]
-      : []
+    $stats?.partitions && $stats.partitions.length > 0
+      ? $stats.partitions.slice(0, 3).map((p) => ({
+          label: p.mountpoint,
+          used: p.used,
+          total: p.total
+        }))
+      : total > 0
+        ? [
+            {
+              label: '/',
+              used: used,
+              total: total
+            }
+          ]
+        : []
   );
 </script>
 

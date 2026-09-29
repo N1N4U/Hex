@@ -15,17 +15,20 @@ var mu sync.Mutex
 
 // JWT returns the current cached JWT (for WS proxy use).
 func (c *Client) JWT() string {
+	if c == nil {
+		return ""
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	return c.jwt
 }
 
-// SocketPath returns the Unix socket path.
-func (c *Client) SocketPath() string { return c.socket }
-
 // ensureJWT obtains or refreshes the core JWT.
 // On same-machine mode (Unix socket), no JWT is needed.
 func (c *Client) ensureJWT(ctx context.Context) error {
+	if c == nil {
+		return fmt.Errorf("core client is nil")
+	}
 	if c.mode == ModeUnixSocket {
 		return nil
 	}
@@ -63,6 +66,9 @@ func (c *Client) ensureJWT(ctx context.Context) error {
 
 // Do performs an authenticated request to core.
 func (c *Client) Do(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
+	if c == nil {
+		return nil, fmt.Errorf("core client is nil")
+	}
 	if err := c.ensureJWT(ctx); err != nil {
 		return nil, err
 	}

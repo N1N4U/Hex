@@ -132,8 +132,15 @@ func Load() *Config {
 		DevMode:    true,
 	}
 
-	// Try reading settings.json from current directory, panel/node/, or HEX_SETTINGS
-	settingsPaths := []string{"settings.json", "panel/node/settings.json", "../settings.json"}
+	// Try reading settings.json from current directory, panel/node/, VPS paths, or HEX_SETTINGS
+	settingsPaths := []string{
+		"settings.json",
+		"panel/node/settings.json",
+		"../settings.json",
+		"/opt/hex/panel/settings.json",
+		"/etc/hex/settings.json",
+		"/var/lib/hex/settings.json",
+	}
 	if custom := os.Getenv("HEX_SETTINGS"); custom != "" {
 		settingsPaths = append([]string{custom}, settingsPaths...)
 	}

@@ -34,10 +34,9 @@
     },
     "logger": {
         "timestamp": false,
-        "color": true,
-        "debug": {
-            "toggle": false,
-            "core": true
+        "debug":{
+            "toggle": true,
+            "core":true
         }
     },
     "database":{

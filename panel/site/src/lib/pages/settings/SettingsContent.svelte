@@ -305,7 +305,7 @@
   }
 
   .tab-pane {
-    background: linear-gradient(135deg, rgba(20, 24, 33, 0.88) 0%, rgba(10, 12, 17, 0.94) 100%);
+    background: linear-gradient(145deg, rgba(16, 20, 27, 0.96) 0%, rgba(9, 11, 16, 0.98) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: none;
     border-radius: var(--radius-lg);

@@ -28,6 +28,8 @@ export interface CoreStats {
   net_recv?: number;
   net_total_sent?: number;
   net_total_recv?: number;
+  swap_total?: number;
+  swap_used?: number;
   partitions?: Partition[];
 }
 

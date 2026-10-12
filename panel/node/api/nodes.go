@@ -95,6 +95,10 @@ func (h *NodesHandler) List(w http.ResponseWriter, r *http.Request) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
+			if nodes[idx].Status == "disabled" {
+				nodes[idx].APIKey = ""
+				return
+			}
 			status := checkCoreHealth(nodes[idx].Protocol, nodes[idx].IPAddress, nodes[idx].Port, nodes[idx].APIKey)
 			nodes[idx].Status = status
 			nodes[idx].APIKey = "" // Never leak API key to client
@@ -197,6 +201,52 @@ func (h *NodesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]bool{"ok": true})
+}
+
+// POST /api/v1/nodes/toggle - Enable/disable core connection
+func (h *NodesHandler) Toggle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID      string `json:"id"`
+		Enabled bool   `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		req.ID = r.URL.Query().Get("id")
+		req.Enabled = r.URL.Query().Get("enabled") == "true"
+	}
+	if req.ID == "" {
+		http.Error(w, "Node ID required", http.StatusBadRequest)
+		return
+	}
+
+	node, err := users.GetNode(req.ID)
+	if err != nil || node == nil {
+		http.Error(w, "Node not found", http.StatusNotFound)
+		return
+	}
+
+	if !req.Enabled {
+		_ = users.UpdateNodeStatus(req.ID, "disabled")
+		node.Status = "disabled"
+		if h.coreMgr != nil {
+			h.coreMgr.Invalidate(req.ID)
+		}
+	} else {
+		status := checkCoreHealth(node.Protocol, node.IPAddress, node.Port, node.APIKey)
+		_ = users.UpdateNodeStatus(req.ID, status)
+		node.Status = status
+		if h.coreMgr != nil {
+			h.coreMgr.SetActiveNodeID(req.ID)
+		}
+	}
+
+	node.APIKey = ""
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(node)
 }
 
 // GET /api/v1/activities - Get recent audit activities

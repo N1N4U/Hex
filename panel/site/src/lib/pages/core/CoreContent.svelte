@@ -4,7 +4,7 @@
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
-  import { nodeStore, loadNodes, addCoreNode, deleteCoreNode, type NodeInfo } from '$lib/stores/node.svelte';
+  import { nodeStore, loadNodes, addCoreNode, deleteCoreNode, toggleCoreNode, type NodeInfo } from '$lib/stores/node.svelte';
   import { stats } from '$lib/stores/core';
   import { get } from '$lib/api/client';
 
@@ -28,8 +28,7 @@
   }
 
   onMount(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
-
+    // Initial fetch of nodes and stats
     const fetchCurrentStats = async () => {
       try {
         const s = await get<any>('/core/stats');
@@ -41,11 +40,6 @@
 
     loadNodes();
     fetchCurrentStats();
-    timer = setInterval(fetchCurrentStats, 1000);
-
-    return () => {
-      if (timer) clearInterval(timer);
-    };
   });
 
   function toggleShowIp(id: string) {
@@ -57,9 +51,17 @@
     addToast(`Removed ${name} from Core Management`, 'info');
   }
 
-  function handleToggleCore(core: NodeInfo) {
-    nodeStore.setActive(core.id);
-    addToast(`Switched active core to ${core.name}`, 'info');
+  async function handleToggleCore(core: NodeInfo) {
+    const isCurrentlyConnected = core.status !== 'disabled';
+    const newTarget = !isCurrentlyConnected;
+    const res = await toggleCoreNode(core.id, newTarget);
+    if (res) {
+      if (newTarget) {
+        addToast(`Connected to core ${core.name}`, 'success');
+      } else {
+        addToast(`Disconnected core ${core.name}`, 'info');
+      }
+    }
   }
 
   async function handleAddCore() {
@@ -198,11 +200,11 @@
             <input
               type="checkbox"
               class="toggle-input"
-              checked={isOnline}
+              checked={core.status !== 'disabled'}
               onchange={() => handleToggleCore(core)}
             />
             <span class="toggle-slider"></span>
-            <span class="toggle-label">{isOnline ? 'CONNECTED' : 'DISCONNECTED'}</span>
+            <span class="toggle-label">{core.status !== 'disabled' ? 'CONNECTED' : 'DISCONNECTED'}</span>
           </label>
 
           <button
@@ -369,7 +371,7 @@
 
   /* Core Card */
   .core-card {
-    background: linear-gradient(135deg, rgba(20, 24, 33, 0.88) 0%, rgba(10, 12, 17, 0.94) 100%);
+    background: linear-gradient(145deg, rgba(16, 20, 27, 0.96) 0%, rgba(9, 11, 16, 0.98) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: none;
     border-radius: 14px;
@@ -655,7 +657,7 @@
   }
   /* Empty state */
   .empty-cores-card {
-    background: rgba(12, 16, 22, 0.65);
+    background: linear-gradient(145deg, rgba(16, 20, 27, 0.94) 0%, rgba(9, 11, 16, 0.96) 100%);
     border: 1px dashed rgba(255, 255, 255, 0.12);
     border-radius: 14px;
     padding: 60px 24px;

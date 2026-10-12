@@ -136,9 +136,9 @@ func (p *WSProxy) ProxyWS(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	// Ping ticker measuring Core-Node pings every 3s
+	// Ping ticker measuring Core-Node pings every 1s
 	go func() {
-		ticker := time.NewTicker(3 * time.Second)
+		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop()
 
 		// Initial measure

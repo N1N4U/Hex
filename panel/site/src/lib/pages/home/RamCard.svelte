@@ -8,7 +8,12 @@
   const totalBytes = $derived($stats?.mem_total ?? 1);
   const ramPercent = $derived(totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0);
 
+  const swapUsed = $derived($stats?.swap_used ?? 0);
+  const swapTotal = $derived($stats?.swap_total ?? 0);
+  const swapPercent = $derived(swapTotal > 0 ? (swapUsed / swapTotal) * 100 : 0);
+
   function formatGB(bytes: number) {
+    if (!bytes || bytes <= 0) return '0.00 GB';
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   }
 </script>
@@ -25,10 +30,10 @@
 
     <div class="metrics-footer">
       <div class="ram-info">
-        <span class="ram-label">Memory Usage</span>
-        <span class="ram-val">{formatGB(usedBytes)} / {formatGB(totalBytes)}</span>
+        <span class="ram-label">Swap Memory</span>
+        <span class="ram-val">{formatGB(swapUsed)} / {formatGB(swapTotal)}</span>
       </div>
-      <Progress value={ramPercent} height="thin" />
+      <Progress value={swapPercent} height="thin" />
     </div>
   </div>
 </Card>

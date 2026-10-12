@@ -6,7 +6,7 @@ export interface NodeInfo {
   ip_address: string;
   port: number;
   protocol: string;
-  status: 'online' | 'offline' | 'busy';
+  status: 'online' | 'offline' | 'busy' | 'disabled';
   color?: string;
 }
 
@@ -19,7 +19,9 @@ export const nodeStore = {
     return nodesState;
   },
   get activeNode() {
-    return nodesState.find((n) => n.id === activeNodeIdState) || nodesState[0] || null;
+    return nodesState.find((n) => n.id === activeNodeIdState && n.status !== 'disabled') || 
+           nodesState.find((n) => n.status !== 'disabled') || 
+           null;
   },
   get activeId() {
     return activeNodeIdState;
@@ -42,14 +44,12 @@ export async function loadNodes(): Promise<NodeInfo[]> {
         ip_address: item.ip_address || '',
         port: item.port || 8080,
         protocol: item.protocol || 'http',
-        status: item.status === 'online' ? 'online' : 'offline'
+        status: item.status === 'disabled' ? 'disabled' : (item.status === 'online' ? 'online' : 'offline')
       }));
       nodesState = mapped;
-      if (mapped.length > 0 && (!activeNodeIdState || !nodesState.some(n => n.id === activeNodeIdState))) {
-        activeNodeIdState = mapped[0].id;
-      } else if (mapped.length === 0) {
-        activeNodeIdState = '';
-      }
+      const activeCandidate = mapped.find(n => n.id === activeNodeIdState && n.status !== 'disabled') ||
+                              mapped.find(n => n.status !== 'disabled');
+      activeNodeIdState = activeCandidate ? activeCandidate.id : '';
       return mapped;
     }
   } catch (err) {
@@ -70,13 +70,36 @@ export async function addCoreNode(data: {
   return result;
 }
 
+export async function toggleCoreNode(id: string, enabled: boolean): Promise<NodeInfo | null> {
+  try {
+    const updated = await post<NodeInfo>('/nodes/toggle', { id, enabled });
+    nodesState = nodesState.map((n) => {
+      if (n.id === id) {
+        return { ...n, status: enabled ? (updated.status || 'online') : 'disabled' };
+      }
+      return n;
+    });
+    if (!enabled && activeNodeIdState === id) {
+      const remaining = nodesState.find(n => n.id !== id && n.status !== 'disabled');
+      activeNodeIdState = remaining ? remaining.id : '';
+    } else if (enabled) {
+      activeNodeIdState = id;
+    }
+    return updated;
+  } catch (err) {
+    console.error('Failed to toggle node:', err);
+    return null;
+  }
+}
+
 export async function deleteCoreNode(id: string): Promise<boolean> {
   try {
     await del(`/nodes?id=${encodeURIComponent(id)}`);
   } catch {}
   nodesState = nodesState.filter((n) => n.id !== id);
   if (activeNodeIdState === id) {
-    activeNodeIdState = nodesState.length > 0 ? nodesState[0].id : '';
+    const remaining = nodesState.find(n => n.status !== 'disabled');
+    activeNodeIdState = remaining ? remaining.id : '';
   }
   return true;
 }

@@ -6,6 +6,7 @@
   import { nodeStore } from '$lib/stores/node.svelte';
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { post } from '$lib/api/client';
+  import { connect } from '$lib/ws/client';
   import { onMount } from 'svelte';
   import {
     RotateCw,
@@ -29,6 +30,7 @@
   let confirmAction = $state<'reboot' | 'shutdown' | null>(null);
 
   onMount(() => {
+    connect();
     const updateTime = () => {
       const now = new Date();
       // Remove seconds per spec: HH:MM
@@ -78,11 +80,6 @@
       locationStr = 'Local VPS Node';
     }
   });
-
-  const coreApiPing = $derived($pingStore.coreApiPing);
-  const coreWsPing = $derived($pingStore.coreWsPing);
-  const siteApiPing = $derived($pingStore.siteApiPing);
-  const siteWsPing = $derived($pingStore.siteWsPing);
 
   function triggerAction(action: 'reboot' | 'shutdown' | 'update' | 'logs') {
     if (action === 'reboot' || action === 'shutdown') {
@@ -205,14 +202,14 @@
         <span class="ping-tier-header">Core - Node</span>
         <div class="ping-rows">
           <div class="ping-row">
-            <span class="ping-dot" class:online={coreApiPing > 0} class:offline={coreApiPing <= 0}></span>
+            <span class="ping-dot" class:online={$pingStore.coreApiPing > 0} class:offline={$pingStore.coreApiPing <= 0}></span>
             <span class="ping-key">API:</span>
-            <span class="ping-val font-mono">{coreApiPing > 0 ? `${coreApiPing} ms` : 'Offline'}</span>
+            <span class="ping-val font-mono">{$pingStore.coreApiPing > 0 ? `${$pingStore.coreApiPing} ms` : 'Offline'}</span>
           </div>
           <div class="ping-row">
-            <span class="ping-dot" class:online={coreWsPing > 0} class:offline={coreWsPing <= 0}></span>
+            <span class="ping-dot" class:online={$pingStore.coreWsPing > 0} class:offline={$pingStore.coreWsPing <= 0}></span>
             <span class="ping-key">WS:</span>
-            <span class="ping-val font-mono">{coreWsPing > 0 ? `${coreWsPing} ms` : 'Offline'}</span>
+            <span class="ping-val font-mono">{$pingStore.coreWsPing > 0 ? `${$pingStore.coreWsPing} ms` : 'Offline'}</span>
           </div>
         </div>
       </div>
@@ -224,14 +221,14 @@
         <span class="ping-tier-header">Node - site</span>
         <div class="ping-rows">
           <div class="ping-row">
-            <span class="ping-dot" class:online={siteApiPing > 0} class:offline={siteApiPing <= 0}></span>
+            <span class="ping-dot" class:online={$pingStore.siteApiPing > 0} class:offline={$pingStore.siteApiPing <= 0}></span>
             <span class="ping-key">API:</span>
-            <span class="ping-val font-mono">{siteApiPing > 0 ? `${siteApiPing} ms` : 'Offline'}</span>
+            <span class="ping-val font-mono">{$pingStore.siteApiPing > 0 ? `${$pingStore.siteApiPing} ms` : 'Offline'}</span>
           </div>
           <div class="ping-row">
-            <span class="ping-dot" class:online={siteWsPing > 0} class:offline={siteWsPing <= 0}></span>
+            <span class="ping-dot" class:online={$pingStore.siteWsPing > 0} class:offline={$pingStore.siteWsPing <= 0}></span>
             <span class="ping-key">WS:</span>
-            <span class="ping-val font-mono">{siteWsPing > 0 ? `${siteWsPing} ms` : 'Offline'}</span>
+            <span class="ping-val font-mono">{$pingStore.siteWsPing > 0 ? `${$pingStore.siteWsPing} ms` : 'Offline'}</span>
           </div>
         </div>
       </div>

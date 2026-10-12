@@ -9,8 +9,7 @@
   import { stats } from '$lib/stores/core';
 
   onMount(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
-
+    // Initial one-off fetch so values appear instantly while WS connects
     const fetchStats = async () => {
       try {
         const s = await get<any>('/core/stats');
@@ -20,15 +19,7 @@
       } catch {}
     };
 
-    // Initial eager fetch
     fetchStats();
-
-    // Update every second per requirement
-    timer = setInterval(fetchStats, 1000);
-
-    return () => {
-      if (timer) clearInterval(timer);
-    };
   });
 </script>
 

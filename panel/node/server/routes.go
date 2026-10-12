@@ -38,6 +38,7 @@ func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manage
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+	mux.HandleFunc("/api/v1/nodes/toggle", middleware.Auth(cfg.JWTSecret, nodesH.Toggle))
 	mux.HandleFunc("/api/v1/activities", middleware.Auth(cfg.JWTSecret, nodesH.Activities))
 
 	// ?? WebSocket proxy (auth checked before upgrade) ????????????????????????

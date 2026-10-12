@@ -52,7 +52,7 @@
 
 <style>
   .card {
-    background: linear-gradient(135deg, rgba(20, 24, 33, 0.88) 0%, rgba(10, 12, 17, 0.94) 100%);
+    background: linear-gradient(145deg, rgba(16, 20, 27, 0.96) 0%, rgba(9, 11, 16, 0.98) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-lg);
     box-shadow: none;
@@ -64,7 +64,7 @@
   }
 
   .glass-card {
-    background: linear-gradient(135deg, rgba(22, 27, 38, 0.92) 0%, rgba(8, 10, 14, 0.96) 100%);
+    background: linear-gradient(145deg, rgba(16, 20, 27, 0.97) 0%, rgba(8, 10, 14, 0.99) 100%);
     border: 1px solid rgba(255, 255, 255, 0.1);
     box-shadow: none;
   }

@@ -70,6 +70,10 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 			delete(m.remoteClients, nodeID)
 			return nil, fmt.Errorf("node %s not found in database", nodeID)
 		}
+		if node.Status == "disabled" {
+			delete(m.remoteClients, nodeID)
+			return nil, fmt.Errorf("node %s is disabled", nodeID)
+		}
 		if c, ok := m.remoteClients[nodeID]; ok && c != nil {
 			return c, nil
 		}
@@ -86,7 +90,7 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 	// 2. If activeNodeID is set and exists:
 	if m.activeNodeID != "" {
 		node, err := users.GetNode(m.activeNodeID)
-		if err == nil && node != nil {
+		if err == nil && node != nil && node.Status != "disabled" {
 			if c, ok := m.remoteClients[m.activeNodeID]; ok && c != nil {
 				return c, nil
 			}
@@ -102,24 +106,32 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 		}
 	}
 
-	// 3. Fallback: check all nodes in the database
+	// 3. Fallback: check all nodes in the database that are not disabled
 	nodes, err := users.ListNodes()
 	if err == nil && len(nodes) > 0 {
-		target := nodes[0]
-		m.activeNodeID = target.ID
-		if c, ok := m.remoteClients[target.ID]; ok && c != nil {
-			return c, nil
+		var target *users.Node
+		for i := range nodes {
+			if nodes[i].Status != "disabled" {
+				target = &nodes[i]
+				break
+			}
 		}
-		c, err := NewRemoteClient(target.Protocol, target.IPAddress, target.Port, target.APIKey)
-		if err == nil {
-			logger.Core("Connected to default node '%s' (%s://%s:%d)", target.Name, target.Protocol, target.IPAddress, target.Port)
-			m.remoteClients[target.ID] = c
-			return c, nil
+		if target != nil {
+			m.activeNodeID = target.ID
+			if c, ok := m.remoteClients[target.ID]; ok && c != nil {
+				return c, nil
+			}
+			c, err := NewRemoteClient(target.Protocol, target.IPAddress, target.Port, target.APIKey)
+			if err == nil {
+				logger.Core("Connected to default node '%s' (%s://%s:%d)", target.Name, target.Protocol, target.IPAddress, target.Port)
+				m.remoteClients[target.ID] = c
+				return c, nil
+			}
 		}
-	} else {
-		m.remoteClients = make(map[string]*Client)
-		m.activeNodeID = ""
 	}
+
+	m.remoteClients = make(map[string]*Client)
+	m.activeNodeID = ""
 
 	// 4. Fallback: local client if connected via socket or HEX_CORE_URL
 	if m.localClient != nil {

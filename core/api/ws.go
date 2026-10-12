@@ -155,7 +155,7 @@ func (m *WSManager) HandleWS(w http.ResponseWriter, r *http.Request, monitorMgr 
 }
 
 func (m *WSManager) streamStats(ctx context.Context, safeConn *SafeConn, monitorMgr interface{}, reqId string) {
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
 	type StatGetter interface {

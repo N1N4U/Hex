@@ -5,6 +5,8 @@
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
   import { nodeStore, loadNodes, addCoreNode, deleteCoreNode, type NodeInfo } from '$lib/stores/node.svelte';
+  import { stats } from '$lib/stores/core';
+  import { get } from '$lib/api/client';
 
   let showIps = $state<Record<string, boolean>>({});
   let showAddDialog = $state(false);
@@ -17,8 +19,33 @@
   let newPort = $state<number>(8080);
   let newApiKey = $state('');
 
-  onMount(async () => {
-    await loadNodes();
+  function formatBytes(bytes: number | undefined): string {
+    if (!bytes || bytes <= 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  onMount(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const fetchCurrentStats = async () => {
+      try {
+        const s = await get<any>('/core/stats');
+        if (s && (s.cpu_usage !== undefined || s.mem_used !== undefined)) {
+          stats.set(s);
+        }
+      } catch {}
+    };
+
+    loadNodes();
+    fetchCurrentStats();
+    timer = setInterval(fetchCurrentStats, 1000);
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
   });
 
   function toggleShowIp(id: string) {
@@ -138,19 +165,27 @@
         <div class="card-stats-row">
           <div class="stat-pill">
             <Cpu size={14} class="stat-icon" />
-            <span class="stat-val">0% CPU</span>
+            <span class="stat-val">
+              {isOnline && $stats ? `${($stats.cpu_usage ?? $stats.cpu_percent ?? 0).toFixed(0)}% CPU` : '0% CPU'}
+            </span>
           </div>
           <div class="stat-pill">
             <Server size={14} class="stat-icon" />
-            <span class="stat-val">0.0GB RAM</span>
+            <span class="stat-val">
+              {isOnline && $stats && $stats.mem_used ? `${($stats.mem_used / (1024 * 1024 * 1024)).toFixed(1)}GB RAM` : '0.0GB RAM'}
+            </span>
           </div>
           <div class="stat-pill">
             <HardDrive size={14} class="stat-icon" />
-            <span class="stat-val">0.0GB Storage</span>
+            <span class="stat-val">
+              {isOnline && $stats && $stats.disk_used ? `${($stats.disk_used / (1024 * 1024 * 1024)).toFixed(1)}GB Storage` : '0.0GB Storage'}
+            </span>
           </div>
           <div class="stat-pill">
             <Globe size={14} class="stat-icon" />
-            <span class="stat-val">0 B/s</span>
+            <span class="stat-val">
+              {isOnline && $stats ? `${formatBytes(($stats.net_sent || 0) + ($stats.net_recv || 0))}/s` : '0 B/s'}
+            </span>
           </div>
         </div>
 

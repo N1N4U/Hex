@@ -35,21 +35,21 @@ export function connect() {
       reconnectTimer = null;
     }
 
-    // 1. Start WS ping loop every 1000ms (measures Node - site WS ping)
+    // 1. Start WS ping loop every 5000ms (measures Node - site WS ping)
     if (pingIntervalTimer) clearInterval(pingIntervalTimer);
     pingIntervalTimer = setInterval(() => {
       if (socket?.readyState === WebSocket.OPEN) {
         socket.send(JSON.stringify({ type: 'ping', id: `ping_${Date.now()}` }));
       }
-    }, 1000);
+    }, 5000);
 
     // Initial ping immediately
     socket.send(JSON.stringify({ type: 'ping', id: `ping_${Date.now()}` }));
 
-    // 2. Start HTTP ping loop every 1000ms (measures Node - site API ping)
+    // 2. Start HTTP ping loop every 5000ms (measures Node - site API ping)
     measureSiteApiPing();
     if (apiPingTimer) clearInterval(apiPingTimer);
-    apiPingTimer = setInterval(measureSiteApiPing, 1000);
+    apiPingTimer = setInterval(measureSiteApiPing, 5000);
   };
 
   socket.onmessage = (ev) => {

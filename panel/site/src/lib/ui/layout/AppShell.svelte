@@ -58,4 +58,14 @@
     padding: 16px 28px;
     box-sizing: border-box;
   }
+
+  @media (max-width: 768px) {
+    .content-viewport {
+      padding-top: 56px;
+      padding-bottom: 84px;
+    }
+    .content-wrapper {
+      padding: 10px 14px;
+    }
+  }
 </style>

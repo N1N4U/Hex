@@ -109,10 +109,11 @@
     if (!XTermModule || !containerElements[session.id]) return;
     if (activeTerminals[session.id]) return;
 
+    const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
     const term = new XTermModule({
       cursorBlink: true,
       cursorStyle: 'block',
-      fontSize: 13,
+      fontSize: isMobile ? 11 : 13,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
       theme: {
         background: '#0a0d14',
@@ -987,5 +988,124 @@
     justify-content: flex-end;
     gap: 10px;
     margin-top: 8px;
+  }
+
+  /* Responsive layout for mobile devices */
+  @media (max-width: 768px) {
+    .terminal-page-root {
+      gap: 10px;
+      margin-top: -4px;
+    }
+
+    .page-title {
+      font-size: 18px;
+    }
+
+    .header-connect-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      gap: 5px;
+    }
+
+    /* Stack sidebar as a top control bar above full-width terminal */
+    .terminal-layout {
+      flex-direction: column;
+      gap: 8px;
+      height: calc(100vh - 180px);
+      min-height: 360px;
+    }
+
+    .terminal-sidebar {
+      width: 100%;
+      min-width: 0;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border-radius: 10px;
+      gap: 8px;
+    }
+
+    .sidebar-top {
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+
+    .sidebar-top::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sessions-list {
+      flex-direction: row;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .session-btn {
+      padding: 5px 10px;
+      height: 32px;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+
+    .session-name {
+      font-size: 11.5px;
+      max-width: 75px;
+    }
+
+    .add-session-btn {
+      width: 32px;
+      min-width: 32px;
+      height: 32px;
+      border-radius: 6px;
+    }
+
+    .sidebar-bottom {
+      flex-direction: row;
+      border-top: none;
+      padding-top: 0;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-action-btn {
+      width: auto;
+      height: 32px;
+      padding: 0 10px;
+      font-size: 11.5px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+
+    /* Terminal takes 100% full width on mobile */
+    .terminal-main {
+      width: 100%;
+      border-radius: 10px;
+    }
+
+    .terminal-canvas-wrapper {
+      padding: 6px 8px;
+    }
+
+    .terminal-bottom-bar {
+      padding: 8px 10px;
+      gap: 8px;
+    }
+
+    .quick-cmd-input {
+      height: 34px;
+      font-size: 12px;
+      padding: 0 10px;
+    }
+
+    .quick-cmd-send-btn {
+      height: 34px;
+      padding: 0 12px;
+      font-size: 12px;
+    }
   }
 </style>

@@ -151,7 +151,7 @@
 
   function connectSession(session: TerminalSession) {
     if (!session.ip) {
-      handleOpenAdd(session);
+      handleOpenConnect(session);
       return;
     }
 
@@ -247,27 +247,38 @@
     }
   }
 
-  function handleOpenAdd(existingSession?: TerminalSession) {
-    if (isAnyConnected && !existingSession) {
-      addToast('Please disconnect the current terminal first. Only a single connection is allowed at a time.', 'warning');
-      return;
-    }
-
-    if (existingSession && existingSession.ip) {
-      newName = existingSession.name;
-      newIp = existingSession.ip;
-      newPort = existingSession.port;
-      newUser = existingSession.username;
-      newPass = existingSession.password || '';
+  function handleOpenConnect(existingSession?: TerminalSession) {
+    const session = existingSession || activeSession || sessions[0];
+    if (session && session.ip) {
+      newIp = session.ip;
+      newPort = session.port || 22;
+      newUser = session.username || 'root';
+      newPass = session.password || '';
     } else {
-      const nextNum = sessions.length + 1;
-      newName = `Terminal ${nextNum}`;
       newIp = '';
       newPort = 22;
       newUser = 'root';
       newPass = '';
     }
     showAddDialog = true;
+  }
+
+  function handleAddTab() {
+    if (isAnyConnected) {
+      addToast('Please disconnect the current terminal first. Only a single connection is allowed at a time.', 'warning');
+      return;
+    }
+    const nextNum = sessions.length + 1;
+    const newSession: TerminalSession = {
+      id: `term-${Date.now()}`,
+      name: `Terminal ${nextNum}`,
+      ip: '',
+      port: 22,
+      username: 'root',
+      status: 'disconnected'
+    };
+    sessions = [...sessions, newSession];
+    switchTab(newSession.id);
   }
 
   async function handleConnectSubmit() {
@@ -283,29 +294,28 @@
     isConnecting = true;
     showAddDialog = false;
 
-    // Check if updating the first empty session or adding a new session
-    const current = sessions.find((s) => s.id === activeSessionId);
+    // Connect to the active terminal (e.g. Terminal 1)
+    const current = sessions.find((s) => s.id === activeSessionId) || sessions[0];
     let targetSession: TerminalSession;
 
-    if (current && !current.ip) {
-      current.name = newName.trim() || current.name;
+    if (current) {
       current.ip = newIp.trim();
       current.port = newPort || 22;
       current.username = newUser.trim() || 'root';
       current.password = newPass;
       targetSession = current;
     } else {
-      const newId = `term-${Date.now()}`;
+      const newId = `term-1`;
       targetSession = {
         id: newId,
-        name: newName.trim() || `Terminal ${sessions.length + 1}`,
+        name: 'Terminal 1',
         ip: newIp.trim(),
         port: newPort || 22,
         username: newUser.trim() || 'root',
         password: newPass,
         status: 'disconnected'
       };
-      sessions = [...sessions, targetSession];
+      sessions = [targetSession];
       activeSessionId = targetSession.id;
     }
 
@@ -363,7 +373,7 @@
     const session = activeSession;
     if (!session) return;
     if (!session.ip) {
-      handleOpenAdd(session);
+      handleOpenConnect(session);
     } else {
       connectSession(session);
     }
@@ -472,8 +482,8 @@
           type="button"
           class="add-session-btn"
           class:is-disabled={isAnyConnected}
-          onclick={() => handleOpenAdd()}
-          title={isAnyConnected ? 'Disconnect current terminal before creating a new tab' : 'Add Terminal Connection'}
+          onclick={() => handleAddTab()}
+          title={isAnyConnected ? 'Disconnect current terminal before creating a new tab' : 'Add Terminal Tab'}
         >
           <Plus size={16} />
         </button>
@@ -490,7 +500,6 @@
         >
           <ArrowDown size={13} />
           <span>Auto Scroll</span>
-          <span class="toggle-status-dot" class:is-on={autoScroll}></span>
         </button>
 
         <button
@@ -540,22 +549,10 @@
   </div>
 </div>
 
-<!-- Add/Configure Terminal Dialog -->
+<!-- Connect to VPS Dialog -->
 {#if showAddDialog}
-  <Dialog title="New Terminal Connection" size="md" onclose={() => (showAddDialog = false)}>
+  <Dialog title="Connect to VPS" size="md" onclose={() => (showAddDialog = false)}>
     <form onsubmit={(e) => { e.preventDefault(); handleConnectSubmit(); }} class="terminal-form">
-      <div class="form-group">
-        <label for="term-name">Connection Name</label>
-        <input
-          id="term-name"
-          type="text"
-          placeholder="e.g. Terminal 1 or VPS Production"
-          bind:value={newName}
-          class="dialog-input"
-          required
-        />
-      </div>
-
       <div class="host-port-row">
         <div class="form-group host-group">
           <label for="term-ip">Host IP</label>
@@ -684,12 +681,12 @@
     color: #fca5a5;
   }
 
-  /* Two column container with ample clearance above bottom floating dock */
+  /* Two column container with optimal clearance above bottom floating dock */
   .terminal-layout {
     display: flex;
     gap: 16px;
-    height: calc(100vh - 250px);
-    min-height: 400px;
+    height: calc(100vh - 212px);
+    min-height: 420px;
     width: 100%;
   }
 
@@ -858,18 +855,6 @@
     background: rgba(34, 197, 94, 0.08);
     border-color: rgba(34, 197, 94, 0.3);
     color: #4ade80;
-  }
-
-  .toggle-status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #64748b;
-    margin-left: 2px;
-  }
-
-  .toggle-status-dot.is-on {
-    background: #22c55e;
   }
 
   /* Right Main Panel (bent black glass) */

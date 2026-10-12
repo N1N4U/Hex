@@ -35,11 +35,10 @@
 
     const pts = points.slice(-maxPoints);
     const n = pts.length;
-    const stepX = width / Math.max(1, maxPoints - 1);
-    const startX = width - (n - 1) * stepX;
+    const stepX = width / Math.max(1, n - 1);
 
     const coords = pts.map((val, i) => {
-      const x = startX + i * stepX;
+      const x = i * stepX;
       const y = height - (val / max) * (height - 8) - 4;
       return [x, Math.max(4, Math.min(height - 4, y))];
     });

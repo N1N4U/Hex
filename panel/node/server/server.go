@@ -124,8 +124,8 @@ func withLogger(h http.Handler) http.Handler {
 		rw := &responseRecorder{ResponseWriter: w, code: 200}
 		h.ServeHTTP(rw, r)
 
-		// Never log /api/v1/ping heartbeat requests to console
-		if r.URL.Path == "/api/v1/ping" {
+		// Never log /api/v1/ping or /api/v1/config/public heartbeat/config polling to console
+		if r.URL.Path == "/api/v1/ping" || r.URL.Path == "/api/v1/config/public" {
 			return
 		}
 

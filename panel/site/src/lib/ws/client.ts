@@ -1,6 +1,6 @@
 // WebSocket client — connects to node WS proxy and tracks live latencies.
 
-import { pingStore, stats } from '../stores/core';
+import { pingStore, stats, wsStatus } from '../stores/core';
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -25,6 +25,7 @@ export function connect() {
 
   socket.onopen = () => {
     reconnectAttempts = 0;
+    wsStatus.set('connected');
     emit('__status__', 'connected');
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
@@ -107,6 +108,7 @@ export function connect() {
   };
 
   socket.onclose = () => {
+    wsStatus.set('disconnected');
     emit('__status__', 'disconnected');
     pingStore.update((p) => ({ ...p, siteWsPing: -1, coreWsPing: -1 }));
     if (pingIntervalTimer) {

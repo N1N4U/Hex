@@ -8,14 +8,27 @@
   import { get } from '$lib/api/client';
   import { stats } from '$lib/stores/core';
 
-  onMount(async () => {
-    // Eagerly fetch initial stats on mount so cards populate immediately
-    try {
-      const s = await get<any>('/core/stats');
-      if (s && (s.cpu_usage !== undefined || s.mem_used !== undefined)) {
-        stats.set(s);
-      }
-    } catch {}
+  onMount(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+
+    const fetchStats = async () => {
+      try {
+        const s = await get<any>('/core/stats');
+        if (s && (s.cpu_usage !== undefined || s.mem_used !== undefined)) {
+          stats.set(s);
+        }
+      } catch {}
+    };
+
+    // Initial eager fetch
+    fetchStats();
+
+    // Update every second per requirement
+    timer = setInterval(fetchStats, 1000);
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
   });
 </script>
 

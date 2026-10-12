@@ -124,7 +124,7 @@
     font-weight: 800;
     color: #ffffff;
     letter-spacing: -0.5px;
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: none;
     white-space: nowrap;
   }
 

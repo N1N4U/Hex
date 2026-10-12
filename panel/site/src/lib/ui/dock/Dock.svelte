@@ -145,13 +145,9 @@
     pointer-events: auto;
     border-radius: 9999px;
     padding: 6px 12px;
-    background: rgba(10, 12, 16, 0.88);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      0 16px 36px rgba(0, 0, 0, 0.6),
-      0 0 0 1px rgba(255, 255, 255, 0.08);
+    background: linear-gradient(135deg, rgba(18, 22, 30, 0.94) 0%, rgba(8, 10, 14, 0.96) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: none;
   }
 
   .dock-list {
@@ -264,7 +260,7 @@
     height: 4px;
     border-radius: 50%;
     background: #ffffff;
-    box-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
+    box-shadow: none;
   }
 
   /* Tooltip */

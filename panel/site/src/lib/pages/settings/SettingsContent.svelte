@@ -305,12 +305,11 @@
   }
 
   .tab-pane {
-    background: rgba(12, 16, 22, 0.75);
+    background: linear-gradient(135deg, rgba(20, 24, 33, 0.88) 0%, rgba(10, 12, 17, 0.94) 100%);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 10px 30px rgba(0, 0, 0, 0.45);
+    box-shadow: none;
     border-radius: var(--radius-lg);
     padding: 24px;
-    backdrop-filter: blur(20px);
   }
 
   .pane-header-row {

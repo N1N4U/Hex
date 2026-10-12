@@ -139,12 +139,12 @@
 
   .input-box:focus-within {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-glow);
+    box-shadow: none;
   }
 
   .input-box.has-error {
     border-color: var(--danger);
-    box-shadow: 0 0 0 3px var(--danger-glow);
+    box-shadow: none;
   }
 
   .input-box.is-disabled {

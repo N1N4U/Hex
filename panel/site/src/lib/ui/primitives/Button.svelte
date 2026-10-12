@@ -115,7 +115,7 @@
 
   .primary:hover:not(:disabled) {
     filter: brightness(1.1);
-    box-shadow: var(--shadow-accent);
+    box-shadow: none;
   }
 
   .secondary {

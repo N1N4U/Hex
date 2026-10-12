@@ -52,12 +52,10 @@
 
 <style>
   .card {
-    background: rgba(18, 22, 30, 0.75);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: linear-gradient(135deg, rgba(20, 24, 33, 0.88) 0%, rgba(10, 12, 17, 0.94) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-lg);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.35);
+    box-shadow: none;
     transition: all var(--transition-base);
     display: flex;
     flex-direction: column;
@@ -66,16 +64,14 @@
   }
 
   .glass-card {
-    background: rgba(15, 19, 28, 0.82);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 32px rgba(0, 0, 0, 0.45);
+    background: linear-gradient(135deg, rgba(22, 27, 38, 0.92) 0%, rgba(8, 10, 14, 0.96) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: none;
   }
 
   .is-navigable:hover {
-    border-color: var(--border-focus);
-    box-shadow: var(--shadow-card), 0 0 16px var(--accent-glow);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: none;
   }
 
   .is-navigable:hover .nav-arrow {

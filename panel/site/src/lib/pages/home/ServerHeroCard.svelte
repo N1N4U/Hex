@@ -229,9 +229,9 @@
             <span class="ping-val font-mono">{siteApiPing > 0 ? `${siteApiPing} ms` : 'Offline'}</span>
           </div>
           <div class="ping-row">
-            <span class="ping-dot" class:online={siteWsPing > 0 && $wsStatus === 'connected'} class:offline={siteWsPing <= 0 || $wsStatus !== 'connected'}></span>
+            <span class="ping-dot" class:online={siteWsPing > 0} class:offline={siteWsPing <= 0}></span>
             <span class="ping-key">WS:</span>
-            <span class="ping-val font-mono">{siteWsPing > 0 && $wsStatus === 'connected' ? `${siteWsPing} ms` : 'Offline'}</span>
+            <span class="ping-val font-mono">{siteWsPing > 0 ? `${siteWsPing} ms` : 'Offline'}</span>
           </div>
         </div>
       </div>

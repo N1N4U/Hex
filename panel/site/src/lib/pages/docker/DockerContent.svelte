@@ -359,8 +359,8 @@
 
   .container-card:hover {
     background: var(--bg-surface-hover);
-    border-color: var(--border-focus);
-    box-shadow: var(--shadow-card);
+    border-color: rgba(255, 255, 255, 0.22);
+    box-shadow: none;
   }
 
   .container-info {
@@ -379,7 +379,7 @@
 
   .status-dot.running {
     background: var(--status-online);
-    box-shadow: 0 0 6px var(--status-online);
+    box-shadow: none;
   }
 
   .status-dot.stopped {

@@ -1,4 +1,4 @@
-import { get, post, del } from '../api/client';
+import { get, post, put, del } from '../api/client';
 
 export interface NodeInfo {
   id: string;
@@ -66,6 +66,18 @@ export async function addCoreNode(data: {
   api_key: string;
 }): Promise<NodeInfo> {
   const result = await post<NodeInfo>('/nodes', data);
+  await loadNodes();
+  return result;
+}
+
+export async function updateCoreNode(id: string, data: {
+  name: string;
+  ip_address: string;
+  port: number;
+  protocol: string;
+  api_key?: string;
+}): Promise<NodeInfo> {
+  const result = await put<NodeInfo>('/nodes', { id, ...data });
   await loadNodes();
   return result;
 }

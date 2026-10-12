@@ -210,6 +210,23 @@ func UpdateNodeStatus(id, status string) error {
 	return err
 }
 
+func UpdateNode(n *Node) error {
+	if n.APIKey != "" {
+		_, err := db.Exec(`
+			UPDATE nodes 
+			SET name = ?, ip_address = ?, port = ?, protocol = ?, api_key = ?, status = ?, last_seen = CURRENT_TIMESTAMP
+			WHERE id = ?
+		`, n.Name, n.IPAddress, n.Port, n.Protocol, n.APIKey, n.Status, n.ID)
+		return err
+	}
+	_, err := db.Exec(`
+		UPDATE nodes 
+		SET name = ?, ip_address = ?, port = ?, protocol = ?, status = ?, last_seen = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, n.Name, n.IPAddress, n.Port, n.Protocol, n.Status, n.ID)
+	return err
+}
+
 // ── Activity Log Operations ──────────────────────────────────────────────────
 
 func RecordActivity(userID, username, action, details, ipAddress string) error {

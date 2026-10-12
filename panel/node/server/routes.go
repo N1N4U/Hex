@@ -37,6 +37,8 @@ func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manage
 			nodesH.List(w, r)
 		case http.MethodPost:
 			nodesH.Add(w, r)
+		case http.MethodPut:
+			nodesH.Update(w, r)
 		case http.MethodDelete:
 			nodesH.Delete(w, r)
 		default:

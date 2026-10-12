@@ -1,18 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Plus, Server, Cpu, HardDrive, Globe, Trash2 } from '@lucide/svelte';
+  import { Plus, Server, Cpu, HardDrive, Globe, Trash2, Pencil } from '@lucide/svelte';
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
-  import { nodeStore, loadNodes, addCoreNode, deleteCoreNode, toggleCoreNode, type NodeInfo } from '$lib/stores/node.svelte';
+  import { nodeStore, loadNodes, addCoreNode, updateCoreNode, deleteCoreNode, toggleCoreNode, type NodeInfo } from '$lib/stores/node.svelte';
   import { stats } from '$lib/stores/core';
   import { get } from '$lib/api/client';
 
   let showIps = $state<Record<string, boolean>>({});
   let showAddDialog = $state(false);
   let isSubmitting = $state(false);
+  let editingNodeId = $state<string | null>(null);
 
-  // New core form fields per user spec
+  // Core form fields
   let newName = $state('');
   let newProtocol = $state<'http' | 'https'>('http');
   let newHostIp = $state('');
@@ -28,7 +29,6 @@
   }
 
   onMount(() => {
-    // Initial fetch of nodes and stats
     const fetchCurrentStats = async () => {
       try {
         const s = await get<any>('/core/stats');
@@ -64,7 +64,27 @@
     }
   }
 
-  async function handleAddCore() {
+  function handleOpenAdd() {
+    editingNodeId = null;
+    newName = '';
+    newProtocol = 'http';
+    newHostIp = '';
+    newPort = 8080;
+    newApiKey = '';
+    showAddDialog = true;
+  }
+
+  function handleOpenEdit(core: NodeInfo) {
+    editingNodeId = core.id;
+    newName = core.name;
+    newProtocol = (core.protocol as 'http' | 'https') || 'http';
+    newHostIp = core.ip_address;
+    newPort = core.port || 8080;
+    newApiKey = '';
+    showAddDialog = true;
+  }
+
+  async function handleSaveCore() {
     if (!newName.trim()) {
       addToast('Core Name is required', 'error');
       return;
@@ -73,28 +93,40 @@
       addToast('Host IP is required', 'error');
       return;
     }
-    if (!newApiKey.trim()) {
+    if (!editingNodeId && !newApiKey.trim()) {
       addToast('API Key is mandatory and cannot be empty', 'error');
       return;
     }
 
     isSubmitting = true;
     try {
-      await addCoreNode({
-        name: newName.trim(),
-        ip_address: newHostIp.trim(),
-        port: newPort || 8080,
-        protocol: newProtocol,
-        api_key: newApiKey.trim()
-      });
-      addToast(`Core '${newName}' connected successfully`, 'success');
+      if (editingNodeId) {
+        await updateCoreNode(editingNodeId, {
+          name: newName.trim(),
+          ip_address: newHostIp.trim(),
+          port: newPort || 8080,
+          protocol: newProtocol,
+          api_key: newApiKey.trim() || undefined
+        });
+        addToast(`Core '${newName}' updated successfully`, 'success');
+      } else {
+        await addCoreNode({
+          name: newName.trim(),
+          ip_address: newHostIp.trim(),
+          port: newPort || 8080,
+          protocol: newProtocol,
+          api_key: newApiKey.trim()
+        });
+        addToast(`Core '${newName}' connected successfully`, 'success');
+      }
       showAddDialog = false;
+      editingNodeId = null;
       newName = '';
       newHostIp = '';
       newPort = 8080;
       newApiKey = '';
     } catch (err: any) {
-      addToast(err?.message || 'Failed to connect to core. Verify host IP & API Key.', 'error');
+      addToast(err?.message || (editingNodeId ? 'Failed to update core.' : 'Failed to connect to core. Verify host IP & API Key.'), 'error');
     } finally {
       isSubmitting = false;
     }
@@ -112,7 +144,7 @@
     <button
       type="button"
       class="add-core-btn"
-      onclick={() => (showAddDialog = true)}
+      onclick={handleOpenAdd}
     >
       <Plus size={16} />
       <span>Add Core</span>
@@ -137,10 +169,15 @@
       {@const isOnline = core.status === 'online'}
       {@const isActive = nodeStore.activeId === core.id}
       <div class="core-card">
-        <!-- Top row: Avatar, Name, Show IP, and status dot -->
+        <!-- Top row: Avatar with status ring, Name, and Show IP -->
         <div class="card-top-row">
           <div class="core-info-left">
-            <div class="core-icon-circle">
+            <div
+              class="core-icon-circle"
+              class:is-online={isOnline}
+              class:is-offline={!isOnline}
+              title={isOnline ? 'Core Online' : 'Core Offline / Disconnected'}
+            >
               <Server size={18} />
             </div>
             <div class="core-text-col">
@@ -155,12 +192,6 @@
               </button>
             </div>
           </div>
-
-          <span
-            class="status-dot"
-            class:is-connected={isOnline}
-            title={isOnline ? 'Connected' : 'Offline'}
-          ></span>
         </div>
 
         <!-- Middle row: 4 stats -->
@@ -194,7 +225,7 @@
         <!-- Divider line -->
         <div class="card-divider"></div>
 
-        <!-- Bottom row: Toggle switch & Remove button -->
+        <!-- Bottom row: Toggle switch & Actions (Edit, Remove) -->
         <div class="card-bottom-row">
           <label class="toggle-wrap">
             <input
@@ -207,32 +238,45 @@
             <span class="toggle-label">{core.status !== 'disabled' ? 'CONNECTED' : 'DISCONNECTED'}</span>
           </label>
 
-          <button
-            type="button"
-            class="remove-btn"
-            onclick={() => handleRemove(core.id, core.name)}
-          >
-            <Trash2 size={14} />
-            <span>Remove</span>
-          </button>
+          <div class="card-actions-right">
+            <button
+              type="button"
+              class="edit-btn"
+              onclick={() => handleOpenEdit(core)}
+              title="Edit Core Configuration"
+            >
+              <Pencil size={13} />
+              <span>Edit</span>
+            </button>
+
+            <button
+              type="button"
+              class="remove-btn"
+              onclick={() => handleRemove(core.id, core.name)}
+              title="Remove Core"
+            >
+              <Trash2 size={13} />
+              <span>Remove</span>
+            </button>
+          </div>
         </div>
-        </div>
+      </div>
       {/each}
     </div>
   {/if}
 </div>
 
-<!-- Add Core Dialog (Strictly implements user specification) -->
+<!-- Add/Edit Core Dialog -->
 {#if showAddDialog}
-  <Dialog title="Add Core" size="md" onclose={() => (showAddDialog = false)}>
-    <form onsubmit={(e) => { e.preventDefault(); handleAddCore(); }} class="add-core-form">
+  <Dialog title={editingNodeId ? 'Edit Core' : 'Add Core'} size="md" onclose={() => (showAddDialog = false)}>
+    <form onsubmit={(e) => { e.preventDefault(); handleSaveCore(); }} class="add-core-form">
       <!-- 1. Name -->
       <div class="form-group">
         <label for="core-name">Name</label>
         <input
           id="core-name"
           type="text"
-          placeholder="e.g. Mine or Production Core"
+          placeholder="e.g. My Core"
           bind:value={newName}
           class="dialog-input"
           required
@@ -244,8 +288,8 @@
         <div class="form-group protocol-group">
           <label for="core-protocol">Protocol</label>
           <select id="core-protocol" bind:value={newProtocol} class="dialog-select">
-            <option value="http">http</option>
-            <option value="https">https (uses mTLS)</option>
+            <option value="http">Http</option>
+            <option value="https">Https</option>
           </select>
         </div>
 
@@ -273,26 +317,28 @@
         </div>
       </div>
 
-      <!-- 3. API Key (NOT optional) -->
+      <!-- 3. API Key -->
       <div class="form-group">
         <label for="core-apikey">
-          API Key <span class="required-star">*</span>
+          API Key {#if !editingNodeId}<span class="required-star">*</span>{:else}<span class="optional-text">(leave blank to keep current)</span>{/if}
         </label>
         <input
           id="core-apikey"
           type="password"
-          placeholder="Enter core API key (mandatory)"
+          placeholder={editingNodeId ? 'Leave blank to keep current API key' : 'Enter API key'}
           bind:value={newApiKey}
           class="dialog-input"
-          required
+          required={!editingNodeId}
         />
-        <span class="field-hint">The API key is required to authenticate node with hex-core.</span>
+        <span class="field-hint">
+          {editingNodeId ? 'Optional: update API key only if changed on the core daemon.' : 'The API key is required to authenticate node with core.'}
+        </span>
       </div>
 
       <div class="dialog-actions">
         <Button variant="ghost" onclick={() => (showAddDialog = false)} disabled={isSubmitting}>Cancel</Button>
         <Button variant="primary" type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Connecting...' : 'Connect Core'}
+          {isSubmitting ? (editingNodeId ? 'Saving...' : 'Connecting...') : (editingNodeId ? 'Save Changes' : 'Connect Core')}
         </Button>
       </div>
     </form>
@@ -404,11 +450,22 @@
     height: 36px;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 2px solid #ef4444;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #cbd5e1;
+    color: #f87171;
+    transition: border-color 200ms ease, color 200ms ease;
+  }
+
+  .core-icon-circle.is-online {
+    border-color: #22c55e;
+    color: #4ade80;
+  }
+
+  .core-icon-circle.is-offline {
+    border-color: #ef4444;
+    color: #f87171;
   }
 
   .core-text-col {
@@ -440,19 +497,6 @@
 
   .ip-toggle-btn:hover {
     color: #e2e8f0;
-  }
-
-  /* Status dot (no glow) */
-  .status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #64748b;
-    transition: background 200ms ease;
-  }
-
-  .status-dot.is-connected {
-    background: #22c55e;
   }
 
   /* Stats row */
@@ -546,6 +590,34 @@
     color: #94a3b8;
   }
 
+  /* Actions */
+  .card-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .edit-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #cbd5e1;
+    font-size: 12.5px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+  }
+
+  .edit-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.28);
+    color: #ffffff;
+  }
+
   /* Remove Button */
   .remove-btn {
     display: flex;
@@ -566,6 +638,13 @@
     background: rgba(239, 68, 68, 0.2);
     border-color: rgba(239, 68, 68, 0.5);
     color: #fca5a5;
+  }
+
+  .optional-text {
+    font-size: 11px;
+    font-weight: 400;
+    color: #64748b;
+    margin-left: 4px;
   }
 
   /* Form inside Add Core Dialog */

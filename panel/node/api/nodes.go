@@ -178,6 +178,75 @@ func (h *NodesHandler) Add(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(node)
 }
 
+// PUT /api/v1/nodes - Update existing node
+func (h *NodesHandler) Update(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID        string `json:"id"`
+		Name      string `json:"name"`
+		IPAddress string `json:"ip_address"`
+		Port      int    `json:"port"`
+		Protocol  string `json:"protocol"`
+		APIKey    string `json:"api_key"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if req.ID == "" {
+		req.ID = r.URL.Query().Get("id")
+	}
+	if req.ID == "" {
+		http.Error(w, "Node ID is required", http.StatusBadRequest)
+		return
+	}
+
+	existing, err := users.GetNode(req.ID)
+	if err != nil || existing == nil {
+		http.Error(w, "Node not found", http.StatusNotFound)
+		return
+	}
+
+	if req.Name != "" {
+		existing.Name = req.Name
+	}
+	if req.IPAddress != "" {
+		existing.IPAddress = req.IPAddress
+	}
+	if req.Port > 0 {
+		existing.Port = req.Port
+	}
+	if req.Protocol != "" {
+		existing.Protocol = req.Protocol
+	}
+	if req.APIKey != "" {
+		existing.APIKey = req.APIKey
+	}
+
+	if existing.Status != "disabled" {
+		status := checkCoreHealth(existing.Protocol, existing.IPAddress, existing.Port, existing.APIKey)
+		existing.Status = status
+	}
+
+	if err := users.UpdateNode(existing); err != nil {
+		http.Error(w, "Failed to update node: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if h.coreMgr != nil {
+		h.coreMgr.Invalidate(existing.ID)
+	}
+
+	existing.APIKey = ""
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(existing)
+}
+
 // DELETE /api/v1/nodes?id=xxx - Remove a node
 func (h *NodesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete && r.Method != http.MethodPost {

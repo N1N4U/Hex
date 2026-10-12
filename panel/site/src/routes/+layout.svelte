@@ -15,10 +15,34 @@
 
   import { nodeStore, loadNodes } from '$lib/stores/node.svelte';
 
-  onMount(async () => {
-    let offStatus: (() => void) | undefined;
-    let offStats: (() => void) | undefined;
+  let cleanupWs: (() => void) | null = null;
 
+  function setupLiveConnection() {
+    if (cleanupWs) return;
+    loadNodes();
+    connect();
+    const offStatus = on('__status__', (s) => wsStatus.set(s as any));
+    const offStats = on('stats.update', (data: any) => {
+      if (data) stats.set(data);
+    });
+    cleanupWs = () => {
+      offStatus();
+      offStats();
+      disconnect();
+      cleanupWs = null;
+    };
+  }
+
+  // React to login / logout state immediately without needing a browser refresh
+  const unsubUser = user.subscribe((currentUser) => {
+    if (currentUser) {
+      setupLiveConnection();
+    } else {
+      if (cleanupWs) cleanupWs();
+    }
+  });
+
+  onMount(async () => {
     const publicRoutes = ['/lockscreen', '/login', '/loading'];
 
     try {
@@ -28,12 +52,6 @@
         if ($page.url.pathname === '/lockscreen' || $page.url.pathname === '/login') {
           goto('/home');
         }
-        await loadNodes();
-        connect();
-        offStatus = on('__status__', (s) => wsStatus.set(s as any));
-        offStats = on('stats.update', (data: any) => {
-          if (data) stats.set(data);
-        });
       } else {
         if (!publicRoutes.includes($page.url.pathname)) {
           goto('/lockscreen');
@@ -46,9 +64,8 @@
     }
 
     return () => {
-      if (offStatus) offStatus();
-      if (offStats) offStats();
-      disconnect();
+      unsubUser();
+      if (cleanupWs) cleanupWs();
     };
   });
 </script>

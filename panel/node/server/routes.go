@@ -23,6 +23,11 @@ func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manage
 	mux.HandleFunc("/api/v1/auth/refresh", authH.Refresh)
 	mux.HandleFunc("/api/v1/auth/setup", authH.Setup)
 	mux.HandleFunc("/api/v1/config/public", authH.PublicConfig)
+	mux.HandleFunc("/api/v1/ping", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("pong"))
+	})
 
 	// ?? Authenticated endpoints ?????????????????????????????????????????????
 	mux.HandleFunc("/api/v1/auth/me", middleware.Auth(cfg.JWTSecret, authH.Me))

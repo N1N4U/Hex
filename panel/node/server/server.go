@@ -124,9 +124,9 @@ func withLogger(h http.Handler) http.Handler {
 		rw := &responseRecorder{ResponseWriter: w, code: 200}
 		h.ServeHTTP(rw, r)
 
-		// Filter out static asset requests (_app/) to avoid console flooding unless there is an error
-		isStaticAsset := strings.HasPrefix(r.URL.Path, "/_app/")
-		if !isStaticAsset || rw.code >= 400 {
+		// Filter out static asset requests (_app/) and frequent ping checks to avoid console flooding unless there is an error
+		isMuted := strings.HasPrefix(r.URL.Path, "/_app/") || r.URL.Path == "/api/v1/ping"
+		if !isMuted || rw.code >= 400 {
 			duration := time.Since(start)
 			if strings.HasPrefix(r.URL.Path, "/api/v1/core/") {
 				logger.Core("%-6s %-32s -> %3d (%v)", r.Method, r.URL.Path, rw.code, duration)

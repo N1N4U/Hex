@@ -133,7 +133,7 @@ export function connect() {
 async function measureSiteApiPing() {
   try {
     const t0 = performance.now();
-    const res = await fetch('/api/v1/config/public', { cache: 'no-store' });
+    const res = await fetch('/api/v1/ping', { cache: 'no-store' });
     if (res.ok) {
       const latency = Math.max(1, Math.round(performance.now() - t0));
       pingStore.update((p) => ({ ...p, siteApiPing: latency }));

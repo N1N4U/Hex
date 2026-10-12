@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { Plus, X, Terminal as TerminalIcon, RefreshCw, Power, PowerOff, Send } from '@lucide/svelte';
+  import { Plus, X, Terminal as TerminalIcon, RefreshCw, Power, PowerOff, Send, ArrowDown } from '@lucide/svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
@@ -39,6 +39,7 @@
 
   let showAddDialog = $state(false);
   let isConnecting = $state(false);
+  let autoScroll = $state(true);
   let quickCmd = $state('');
 
   // Dialog fields
@@ -51,6 +52,9 @@
   let XTermModule: any = null;
   let FitAddonModule: any = null;
   let WebLinksAddonModule: any = null;
+
+  const activeSession = $derived(sessions.find((s) => s.id === activeSessionId));
+  const isAnyConnected = $derived(sessions.some((s) => s.status === 'connected' || s.status === 'connecting'));
 
   onMount(async () => {
     try {
@@ -143,20 +147,21 @@
       ws: null,
       container: containerElements[session.id]
     };
-
-    if (!session.ip) {
-      term.writeln('\x1b[1;36m┌────────────────────────────────────────────────────────────┐\x1b[0m');
-      term.writeln('\x1b[1;36m│\x1b[0m   \x1b[1;32mHex Standalone SSH/SFTP Web Terminal\x1b[0m                     \x1b[1;36m│\x1b[0m');
-      term.writeln('\x1b[1;36m│\x1b[0m   Direct VPS SSH shell powered by Hex Node Proxy           \x1b[1;36m│\x1b[0m');
-      term.writeln('\x1b[1;36m└────────────────────────────────────────────────────────────┘\x1b[0m\r\n');
-      term.writeln('\x1b[90mClick \x1b[1;37m[+]\x1b[90m on the sidebar or \x1b[1;32m[Connect VPS]\x1b[90m to start an SSH session.\x1b[0m\r\n');
-    }
   }
 
   function connectSession(session: TerminalSession) {
     if (!session.ip) {
       handleOpenAdd(session);
       return;
+    }
+
+    // Disconnect any other sessions to enforce: at a time we can only connect to a single terminal
+    for (const other of sessions) {
+      if (other.id !== session.id && (other.status === 'connected' || other.status === 'connecting')) {
+        const otherTerm = activeTerminals[other.id];
+        otherTerm?.ws?.close();
+        other.status = 'disconnected';
+      }
     }
 
     const termItem = activeTerminals[session.id];
@@ -195,6 +200,9 @@
           termItem.xterm.write(ev.data);
         } else {
           termItem.xterm.write(new Uint8Array(ev.data));
+        }
+        if (autoScroll) {
+          termItem.xterm.scrollToBottom();
         }
       };
 
@@ -240,6 +248,11 @@
   }
 
   function handleOpenAdd(existingSession?: TerminalSession) {
+    if (isAnyConnected && !existingSession) {
+      addToast('Please disconnect the current terminal first. Only a single connection is allowed at a time.', 'warning');
+      return;
+    }
+
     if (existingSession && existingSession.ip) {
       newName = existingSession.name;
       newIp = existingSession.ip;
@@ -325,26 +338,44 @@
     }
   }
 
-  function handleClearBuffer() {
+  function handleClear() {
     const active = activeTerminals[activeSessionId];
     if (active?.xterm) {
       active.xterm.clear();
-      addToast('Terminal buffer cleared', 'info');
+      addToast('Terminal cleared', 'info');
     }
   }
 
-  function handleToggleConnection() {
-    const session = sessions.find((s) => s.id === activeSessionId);
-    if (!session) return;
+  function toggleAutoScroll() {
+    autoScroll = !autoScroll;
+    if (autoScroll) {
+      const active = activeTerminals[activeSessionId];
+      if (active?.xterm) {
+        active.xterm.scrollToBottom();
+      }
+      addToast('Auto Scroll enabled', 'info');
+    } else {
+      addToast('Auto Scroll disabled', 'info');
+    }
+  }
 
-    const active = activeTerminals[activeSessionId];
-    if (session.status === 'connected') {
-      active?.ws?.close();
-      session.status = 'disconnected';
-      addToast(`Disconnected ${session.name}`, 'info');
+  function handleConnectHeader() {
+    const session = activeSession;
+    if (!session) return;
+    if (!session.ip) {
+      handleOpenAdd(session);
     } else {
       connectSession(session);
     }
+  }
+
+  function handleDisconnect() {
+    const session = activeSession;
+    if (!session) return;
+    const active = activeTerminals[activeSessionId];
+    active?.ws?.close();
+    session.status = 'disconnected';
+    addToast(`Disconnected ${session.name}`, 'info');
   }
 
   function sendQuickCommand() {
@@ -367,9 +398,33 @@
 </script>
 
 <div class="terminal-page-root">
-  <!-- Top Header matching layout -->
+  <!-- Top Header with Connect button opposite to Web Terminal title -->
   <div class="terminal-header-row">
     <h1 class="page-title">Web Terminal</h1>
+
+    <div class="header-actions">
+      {#if activeSession?.status === 'connected'}
+        <button
+          type="button"
+          class="header-connect-btn is-connected"
+          onclick={handleDisconnect}
+          title="Disconnect active SSH session"
+        >
+          <PowerOff size={14} />
+          <span>Disconnect</span>
+        </button>
+      {:else}
+        <button
+          type="button"
+          class="header-connect-btn"
+          onclick={handleConnectHeader}
+          title="Connect to VPS"
+        >
+          <Power size={14} />
+          <span>Connect</span>
+        </button>
+      {/if}
+    </div>
   </div>
 
   <!-- Two-Column Wireframe Layout -->
@@ -412,46 +467,41 @@
           {/each}
         </div>
 
-        <!-- Add terminal button (+) -->
+        <!-- Add terminal button (+) - disabled if already connected -->
         <button
           type="button"
           class="add-session-btn"
+          class:is-disabled={isAnyConnected}
           onclick={() => handleOpenAdd()}
-          title="Add Terminal Connection"
+          title={isAnyConnected ? 'Disconnect current terminal before creating a new tab' : 'Add Terminal Connection'}
         >
           <Plus size={16} />
         </button>
       </div>
 
-      <!-- Bottom stacked buttons matching wireframe -->
+      <!-- Bottom stacked buttons: Auto Scroll & Clear -->
       <div class="sidebar-bottom">
         <button
           type="button"
           class="sidebar-action-btn"
-          onclick={handleClearBuffer}
-          title="Clear Terminal Screen"
+          class:is-active-toggle={autoScroll}
+          onclick={toggleAutoScroll}
+          title={autoScroll ? 'Auto Scroll: ON (Click to toggle)' : 'Auto Scroll: OFF (Click to toggle)'}
         >
-          <RefreshCw size={13} />
-          <span>Clear Buffer</span>
+          <ArrowDown size={13} />
+          <span>Auto Scroll</span>
+          <span class="toggle-status-dot" class:is-on={autoScroll}></span>
         </button>
 
-        {#each sessions.filter(s => s.id === activeSessionId) as activeSess (activeSess.id)}
-          <button
-            type="button"
-            class="sidebar-action-btn"
-            class:is-danger={activeSess.status === 'connected'}
-            onclick={handleToggleConnection}
-            title={activeSess.status === 'connected' ? 'Disconnect SSH' : 'Connect SSH'}
-          >
-            {#if activeSess.status === 'connected'}
-              <PowerOff size={13} />
-              <span>Disconnect</span>
-            {:else}
-              <Power size={13} />
-              <span>Connect VPS</span>
-            {/if}
-          </button>
-        {/each}
+        <button
+          type="button"
+          class="sidebar-action-btn"
+          onclick={handleClear}
+          title="Clear Terminal Output"
+        >
+          <RefreshCw size={13} />
+          <span>Clear</span>
+        </button>
       </div>
     </div>
 
@@ -467,7 +517,7 @@
         {/each}
       </div>
 
-      <!-- Horizontal bottom bar with command input and send button -->
+      <!-- Horizontal bottom bar with command input and send button (well clear of the floating dock) -->
       <div class="terminal-bottom-bar">
         <input
           type="text"
@@ -569,8 +619,9 @@
   .terminal-page-root {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
     width: 100%;
+    margin-top: -10px; /* Reduced gap between Topbar and Web Terminal */
     user-select: none;
     font-family: var(--font-sans);
   }
@@ -579,6 +630,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: 2px;
   }
 
   .page-title {
@@ -589,12 +641,55 @@
     margin: 0;
   }
 
-  /* Two column container */
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .header-connect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    color: #22c55e;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 150ms ease, border-color 150ms ease, transform 100ms ease;
+  }
+
+  .header-connect-btn:hover {
+    background: rgba(34, 197, 94, 0.22);
+    border-color: rgba(34, 197, 94, 0.55);
+    color: #4ade80;
+  }
+
+  .header-connect-btn:active {
+    transform: scale(0.98);
+  }
+
+  .header-connect-btn.is-connected {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #f87171;
+  }
+
+  .header-connect-btn.is-connected:hover {
+    background: rgba(239, 68, 68, 0.22);
+    border-color: rgba(239, 68, 68, 0.55);
+    color: #fca5a5;
+  }
+
+  /* Two column container with ample clearance above bottom floating dock */
   .terminal-layout {
     display: flex;
     gap: 16px;
-    height: calc(100vh - 165px);
-    min-height: 540px;
+    height: calc(100vh - 250px);
+    min-height: 400px;
     width: 100%;
   }
 
@@ -721,6 +816,12 @@
     color: #ffffff;
   }
 
+  .add-session-btn.is-disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    border-style: solid;
+  }
+
   /* Bottom action buttons in sidebar */
   .sidebar-bottom {
     display: flex;
@@ -753,16 +854,22 @@
     color: #ffffff;
   }
 
-  .sidebar-action-btn.is-danger {
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.25);
-    color: #f87171;
+  .sidebar-action-btn.is-active-toggle {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #4ade80;
   }
 
-  .sidebar-action-btn.is-danger:hover {
-    background: rgba(239, 68, 68, 0.16);
-    border-color: rgba(239, 68, 68, 0.45);
-    color: #fca5a5;
+  .toggle-status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #64748b;
+    margin-left: 2px;
+  }
+
+  .toggle-status-dot.is-on {
+    background: #22c55e;
   }
 
   /* Right Main Panel (bent black glass) */
@@ -791,7 +898,7 @@
     overflow: hidden;
   }
 
-  /* Bottom command bar matching wireframe */
+  /* Bottom command bar positioned comfortably above floating dock */
   .terminal-bottom-bar {
     display: flex;
     align-items: center;

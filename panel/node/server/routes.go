@@ -12,7 +12,7 @@ import (
 
 func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manager) {
 	authH := api.NewAuthHandlers(cfg)
-	nodesH := api.NewNodesHandler()
+	nodesH := api.NewNodesHandler(coreMgr)
 	proxy := api.NewCoreProxy(coreMgr)
 	wsProxy := api.NewWSProxy(coreMgr)
 

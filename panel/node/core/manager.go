@@ -53,6 +53,9 @@ func (m *Manager) Invalidate(nodeID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	delete(m.remoteClients, nodeID)
+	if m.activeNodeID == nodeID {
+		m.activeNodeID = ""
+	}
 }
 
 // GetClient resolves the appropriate *Client for a given node ID, or the default active core.
@@ -62,16 +65,17 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 
 	// 1. If specific nodeID requested:
 	if nodeID != "" {
+		node, err := users.GetNode(nodeID)
+		if err != nil || node == nil {
+			delete(m.remoteClients, nodeID)
+			return nil, fmt.Errorf("node %s not found in database", nodeID)
+		}
 		if c, ok := m.remoteClients[nodeID]; ok && c != nil {
 			return c, nil
 		}
-		node, err := users.GetNode(nodeID)
-		if err != nil || node == nil {
-			return nil, fmt.Errorf("node %s not found in database", nodeID)
-		}
 		c, err := NewRemoteClient(node.Protocol, node.IPAddress, node.Port, node.APIKey)
 		if err != nil {
-			logger.Core("Failed to initialize client for node '%s': %v", node.Name, err)
+			logger.CoreDebug("Failed to initialize client for node '%s': %v", node.Name, err)
 			return nil, err
 		}
 		logger.Core("Initialized client for node '%s' (%s://%s:%d)", node.Name, node.Protocol, node.IPAddress, node.Port)
@@ -81,25 +85,28 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 
 	// 2. If activeNodeID is set and exists:
 	if m.activeNodeID != "" {
-		if c, ok := m.remoteClients[m.activeNodeID]; ok && c != nil {
-			return c, nil
-		}
 		node, err := users.GetNode(m.activeNodeID)
 		if err == nil && node != nil {
+			if c, ok := m.remoteClients[m.activeNodeID]; ok && c != nil {
+				return c, nil
+			}
 			c, err := NewRemoteClient(node.Protocol, node.IPAddress, node.Port, node.APIKey)
 			if err == nil {
 				logger.Core("Initialized client for active node '%s' (%s://%s:%d)", node.Name, node.Protocol, node.IPAddress, node.Port)
 				m.remoteClients[m.activeNodeID] = c
 				return c, nil
 			}
+		} else {
+			delete(m.remoteClients, m.activeNodeID)
+			m.activeNodeID = ""
 		}
 	}
 
 	// 3. Fallback: check all nodes in the database
 	nodes, err := users.ListNodes()
 	if err == nil && len(nodes) > 0 {
-		// Pick the first available node
 		target := nodes[0]
+		m.activeNodeID = target.ID
 		if c, ok := m.remoteClients[target.ID]; ok && c != nil {
 			return c, nil
 		}
@@ -109,6 +116,9 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 			m.remoteClients[target.ID] = c
 			return c, nil
 		}
+	} else {
+		m.remoteClients = make(map[string]*Client)
+		m.activeNodeID = ""
 	}
 
 	// 4. Fallback: local client if connected via socket or HEX_CORE_URL
@@ -123,17 +133,17 @@ func (m *Manager) GetClient(nodeID string) (*Client, error) {
 func (m *Manager) MeasurePings(nodeID string) (int, int, error) {
 	client, err := m.GetClient(nodeID)
 	if err != nil || client == nil {
-		return -1, -1, fmt.Errorf("no core available")
+		return -1, -1, nil
 	}
 
 	baseURL := client.BaseURL()
 	if baseURL == "" {
-		return -1, -1, fmt.Errorf("empty base URL")
+		return -1, -1, nil
 	}
 
-	// 1. Measure API ping
+	// 1. Measure API ping (fast 1.5s timeout)
 	apiMs := -1
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 
 	t0 := time.Now()
@@ -146,51 +156,48 @@ func (m *Manager) MeasurePings(nodeID string) (int, int, error) {
 		}
 	}
 
-	// 2. Measure WS ping
+	// 2. Measure WS ping only if API was reachable
 	wsMs := -1
-	u, err := url.Parse(baseURL)
-	if err == nil {
-		switch u.Scheme {
-		case "http":
-			u.Scheme = "ws"
-		case "https":
-			u.Scheme = "wss"
-		}
-		u.Path = "/ws"
-
-		dialer := websocket.Dialer{
-			HandshakeTimeout: 2 * time.Second,
-			TLSClientConfig:  &tls.Config{InsecureSkipVerify: true},
-		}
-
-		tWs := time.Now()
-		wsConn, _, err := dialer.Dial(u.String(), nil)
+	if apiMs > 0 {
+		u, err := url.Parse(baseURL)
 		if err == nil {
-			defer wsConn.Close()
-			// Send probe auth using JWT or API key
-			token := client.JWT()
-			if token == "" {
-				token = client.APIKey()
+			switch u.Scheme {
+			case "http":
+				u.Scheme = "ws"
+			case "https":
+				u.Scheme = "wss"
 			}
-			authPayload, _ := json.Marshal(map[string]string{"token": token})
-			_ = wsConn.WriteJSON(map[string]interface{}{
-				"id":      "ping_probe",
-				"type":    "auth",
-				"payload": json.RawMessage(authPayload),
-			})
+			u.Path = "/ws"
 
-			_ = wsConn.SetReadDeadline(time.Now().Add(1500 * time.Millisecond))
-			_, _, readErr := wsConn.ReadMessage()
-			if readErr == nil {
-				wsMs = int(time.Since(tWs).Milliseconds())
-				if wsMs == 0 {
-					wsMs = 1
-				}
-			} else {
-				logger.CoreDebug("WS probe read failed for %s: %v", baseURL, readErr)
+			dialer := websocket.Dialer{
+				HandshakeTimeout: 1200 * time.Millisecond,
+				TLSClientConfig:  &tls.Config{InsecureSkipVerify: true},
 			}
-		} else {
-			logger.CoreDebug("WS dial failed for %s: %v", baseURL, err)
+
+			tWs := time.Now()
+			wsConn, _, err := dialer.Dial(u.String(), nil)
+			if err == nil {
+				defer wsConn.Close()
+				token := client.JWT()
+				if token == "" {
+					token = client.APIKey()
+				}
+				authPayload, _ := json.Marshal(map[string]string{"token": token})
+				_ = wsConn.WriteJSON(map[string]interface{}{
+					"id":      "ping_probe",
+					"type":    "auth",
+					"payload": json.RawMessage(authPayload),
+				})
+
+				_ = wsConn.SetReadDeadline(time.Now().Add(1000 * time.Millisecond))
+				_, _, readErr := wsConn.ReadMessage()
+				if readErr == nil {
+					wsMs = int(time.Since(tWs).Milliseconds())
+					if wsMs == 0 {
+						wsMs = 1
+					}
+				}
+			}
 		}
 	}
 

@@ -2,7 +2,7 @@
 
 const BASE = '/api/v1';
 
-async function request<T>(method: string, path: string, body?: unknown, timeoutMs = 3500): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, timeoutMs = 8000): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 

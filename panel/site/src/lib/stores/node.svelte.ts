@@ -47,11 +47,13 @@ export async function loadNodes(): Promise<NodeInfo[]> {
       nodesState = mapped;
       if (mapped.length > 0 && (!activeNodeIdState || !nodesState.some(n => n.id === activeNodeIdState))) {
         activeNodeIdState = mapped[0].id;
+      } else if (mapped.length === 0) {
+        activeNodeIdState = '';
       }
       return mapped;
     }
-  } catch {
-    nodesState = [];
+  } catch (err) {
+    console.warn('Could not load nodes:', err);
   }
   return nodesState;
 }

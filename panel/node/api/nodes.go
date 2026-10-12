@@ -11,13 +11,16 @@ import (
 	"sync"
 	"time"
 
+	hexcore "github.com/N1N4U/Hex/panel/core"
 	"github.com/N1N4U/Hex/panel/users"
 )
 
-type NodesHandler struct{}
+type NodesHandler struct {
+	coreMgr *hexcore.Manager
+}
 
-func NewNodesHandler() *NodesHandler {
-	return &NodesHandler{}
+func NewNodesHandler(coreMgr *hexcore.Manager) *NodesHandler {
+	return &NodesHandler{coreMgr: coreMgr}
 }
 
 // httpClient returns a client configured for core checks, supporting HTTP and HTTPS (with mTLS/custom certs)
@@ -27,7 +30,7 @@ func getCheckClient(protocol string) *http.Client {
 	}
 	return &http.Client{
 		Transport: tr,
-		Timeout:   3 * time.Second,
+		Timeout:   1200 * time.Millisecond,
 	}
 }
 
@@ -40,24 +43,25 @@ func checkCoreHealth(protocol, ip string, port int, apiKey string) string {
 	if apiKey != "" {
 		tokenBody, _ := json.Marshal(map[string]string{"api_key": apiKey})
 		req, err := http.NewRequest(http.MethodPost, baseURL+"/auth/token", bytes.NewReader(tokenBody))
-		if err == nil {
-			req.Header.Set("Content-Type", "application/json")
-			resp, err := client.Do(req)
-			if err == nil {
-				defer resp.Body.Close()
-				if resp.StatusCode == http.StatusOK {
-					return "online"
-				}
-			}
+		if err != nil {
+			return "offline"
 		}
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := client.Do(req)
+		if err != nil {
+			// Host is unreachable / timed out; return immediately
+			return "offline"
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+			return "online"
+		}
+		return "offline"
 	}
 
-	// 2. Fallback: test /health or root
+	// 2. If no API key, test /health
 	req, err := http.NewRequest(http.MethodGet, baseURL+"/health", nil)
 	if err == nil {
-		if apiKey != "" {
-			req.Header.Set("Authorization", "Bearer "+apiKey)
-		}
 		resp, err := client.Do(req)
 		if err == nil {
 			defer resp.Body.Close()
@@ -156,6 +160,13 @@ func (h *NodesHandler) Add(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if h.coreMgr != nil {
+		h.coreMgr.Invalidate(node.ID)
+		if h.coreMgr.ActiveNodeID() == "" {
+			h.coreMgr.SetActiveNodeID(node.ID)
+		}
+	}
+
 	// Redact API key in response
 	node.APIKey = ""
 	w.Header().Set("Content-Type", "application/json")
@@ -178,6 +189,10 @@ func (h *NodesHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	if err := users.DeleteNode(id); err != nil {
 		http.Error(w, "Failed to remove node: "+err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	if h.coreMgr != nil {
+		h.coreMgr.Invalidate(id)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

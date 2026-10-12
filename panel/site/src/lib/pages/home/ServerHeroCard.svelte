@@ -6,7 +6,6 @@
   import { nodeStore } from '$lib/stores/node.svelte';
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
   import { post } from '$lib/api/client';
-  import { connect } from '$lib/ws/client';
   import { onMount } from 'svelte';
   import {
     RotateCw,
@@ -30,7 +29,6 @@
   let confirmAction = $state<'reboot' | 'shutdown' | null>(null);
 
   onMount(() => {
-    connect();
     const updateTime = () => {
       const now = new Date();
       // Remove seconds per spec: HH:MM

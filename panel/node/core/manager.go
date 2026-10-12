@@ -218,6 +218,5 @@ func (m *Manager) MeasurePings(nodeID string) (int, int, error) {
 		wsMs = apiMs + 2
 	}
 
-	logger.CoreDebug("Measured Core latency (%s): API=%dms WS=%dms", baseURL, apiMs, wsMs)
 	return apiMs, wsMs, nil
 }

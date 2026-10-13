@@ -991,7 +991,7 @@
   }
 
   /* Responsive layout for mobile devices */
-  @media (max-width: 768px) {
+  @media (max-width: 860px) {
     .terminal-page-root {
       gap: 10px;
       margin-top: -4px;
@@ -1009,29 +1009,30 @@
 
     /* Stack sidebar as a top control bar above full-width terminal */
     .terminal-layout {
-      flex-direction: column;
-      gap: 8px;
-      height: calc(100vh - 180px);
-      min-height: 360px;
+      flex-direction: column !important;
+      gap: 8px !important;
+      height: calc(100vh - 195px) !important;
+      min-height: 380px !important;
     }
 
     .terminal-sidebar {
-      width: 100%;
-      min-width: 0;
-      flex-direction: row;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 10px;
-      border-radius: 10px;
-      gap: 8px;
+      width: 100% !important;
+      min-width: 0 !important;
+      max-width: 100% !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 8px 10px !important;
+      border-radius: 10px !important;
+      gap: 8px !important;
     }
 
     .sidebar-top {
-      flex-direction: row;
-      align-items: center;
-      gap: 6px;
-      flex: 1;
-      overflow-x: auto;
+      flex-direction: row !important;
+      align-items: center !important;
+      gap: 6px !important;
+      flex: 1 !important;
+      overflow-x: auto !important;
       scrollbar-width: none;
     }
 
@@ -1040,72 +1041,73 @@
     }
 
     .sessions-list {
-      flex-direction: row;
-      gap: 6px;
-      flex-shrink: 0;
+      flex-direction: row !important;
+      gap: 6px !important;
+      flex-shrink: 0 !important;
     }
 
     .session-btn {
-      padding: 5px 10px;
-      height: 32px;
-      border-radius: 6px;
-      flex-shrink: 0;
+      padding: 5px 10px !important;
+      height: 32px !important;
+      border-radius: 6px !important;
+      flex-shrink: 0 !important;
     }
 
     .session-name {
-      font-size: 11.5px;
-      max-width: 75px;
+      font-size: 11.5px !important;
+      max-width: 75px !important;
     }
 
     .add-session-btn {
-      width: 32px;
-      min-width: 32px;
-      height: 32px;
-      border-radius: 6px;
+      width: 32px !important;
+      min-width: 32px !important;
+      height: 32px !important;
+      border-radius: 6px !important;
     }
 
     .sidebar-bottom {
-      flex-direction: row;
-      border-top: none;
-      padding-top: 0;
-      gap: 6px;
-      flex-shrink: 0;
+      flex-direction: row !important;
+      border-top: none !important;
+      padding-top: 0 !important;
+      gap: 6px !important;
+      flex-shrink: 0 !important;
     }
 
     .sidebar-action-btn {
-      width: auto;
-      height: 32px;
-      padding: 0 10px;
-      font-size: 11.5px;
-      border-radius: 6px;
-      white-space: nowrap;
+      width: auto !important;
+      height: 32px !important;
+      padding: 0 10px !important;
+      font-size: 11.5px !important;
+      border-radius: 6px !important;
+      white-space: nowrap !important;
     }
 
     /* Terminal takes 100% full width on mobile */
     .terminal-main {
-      width: 100%;
-      border-radius: 10px;
+      width: 100% !important;
+      flex: 1 !important;
+      border-radius: 10px !important;
     }
 
     .terminal-canvas-wrapper {
-      padding: 6px 8px;
+      padding: 6px 8px !important;
     }
 
     .terminal-bottom-bar {
-      padding: 8px 10px;
-      gap: 8px;
+      padding: 8px 10px !important;
+      gap: 8px !important;
     }
 
     .quick-cmd-input {
-      height: 34px;
-      font-size: 12px;
-      padding: 0 10px;
+      height: 34px !important;
+      font-size: 12px !important;
+      padding: 0 10px !important;
     }
 
     .quick-cmd-send-btn {
-      height: 34px;
-      padding: 0 12px;
-      font-size: 12px;
+      height: 34px !important;
+      padding: 0 12px !important;
+      font-size: 12px !important;
     }
   }
 </style>

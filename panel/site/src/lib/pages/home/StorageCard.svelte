@@ -4,6 +4,8 @@
   import BarChart from '$lib/ui/charts/BarChart.svelte';
   import { stats } from '$lib/stores/core';
 
+  let { onclick }: { onclick?: () => void } = $props();
+
   const used = $derived($stats?.disk_used ?? 0);
   const total = $derived($stats?.disk_total ?? 0);
   const free = $derived(total > 0 ? Math.max(0, total - used) : 0);
@@ -14,27 +16,33 @@
     return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
   }
 
-  // Purely dynamic: only displays real mounts from connected core, no fake /boot/efi
-  const mountItems = $derived(
-    $stats?.partitions && $stats.partitions.length > 0
-      ? $stats.partitions.slice(0, 3).map((p) => ({
-          label: p.mountpoint,
-          used: p.used,
-          total: p.total
-        }))
-      : total > 0
-        ? [
-            {
-              label: '/',
-              used: used,
-              total: total
-            }
-          ]
-        : []
-  );
+  // Display all real partitions from telemetry, filtered of [SWAP], '/' first
+  const mountItems = $derived.by(() => {
+    if ($stats?.partitions && $stats.partitions.length > 0) {
+      const real = $stats.partitions.filter((p) => p.mountpoint !== '[SWAP]');
+      const sorted = [...real].sort((a, b) => {
+        if (a.mountpoint === '/') return -1;
+        if (b.mountpoint === '/') return 1;
+        return a.mountpoint.localeCompare(b.mountpoint);
+      });
+      return sorted.map((p) => ({
+        label: p.mountpoint,
+        used: p.used,
+        total: p.total
+      }));
+    }
+    if (total > 0) {
+      return [{
+        label: '/',
+        used: used,
+        total: total
+      }];
+    }
+    return [];
+  });
 </script>
 
-<Card label="STORAGE" navigable href="/files">
+<Card label="STORAGE" navigable {onclick}>
   <div class="storage-content">
     <div class="storage-header">
       <div class="free-text">

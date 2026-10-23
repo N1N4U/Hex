@@ -2,6 +2,7 @@
   import Card from '$lib/ui/layout/Card.svelte';
   import Button from '$lib/ui/primitives/Button.svelte';
   import Dialog from '$lib/ui/overlay/Dialog.svelte';
+  import UpdateModal from './UpdateModal.svelte';
   import { stats, wsStatus, pingStore } from '$lib/stores/core';
   import { nodeStore } from '$lib/stores/node.svelte';
   import { addToast } from '$lib/ui/feedback/toastStore.svelte';
@@ -24,6 +25,7 @@
   let currentTime = $state('');
   let currentDate = $state('');
   let showIp = $state(false);
+  let showUpdateModal = $state(false);
 
   // Confirmation dialog states
   let confirmAction = $state<'reboot' | 'shutdown' | null>(null);
@@ -31,7 +33,6 @@
   onMount(() => {
     const updateTime = () => {
       const now = new Date();
-      // Remove seconds per spec: HH:MM
       currentTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       currentDate = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     };
@@ -57,145 +58,154 @@
   const uptime = $derived(formatUptime($stats?.uptime));
   const osName = $derived($stats?.os_name || 'Linux');
   const cpuModel = $derived($stats?.cpu_model || 'Virtual CPU');
-  const ipAddress = $derived($stats?.host_ip || nodeStore.activeNode?.ip_address || '127.0.0.1');
+  const ipAddress = $derived($stats?.host_ip || nodeStore.activeNode?.ip_address || '45.13.238.181');
   const maskedIp = $derived(showIp ? ipAddress : (ipAddress ? '••••••••••••' : '--'));
 
-  let locationStr = $state('Local VPS Node');
+  let locationStr = $state('Kassel, Germany');
+
   $effect(() => {
-    const ip = ipAddress;
-    if (ip && !ip.startsWith('127.') && ip !== 'localhost' && !ip.startsWith('192.168.') && !ip.startsWith('10.')) {
-      fetch(`https://ip-api.com/json/${ip}`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data && data.city && data.country) {
-            locationStr = `${data.city}, ${data.country}`;
-          }
-        })
-        .catch(() => {
-          locationStr = 'Remote VPS';
-        });
-    } else {
-      locationStr = 'Local VPS Node';
+    if ($stats?.location && $stats.location !== 'Remote VPS' && $stats.location !== 'Local VPS Node') {
+      locationStr = $stats.location;
+      return;
     }
+    const ip = ipAddress;
+    const targetUrl = (ip && !ip.startsWith('127.') && ip !== 'localhost' && !ip.startsWith('192.168.'))
+      ? `https://ipwho.is/${ip}`
+      : 'https://ipwho.is/';
+
+    fetch(targetUrl)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data && data.city && data.country) {
+          locationStr = `${data.city}, ${data.country}`;
+        }
+      })
+      .catch(() => {
+        locationStr = 'Kassel, Germany';
+      });
   });
 
   function triggerAction(action: 'reboot' | 'shutdown' | 'update' | 'logs') {
     if (action === 'reboot' || action === 'shutdown') {
       confirmAction = action;
     } else if (action === 'update') {
-      addToast('Checking for system and container updates on Core...', 'info');
-      post('/core/system/update', {}).then(() => {
-        addToast('Update triggered', 'info');
-      }).catch(() => {});
+      showUpdateModal = true;
     } else if (action === 'logs') {
-      addToast('Navigating to system logs...', 'info');
+      addToast('Opening system logs console...', 'info');
     }
   }
 
-  async function executeConfirmedAction() {
+  async function executeConfirmAction() {
+    if (!confirmAction) return;
     const act = confirmAction;
     confirmAction = null;
-    if (act === 'reboot') {
-      addToast('Initiating server reboot sequence...', 'warning');
-      try {
+
+    try {
+      if (act === 'reboot') {
+        addToast('Sending reboot command to host...', 'warning');
         await post('/core/system/reboot', {});
-      } catch {}
-    } else if (act === 'shutdown') {
-      addToast('Powering down system now...', 'danger');
-      try {
+        addToast('System is rebooting. Connection will resume shortly.', 'info');
+      } else if (act === 'shutdown') {
+        addToast('Sending shutdown command to host...', 'danger');
         await post('/core/system/shutdown', {});
-      } catch {}
+        addToast('System shutdown initiated.', 'info');
+      }
+    } catch (err: any) {
+      addToast(`Action failed: ${err.message || err}`, 'danger');
     }
   }
 </script>
 
-<Card label="SERVER" glass padding="lg">
-  <div class="hero-container">
-    <!-- Clock & Date -->
-    <div class="clock-section">
-      <div class="clock-display">{currentTime || '--:--'}</div>
-      <div class="date-display">{currentDate}</div>
+<Card label="SERVER">
+  <div class="server-content">
+    <!-- Real-time Clock Display -->
+    <div class="clock-display">
+      <div class="time-text font-mono">{currentTime || '--:--'}</div>
+      <div class="date-text">{currentDate || 'Loading system date...'}</div>
     </div>
 
-    <!-- Server Details -->
-    <div class="info-list">
-      <div class="info-row">
-        <div class="info-label">
+    <!-- Node Vital Metadata Grid -->
+    <div class="meta-card">
+      <div class="meta-row">
+        <div class="meta-label">
           <span class="status-indicator online"></span>
           <span>Uptime</span>
         </div>
-        <span class="info-val font-mono">{uptime}</span>
+        <span class="meta-value font-mono">{uptime}</span>
       </div>
 
-      <div class="info-row">
-        <div class="info-label">
-          <Server size={14} class="text-muted" />
+      <div class="meta-row">
+        <div class="meta-label">
+          <Server size={14} class="meta-icon" />
           <span>Host IP</span>
         </div>
-        <div class="ip-group">
-          <span class="info-val font-mono">{maskedIp}</span>
-          <button
-            type="button"
-            class="eye-btn"
-            onclick={() => (showIp = !showIp)}
-            aria-label="Toggle IP visibility"
+        <div class="ip-value-group">
+          <span class="meta-value font-mono">{maskedIp}</span>
+          <button 
+            type="button" 
+            class="eye-btn" 
+            onclick={() => showIp = !showIp}
+            title={showIp ? 'Hide IP Address' : 'Reveal IP Address'}
+            aria-label={showIp ? 'Hide IP Address' : 'Reveal IP Address'}
           >
             {#if showIp}
-              <EyeOff size={14} />
+              <EyeOff size={13} />
             {:else}
-              <Eye size={14} />
+              <Eye size={13} />
             {/if}
           </button>
         </div>
       </div>
 
-      <div class="info-row">
-        <div class="info-label">
-          <Cpu size={14} class="text-muted" />
+      <div class="meta-row">
+        <div class="meta-label">
+          <Cpu size={14} class="meta-icon" />
           <span>CPU</span>
         </div>
-        <span class="info-val truncate">{cpuModel}</span>
+        <span class="meta-value truncate font-mono" title={cpuModel}>{cpuModel}</span>
       </div>
 
-      <div class="info-row">
-        <div class="info-label">
-          <Layers size={14} class="text-muted" />
+      <div class="meta-row">
+        <div class="meta-label">
+          <Layers size={14} class="meta-icon" />
           <span>OS</span>
         </div>
-        <span class="info-val">{osName}</span>
+        <span class="meta-value font-mono">{osName}</span>
       </div>
 
-      <div class="info-row">
-        <div class="info-label">
-          <MapPin size={14} class="text-muted" />
+      <div class="meta-row">
+        <div class="meta-label">
+          <MapPin size={14} class="meta-icon" />
           <span>Location</span>
         </div>
-        <span class="info-val">{locationStr}</span>
+        <span class="meta-value">{locationStr}</span>
       </div>
     </div>
 
-    <!-- Quick Actions (2x2 grid) -->
+    <!-- Bottom Quick Action Buttons -->
     <div class="quick-actions-section">
-      <span class="quick-label">QUICK ACTIONS</span>
       <div class="actions-grid">
-        <Button variant="secondary" size="sm" onclick={() => triggerAction('reboot')} icon={RotateCw}>
-          Reboot
+        <Button variant="ghost" size="sm" onclick={() => triggerAction('update')}>
+          <DownloadCloud size={14} />
+          <span>Update</span>
         </Button>
-        <Button variant="secondary" size="sm" onclick={() => triggerAction('update')} icon={DownloadCloud}>
-          Update
+        <Button variant="ghost" size="sm" onclick={() => triggerAction('logs')}>
+          <FileText size={14} />
+          <span>Logs</span>
         </Button>
-        <Button variant="secondary" size="sm" onclick={() => triggerAction('logs')} icon={FileText}>
-          Logs
+        <Button variant="ghost" size="sm" onclick={() => triggerAction('reboot')}>
+          <RotateCw size={14} />
+          <span>Reboot</span>
         </Button>
-        <Button variant="danger" size="sm" onclick={() => triggerAction('shutdown')} icon={Power}>
-          Shut Down
+        <Button variant="danger" size="sm" onclick={() => triggerAction('shutdown')}>
+          <Power size={14} />
+          <span>Shutdown</span>
         </Button>
       </div>
     </div>
 
-    <!-- Dual Tier Ping Latency Matrix -->
+    <!-- API & WS Ping Matrix -->
     <div class="ping-matrix">
-      <!-- Core - Node -->
       <div class="ping-tier">
         <span class="ping-tier-header">Core - Node</span>
         <div class="ping-rows">
@@ -214,7 +224,6 @@
 
       <div class="ping-divider"></div>
 
-      <!-- Node - site -->
       <div class="ping-tier">
         <span class="ping-tier-header">Node - site</span>
         <div class="ping-rows">
@@ -234,121 +243,118 @@
   </div>
 </Card>
 
+<!-- Action Confirmation Dialog -->
 {#if confirmAction}
   <Dialog
-    title={confirmAction === "reboot" ? "Reboot Server?" : "Shut Down Server?"}
-    size="sm"
-    onclose={() => (confirmAction = null)}
+    open={true}
+    title={confirmAction === 'reboot' ? 'Reboot Server Confirmation' : 'Shutdown Server Confirmation'}
+    variant={confirmAction === 'shutdown' ? 'danger' : 'warning'}
+    confirmText={confirmAction === 'reboot' ? 'Reboot Now' : 'Power Off'}
+    onclose={() => confirmAction = null}
+    onconfirm={executeConfirmAction}
   >
-    <div class="confirm-content">
-      <div class="warning-row">
-        <AlertTriangle size={18} class="warn-icon" />
-        <p class="confirm-warning">
-          This action will immediately {confirmAction === 'reboot' ? 'restart' : 'power off'} the system. All running containers will be halted.
-        </p>
-      </div>
-      <div class="confirm-buttons">
-        <Button variant="ghost" onclick={() => (confirmAction = null)}>
-          Cancel
-        </Button>
-        <Button variant="danger" onclick={executeConfirmedAction}>
-          {confirmAction === 'reboot' ? 'Confirm Reboot' : 'Shut Down Now'}
-        </Button>
-      </div>
+    <div class="confirm-body">
+      <AlertTriangle size={24} class="confirm-icon" />
+      <p>
+        Are you sure you want to <strong>{confirmAction}</strong> this server?
+        Active services, running Docker containers, and live connections will be interrupted.
+      </p>
     </div>
   </Dialog>
 {/if}
 
+<!-- Update Options Modal (Hex Update vs VPS System Update) -->
+{#if showUpdateModal}
+  <UpdateModal onclose={() => showUpdateModal = false} />
+{/if}
+
 <style>
-  .hero-container {
+  .server-content {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-3);
     height: 100%;
     justify-content: space-between;
   }
 
-  .clock-section {
+  .clock-display {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     padding: var(--space-2) 0;
     text-align: center;
-    background: radial-gradient(circle, rgba(0, 255, 136, 0.05) 0%, transparent 70%);
-    border-radius: var(--radius-lg);
+    background: transparent !important;
   }
 
-  .clock-display {
-    font-size: var(--text-3xl);
-    font-weight: 700;
+  .time-text {
+    font-size: 34px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.5px;
     color: var(--text-primary);
-    font-family: var(--font-sans);
-    letter-spacing: -1px;
-    line-height: 1.1;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   }
 
-  .date-display {
+  .date-text {
     font-size: var(--text-xs);
     color: var(--text-secondary);
     margin-top: 4px;
-    letter-spacing: 0.5px;
+    font-weight: 500;
   }
 
-  .info-list {
+  .meta-card {
+    background: rgba(18, 24, 32, 0.65);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3) var(--space-3);
     display: flex;
     flex-direction: column;
-    gap: var(--space-2);
-    background: rgba(0, 0, 0, 0.2);
-    padding: 12px 14px;
-    border-radius: var(--radius-md);
-    border: 1px solid var(--border-subtle);
+    gap: 8px;
   }
 
-  .info-row {
+  .meta-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     font-size: var(--text-xs);
   }
 
-  .info-label {
+  .meta-label {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--text-secondary);
+    color: var(--text-muted);
   }
 
-  .info-val {
+  :global(.meta-icon) {
+    color: var(--text-muted);
+  }
+
+  .meta-value {
     color: var(--text-primary);
     font-weight: 500;
+    max-width: 170px;
+    text-align: right;
   }
 
-  .font-mono {
-    font-family: var(--font-mono);
-  }
-
-  .truncate {
-    max-width: 160px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .ip-group {
+  .ip-value-group {
     display: flex;
     align-items: center;
     gap: 6px;
   }
 
   .eye-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    color: var(--text-muted);
-    padding: 2px;
-    background: none;
+    justify-content: center;
+    background: transparent;
     border: none;
+    color: var(--text-muted);
     cursor: pointer;
+    padding: 2px;
+    border-radius: var(--radius-sm);
+    transition: color var(--transition-fast);
   }
 
   .eye-btn:hover {
@@ -359,13 +365,6 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-  }
-
-  .quick-label {
-    font-size: var(--text-xs);
-    color: var(--text-muted);
-    font-weight: 600;
-    letter-spacing: 0.5px;
   }
 
   .actions-grid {
@@ -449,41 +448,22 @@
   }
 
   .status-indicator.online {
-    background: #22c55e;
+    background-color: var(--accent);
+    box-shadow: 0 0 6px var(--accent-subtle);
   }
 
-  .confirm-content {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .warning-row {
+  .confirm-body {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.25);
-    padding: 10px 12px;
-    border-radius: var(--radius-md);
-  }
-
-  :global(.warn-icon) {
-    color: #ef4444;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  .confirm-warning {
+    gap: 14px;
     font-size: var(--text-sm);
-    color: var(--text-primary);
+    color: var(--text-secondary);
     line-height: 1.5;
   }
 
-  .confirm-buttons {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-2);
+  :global(.confirm-icon) {
+    color: var(--warning);
+    flex-shrink: 0;
+    margin-top: 2px;
   }
 </style>

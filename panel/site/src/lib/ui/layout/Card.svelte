@@ -8,6 +8,7 @@
     href = '',
     padding = 'md',
     glass = false,
+    onclick,
     children
   }: {
     label?: string;
@@ -15,22 +16,42 @@
     href?: string;
     padding?: 'sm' | 'md' | 'lg';
     glass?: boolean;
+    onclick?: (e: MouseEvent) => void;
     children?: Snippet;
   } = $props();
+
+  function handleCardClick(e: MouseEvent) {
+    if (onclick) {
+      onclick(e);
+    }
+  }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (onclick && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      onclick(e as any);
+    }
+  }
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="card {padding}"
   class:glass-card={glass}
-  class:is-navigable={navigable}
+  class:is-navigable={navigable || !!onclick}
+  class:is-clickable={!!onclick}
+  onclick={handleCardClick}
+  onkeydown={handleKeydown}
+  role={onclick ? 'button' : undefined}
+  tabindex={onclick ? 0 : undefined}
 >
-  {#if label || navigable}
+  {#if label || navigable || onclick}
     <div class="card-header">
       {#if label}
         <span class="card-label">{label}</span>
       {/if}
-      {#if navigable}
-        {#if href}
+      {#if navigable || onclick}
+        {#if href && !onclick}
           <a {href} class="nav-arrow" aria-label="Go to {label}">
             <ChevronRight size={16} />
           </a>
@@ -69,7 +90,11 @@
     box-shadow: none;
   }
 
-  .is-navigable:hover {
+  .is-clickable {
+    cursor: pointer;
+  }
+
+  .is-navigable:hover, .is-clickable:hover {
     border-color: rgba(255, 255, 255, 0.22);
     box-shadow: none;
   }

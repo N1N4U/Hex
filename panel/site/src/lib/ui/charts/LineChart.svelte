@@ -1,10 +1,11 @@
 <script lang="ts">
   let {
     series = [],
-    maxPoints = 60,
-    height = 80,
+    maxPoints = 30,
+    height = 120,
     showGrid = true,
-    showLegend = false
+    showLegend = true,
+    formatY
   }: {
     series: Array<{
       name: string;
@@ -15,16 +16,27 @@
     height?: number;
     showGrid?: boolean;
     showLegend?: boolean;
+    formatY?: (val: number) => string;
   } = $props();
 
-  const width = 300; // SVG coordinate width
+  const width = 360;
 
-  // Compute global max for scaling
-  const maxValue = $derived(() => {
-    let max = 1;
+  function defaultFormat(val: number): string {
+    if (formatY) return formatY(val);
+    if (val <= 0) return '0 B/s';
+    if (val < 1024) return Math.round(val) + ' B/s';
+    if (val < 1024 * 1024) return (val / 1024).toFixed(1) + ' KB/s';
+    return (val / (1024 * 1024)).toFixed(1) + ' MB/s';
+  }
+
+  // Derive maximum value from current series data
+  const peakValue = $derived.by(() => {
+    let max = 1024; // baseline 1 KB/s minimum scale
     for (const s of series) {
-      for (const v of s.data) {
-        if (v > max) max = v;
+      if (s.data) {
+        for (const v of s.data) {
+          if (typeof v === 'number' && v > max) max = v;
+        }
       }
     }
     return max * 1.15; // 15% headroom
@@ -39,7 +51,8 @@
 
     const coords = pts.map((val, i) => {
       const x = i * stepX;
-      const y = height - (val / max) * (height - 8) - 4;
+      const safeVal = Math.max(0, val || 0);
+      const y = height - (safeVal / max) * (height - 18) - 6;
       return [x, Math.max(4, Math.min(height - 4, y))];
     });
 
@@ -68,52 +81,66 @@
 </script>
 
 <div class="line-chart-container">
-  <svg
-    viewBox="0 0 {width} {height}"
-    preserveAspectRatio="none"
-    class="line-chart-svg"
-    style="height: {height}px;"
-  >
-    <defs>
+  <div class="chart-wrapper">
+    <!-- SVG Chart Canvas -->
+    <svg
+      viewBox="0 0 {width} {height}"
+      preserveAspectRatio="none"
+      class="line-chart-svg"
+      style="height: {height}px;"
+    >
+      <defs>
+        {#each series as s, idx}
+          <linearGradient id="chart-grad-{idx}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color={s.color} stop-opacity="0.25" />
+            <stop offset="100%" stop-color={s.color} stop-opacity="0.0" />
+          </linearGradient>
+        {/each}
+      </defs>
+
+      {#if showGrid}
+        <!-- Grid lines across width -->
+        <line x1="0" y1={height * 0.12} x2={width} y2={height * 0.12} stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3 3" />
+        <line x1="0" y1={height * 0.52} x2={width} y2={height * 0.52} stroke="rgba(255,255,255,0.06)" stroke-width="1" stroke-dasharray="3 3" />
+        <line x1="0" y1={height - 2} x2={width} y2={height - 2} stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      {/if}
+
       {#each series as s, idx}
-        <linearGradient id="grad-{idx}" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color={s.color} stop-opacity="0.18" />
-          <stop offset="100%" stop-color={s.color} stop-opacity="0.0" />
-        </linearGradient>
+        {@const pathData = getBezierPath(s.data, peakValue)}
+        {#if pathData.area}
+          <path d={pathData.area} fill="url(#chart-grad-{idx})" />
+        {/if}
+        {#if pathData.line}
+          <path
+            d={pathData.line}
+            fill="none"
+            stroke={s.color}
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        {/if}
       {/each}
-    </defs>
+    </svg>
 
+    <!-- Overlay Grid Labels: Clean, right-aligned, sleek typography without clunky box backgrounds -->
     {#if showGrid}
-      <line x1="0" y1={height * 0.25} x2={width} y2={height * 0.25} stroke="var(--chart-grid)" stroke-width="1" />
-      <line x1="0" y1={height * 0.50} x2={width} y2={height * 0.50} stroke="var(--chart-grid)" stroke-width="1" />
-      <line x1="0" y1={height * 0.75} x2={width} y2={height * 0.75} stroke="var(--chart-grid)" stroke-width="1" />
+      <div class="grid-labels">
+        <span class="y-label top">{defaultFormat(peakValue)}</span>
+        <span class="y-label mid">{defaultFormat(peakValue * 0.5)}</span>
+        <span class="y-label btm">0 B/s</span>
+      </div>
     {/if}
-
-    {#each series as s, idx}
-      {@const max = maxValue()}
-      {@const pathData = getBezierPath(s.data, max)}
-      {#if pathData.area}
-        <path d={pathData.area} fill="url(#grad-{idx})" />
-      {/if}
-      {#if pathData.line}
-        <path
-          d={pathData.line}
-          fill="none"
-          stroke={s.color}
-          stroke-width="1.8"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      {/if}
-    {/each}
-  </svg>
+  </div>
 
   {#if showLegend}
     <div class="chart-legend">
       {#each series as s}
+        {@const latestVal = s.data && s.data.length > 0 ? s.data[s.data.length - 1] : 0}
         <div class="legend-item">
           <span class="legend-dot" style="background-color: {s.color};"></span>
           <span class="legend-label">{s.name}</span>
+          <span class="legend-val font-mono" style="color: {s.color};">{defaultFormat(latestVal)}</span>
         </div>
       {/each}
     </div>
@@ -125,19 +152,50 @@
     display: flex;
     flex-direction: column;
     width: 100%;
+    position: relative;
+    user-select: none;
+  }
+
+  .chart-wrapper {
+    position: relative;
+    width: 100%;
     overflow: hidden;
+    border-radius: var(--radius-sm);
   }
 
   .line-chart-svg {
     width: 100%;
+    display: block;
     overflow: visible;
+  }
+
+  .grid-labels {
+    position: absolute;
+    top: 2px;
+    right: 8px;
+    bottom: 4px;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .y-label {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: rgba(255, 255, 255, 0.32);
+    background: transparent;
+    padding: 0;
+    line-height: 1;
+    font-weight: 500;
   }
 
   .chart-legend {
     display: flex;
     align-items: center;
-    gap: var(--space-4);
-    margin-top: var(--space-2);
+    justify-content: space-between;
+    padding-top: var(--space-2);
   }
 
   .legend-item {
@@ -145,12 +203,20 @@
     align-items: center;
     gap: 6px;
     font-size: var(--text-xs);
-    color: var(--text-secondary);
   }
 
   .legend-dot {
     width: 6px;
     height: 6px;
     border-radius: 50%;
+  }
+
+  .legend-label {
+    color: var(--text-secondary);
+  }
+
+  .legend-val {
+    font-size: 11px;
+    font-weight: 600;
   }
 </style>

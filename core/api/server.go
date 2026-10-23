@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/N1N4U/Hex/core/auth"
-	"github.com/N1N4U/Hex/core/preset"
 	"github.com/N1N4U/Hex/core/database"
 	"github.com/N1N4U/Hex/core/deployments"
 	"github.com/N1N4U/Hex/core/docker"
@@ -24,6 +23,7 @@ import (
 	"github.com/N1N4U/Hex/core/firewall"
 	"github.com/N1N4U/Hex/core/monitor"
 	"github.com/N1N4U/Hex/core/network"
+	"github.com/N1N4U/Hex/core/preset"
 	"github.com/N1N4U/Hex/core/proxy"
 	"github.com/N1N4U/Hex/core/security"
 	"github.com/N1N4U/Hex/core/system"
@@ -408,7 +408,7 @@ func NewServer(port int) *Server {
 			http.Error(w, "Docker not available", http.StatusInternalServerError)
 			return
 		}
-		
+
 		switch r.Method {
 		case http.MethodGet:
 			images, err := dockerClient.ListImages()
@@ -418,7 +418,7 @@ func NewServer(port int) *Server {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(images)
-			
+
 		case http.MethodDelete:
 			id := r.URL.Query().Get("id")
 			if err := dockerClient.DeleteImage(id); err != nil {
@@ -427,7 +427,7 @@ func NewServer(port int) *Server {
 			}
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"success": true}`))
-			
+
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -438,7 +438,7 @@ func NewServer(port int) *Server {
 			http.Error(w, "Docker not available", http.StatusInternalServerError)
 			return
 		}
-		
+
 		switch r.Method {
 		case http.MethodGet:
 			networks, err := dockerClient.ListNetworks()
@@ -448,7 +448,7 @@ func NewServer(port int) *Server {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(networks)
-			
+
 		case http.MethodDelete:
 			id := r.URL.Query().Get("id")
 			if err := dockerClient.DeleteNetwork(id); err != nil {
@@ -457,7 +457,7 @@ func NewServer(port int) *Server {
 			}
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"success": true}`))
-			
+
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -468,7 +468,7 @@ func NewServer(port int) *Server {
 			http.Error(w, "Docker not available", http.StatusInternalServerError)
 			return
 		}
-		
+
 		switch r.Method {
 		case http.MethodGet:
 			volumes, err := dockerClient.ListVolumes()
@@ -478,7 +478,7 @@ func NewServer(port int) *Server {
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(volumes)
-			
+
 		case http.MethodDelete:
 			id := r.URL.Query().Get("id")
 			if err := dockerClient.DeleteVolume(id); err != nil {
@@ -487,7 +487,7 @@ func NewServer(port int) *Server {
 			}
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"success": true}`))
-			
+
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -499,7 +499,7 @@ func NewServer(port int) *Server {
 			http.Error(w, "dir is required", http.StatusBadRequest)
 			return
 		}
-		
+
 		switch r.Method {
 		case http.MethodPost:
 			out, err := docker.ComposeUp(dir)
@@ -508,7 +508,7 @@ func NewServer(port int) *Server {
 				return
 			}
 			w.Write([]byte(out))
-			
+
 		case http.MethodDelete:
 			out, err := docker.ComposeDown(dir)
 			if err != nil {
@@ -516,7 +516,7 @@ func NewServer(port int) *Server {
 				return
 			}
 			w.Write([]byte(out))
-			
+
 		case http.MethodGet:
 			out, err := docker.ComposeLogs(dir)
 			if err != nil {
@@ -524,7 +524,7 @@ func NewServer(port int) *Server {
 				return
 			}
 			w.Write([]byte(out))
-			
+
 		default:
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -560,7 +560,8 @@ func NewServer(port int) *Server {
 				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
 				return
 			}
-			w.Write([]byte(out))
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "output": out})
 		}
 	}))
 
@@ -599,11 +600,16 @@ func NewServer(port int) *Server {
 		if r.Method == http.MethodPost {
 			var err error
 			switch action {
-			case "start": err = system.StartService(service)
-			case "stop": err = system.StopService(service)
-			case "restart": err = system.RestartService(service)
-			case "enable": err = system.EnableService(service)
-			case "disable": err = system.DisableService(service)
+			case "start":
+				err = system.StartService(service)
+			case "stop":
+				err = system.StopService(service)
+			case "restart":
+				err = system.RestartService(service)
+			case "enable":
+				err = system.EnableService(service)
+			case "disable":
+				err = system.DisableService(service)
 			}
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -635,10 +641,14 @@ func NewServer(port int) *Server {
 			var out string
 			var err error
 			switch action {
-			case "allow": out, err = firewallMgr.AllowPort(portStr)
-			case "deny": out, err = firewallMgr.DenyPort(portStr)
-			case "enable": out, err = firewallMgr.Enable()
-			case "disable": out, err = firewallMgr.Disable()
+			case "allow":
+				out, err = firewallMgr.AllowPort(portStr)
+			case "deny":
+				out, err = firewallMgr.DenyPort(portStr)
+			case "enable":
+				out, err = firewallMgr.Enable()
+			case "disable":
+				out, err = firewallMgr.Disable()
 			}
 			if err != nil {
 				http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
@@ -704,9 +714,12 @@ func NewServer(port int) *Server {
 		var out string
 		var err error
 		switch action {
-		case "ping": out, err = network.Ping(host)
-		case "traceroute": out, err = network.Traceroute(host)
-		case "ports": out, err = network.OpenPorts()
+		case "ping":
+			out, err = network.Ping(host)
+		case "traceroute":
+			out, err = network.Traceroute(host)
+		case "ports":
+			out, err = network.OpenPorts()
 		}
 		if err != nil {
 			http.Error(w, out+"\n"+err.Error(), http.StatusInternalServerError)
@@ -721,9 +734,12 @@ func NewServer(port int) *Server {
 		var out string
 		var err error
 		switch logType {
-		case "journal": out, err = system.GetJournalLogs()
-		case "auth": out, err = system.GetAuthLogs()
-		case "syslog": out, err = system.GetSyslog()
+		case "journal":
+			out, err = system.GetJournalLogs()
+		case "auth":
+			out, err = system.GetAuthLogs()
+		case "syslog":
+			out, err = system.GetSyslog()
 		default:
 			http.Error(w, "invalid log type", http.StatusBadRequest)
 			return
@@ -739,7 +755,7 @@ func NewServer(port int) *Server {
 		action := r.URL.Query().Get("action")
 		target := r.URL.Query().Get("target")
 		name := r.URL.Query().Get("name")
-		
+
 		if r.Method == http.MethodPost {
 			var out string
 			var err error
@@ -782,7 +798,7 @@ func NewServer(port int) *Server {
 				http.Error(w, "name is required", http.StatusBadRequest)
 				return
 			}
-			
+
 			if err := proxyMgr.DeleteProxy(name); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
@@ -793,7 +809,7 @@ func NewServer(port int) *Server {
 			w.Write([]byte(`{"success": true}`))
 			return
 		}
-		
+
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
@@ -802,7 +818,7 @@ func NewServer(port int) *Server {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		
+
 		var req deployments.DeploymentRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -861,21 +877,19 @@ func NewServer(port int) *Server {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}))
 
-
-
 	mux.HandleFunc("/docker/containers", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if dockerClient == nil {
 			http.Error(w, "Docker not available", http.StatusInternalServerError)
 			return
 		}
-		
+
 		if r.Method == http.MethodGet {
 			containers, err := dockerClient.ListContainers(r.Context())
 			if err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
 			}
-			
+
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(containers)
 			return
@@ -938,14 +952,7 @@ func NewServer(port int) *Server {
 	}))
 
 	mux.HandleFunc("/docker/logs", func(w http.ResponseWriter, r *http.Request) {
-		// Needs to bypass standard AuthMiddleware if using WebSockets directly,
-		// but since we will stream via SSE (Server-Sent Events) for simplicity right now:
-		
-		// Wait, let's just do a normal request that streams.
-		// For simplicity, we just use auth.Middleware but we handle it directly here if we want to bypass:
-		// Let's assume standard auth for SSE works if we pass token in URL.
 		token := r.URL.Query().Get("token")
-		// (Mock token validation for logs endpoint)
 		_ = token
 
 		if dockerClient == nil {
@@ -1015,16 +1022,91 @@ func NewServer(port int) *Server {
 		json.NewEncoder(w).Encode(map[string]bool{"success": true})
 	}))
 
+	mux.HandleFunc("/docker/clean", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		action := r.URL.Query().Get("action")
+		var out []byte
+		var err error
+		switch action {
+		case "builder_prune":
+			out, err = exec.Command("docker", "builder", "prune", "-af").CombinedOutput()
+		case "image_prune":
+			out, err = exec.Command("docker", "image", "prune", "-f").CombinedOutput()
+		case "network_prune":
+			out, err = exec.Command("docker", "network", "prune", "-f").CombinedOutput()
+		case "builder_prune_all":
+			out, err = exec.Command("docker", "builder", "prune", "-a", "-f").CombinedOutput()
+		default:
+			http.Error(w, "Invalid action", http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, string(out)+"\n"+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "output": string(out)})
+	}))
+
+	mux.HandleFunc("/system/clean", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		action := r.URL.Query().Get("action")
+		timeArg := r.URL.Query().Get("time")
+		if timeArg == "" {
+			timeArg = "3d"
+		}
+		var out []byte
+		var err error
+		switch action {
+		case "apt_clean":
+			out, err = exec.Command("apt-get", "clean").CombinedOutput()
+		case "apt_autoremove":
+			out, err = exec.Command("apt-get", "autoremove", "-y").CombinedOutput()
+		case "apt_autoclean":
+			out, err = exec.Command("apt-get", "autoclean").CombinedOutput()
+		case "journal_vacuum":
+			out, err = exec.Command("journalctl", "--vacuum-time="+timeArg).CombinedOutput()
+		case "hex_core_log":
+			out, err = exec.Command("sh", "-c", "truncate -s 0 /var/log/hex-core.log /var/lib/hex/core.log /var/log/hex/core.log 2>/dev/null || true").CombinedOutput()
+		case "hex_panel_log":
+			out, err = exec.Command("sh", "-c", "truncate -s 0 /var/log/hex-panel.log /var/lib/hex/panel.log /var/log/hex/panel.log 2>/dev/null || true").CombinedOutput()
+		default:
+			http.Error(w, "Invalid action", http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			http.Error(w, string(out)+"\n"+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "output": string(out)})
+	}))
+
 	mux.HandleFunc("/system/update", auth.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		target := r.URL.Query().Get("target")
+		w.Header().Set("Content-Type", "application/json")
+		if target == "vps" {
+			go func() {
+				exec.Command("sh", "-c", "apt-get update && apt-get upgrade -y").Run()
+			}()
+			json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "target": "vps", "message": "VPS apt upgrade initiated"})
+			return
+		}
 		go func() {
-			time.Sleep(2 * time.Second)
+			time.Sleep(1 * time.Second)
 			exec.Command("hex", "update").Run()
 		}()
-		json.NewEncoder(w).Encode(map[string]bool{"success": true})
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "target": "hex", "message": "Hex core update initiated"})
 	}))
 
 	// --- Presets API ---
@@ -1101,13 +1183,13 @@ func (s *Server) Start() error {
 	s.srv = &http.Server{Handler: s.mux}
 
 	tlsListener := tls.NewListener(tlsL, tlsConfig)
-	
+
 	go func() {
 		if err := s.tlsServer.Serve(tlsListener); err != nil && err != http.ErrServerClosed {
 			log.Printf("TLS Server error: %v", err)
 		}
 	}()
-	
+
 	go func() {
 		if err := s.srv.Serve(httpL); err != nil && err != http.ErrServerClosed {
 			log.Printf("HTTP Server error: %v", err)
@@ -1139,7 +1221,7 @@ func (s *Server) Start() error {
 func (s *Server) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	if s.tlsServer != nil {
 		s.tlsServer.Shutdown(ctx)
 	}

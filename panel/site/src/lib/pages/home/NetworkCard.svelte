@@ -4,6 +4,8 @@
   import { stats } from '$lib/stores/core';
   import { untrack } from 'svelte';
 
+  let { onclick } = $props<{ onclick?: () => void }>();
+
   let downHistory = $state<number[]>(new Array(30).fill(0));
   let upHistory = $state<number[]>(new Array(30).fill(0));
 
@@ -39,10 +41,11 @@
   }
 </script>
 
-<Card label="NETWORK" navigable href="/home">
+<Card label="NETWORK" navigable {onclick}>
   <div class="network-content">
     <div class="chart-area">
-      <LineChart series={chartSeries} height={90} />
+      <!-- Increased height for clearer visibility -->
+      <LineChart series={chartSeries} height={125} showLegend={false} />
     </div>
 
     <div class="network-stats-grid">
@@ -66,11 +69,18 @@
   .network-content {
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    justify-content: space-between;
+    height: 100%;
+    min-height: 170px;
+    gap: var(--space-3);
   }
 
   .chart-area {
     width: 100%;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .network-stats-grid {
@@ -79,11 +89,14 @@
     gap: var(--space-2);
     padding-top: var(--space-2);
     border-top: 1px solid var(--border-subtle);
+    margin-top: auto;
   }
 
   .stat-col {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    text-align: center;
     gap: 2px;
   }
 
@@ -91,12 +104,14 @@
     font-size: var(--text-xs);
     color: var(--text-muted);
     font-weight: 600;
+    text-align: center;
   }
 
   .stat-val {
     font-size: var(--text-sm);
     font-family: var(--font-mono);
     font-weight: 600;
+    text-align: center;
   }
 
   .val-amber { color: var(--amber); }

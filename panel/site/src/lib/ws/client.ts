@@ -79,7 +79,19 @@ export function connect() {
       // Handle Telemetry Update from Core
       if (msg.type === 'stats.update' || msg.type === 'stats') {
         const payload = msg.payload || msg.data || msg;
-        stats.set(payload);
+        stats.update((prev) => {
+          if (!prev) return payload;
+          return {
+            ...prev,
+            ...payload,
+            partitions: (payload.partitions && payload.partitions.length > 0) ? payload.partitions : prev.partitions,
+            docker_images_size: payload.docker_images_size !== undefined && payload.docker_images_size !== 0 ? payload.docker_images_size : prev.docker_images_size,
+            docker_logs_size: payload.docker_logs_size !== undefined && payload.docker_logs_size !== 0 ? payload.docker_logs_size : prev.docker_logs_size,
+            docker_storage_size: payload.docker_storage_size !== undefined && payload.docker_storage_size !== 0 ? payload.docker_storage_size : prev.docker_storage_size,
+            location: payload.location || prev.location,
+            top_processes: (payload.top_processes && payload.top_processes.length > 0) ? payload.top_processes : prev.top_processes,
+          };
+        });
         emit('stats.update', payload);
         emit('stats', payload);
         return;
@@ -92,10 +104,10 @@ export function connect() {
           if (!prev) return prev;
           return {
             ...prev,
-            partitions: storagePayload.partitions || prev.partitions,
-            docker_images_size: storagePayload.docker_images_size,
-            docker_logs_size: storagePayload.docker_logs_size,
-            docker_storage_size: storagePayload.docker_storage_size,
+            partitions: (storagePayload.partitions && storagePayload.partitions.length > 0) ? storagePayload.partitions : prev.partitions,
+            docker_images_size: storagePayload.docker_images_size ?? prev.docker_images_size,
+            docker_logs_size: storagePayload.docker_logs_size ?? prev.docker_logs_size,
+            docker_storage_size: storagePayload.docker_storage_size ?? prev.docker_storage_size,
           };
         });
         emit('storage.update', storagePayload);

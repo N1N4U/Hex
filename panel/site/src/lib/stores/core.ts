@@ -1,3 +1,13 @@
+export interface ProcessStat {
+  pid: number;
+  name: string;
+  user: string;
+  time_plus: string;
+  cpu_percent: number;
+  memory_bytes: number;
+  swap_bytes?: number;
+}
+
 import { writable } from "svelte/store";
 
 export interface Partition {
@@ -23,6 +33,7 @@ export interface CoreStats {
   uptime?: number | string;
   os_name?: string;
   host_ip?: string;
+  location?: string;
   ip_address?: string;
   net_sent?: number;
   net_recv?: number;
@@ -31,6 +42,14 @@ export interface CoreStats {
   swap_total?: number;
   swap_used?: number;
   partitions?: Partition[];
+  top_processes?: ProcessStat[];
+  load_1?: number;
+  load_5?: number;
+  load_15?: number;
+  task_count?: number;
+  docker_images_size?: number;
+  docker_logs_size?: number;
+  docker_storage_size?: number;
 }
 
 export interface PingStats {

@@ -4,12 +4,14 @@
   import Progress from '$lib/ui/feedback/Progress.svelte';
   import { stats } from '$lib/stores/core';
 
+  let { onclick }: { onclick?: () => void } = $props();
+
   const cpuPercent = $derived($stats?.cpu_usage ?? $stats?.cpu_percent ?? $stats?.cpu ?? 0);
-  const cpuCores = $derived($stats?.cpu_cores ?? 2);
+  const cpuCores = $derived($stats?.cpu_cores ?? 1);
   const cpuModel = $derived($stats?.cpu_model ?? 'Virtual CPU');
 </script>
 
-<Card label="CPU" navigable href="/home">
+<Card label="CPU" navigable {onclick}>
   <div class="cpu-content">
     <div class="gauge-box">
       <GaugeChart
@@ -21,7 +23,7 @@
 
     <div class="metrics-footer">
       <div class="core-info">
-        <span class="cpu-name">{cpuModel}</span>
+        <span class="cpu-name" title={cpuModel}>{cpuModel}</span>
         <span class="cpu-val">{cpuPercent.toFixed(1)}%</span>
       </div>
       <Progress value={cpuPercent} height="thin" />
@@ -62,7 +64,7 @@
 
   .cpu-name {
     color: var(--text-secondary);
-    max-width: 140px;
+    max-width: 170px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

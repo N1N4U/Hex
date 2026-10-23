@@ -4,9 +4,18 @@
   import StorageCard from './StorageCard.svelte';
   import NetworkCard from './NetworkCard.svelte';
   import ServerHeroCard from './ServerHeroCard.svelte';
+  import CpuModal from './CpuModal.svelte';
+  import RamModal from './RamModal.svelte';
+  import StorageModal from './StorageModal.svelte';
+  import NetworkModal from './NetworkModal.svelte';
   import { onMount } from 'svelte';
   import { get } from '$lib/api/client';
   import { stats } from '$lib/stores/core';
+
+  let showCpuModal = $state(false);
+  let showRamModal = $state(false);
+  let showStorageModal = $state(false);
+  let showNetworkModal = $state(false);
 
   onMount(() => {
     // Initial one-off fetch so values appear instantly while WS connects
@@ -27,10 +36,10 @@
   <!-- Column 1: CPU + Storage (1:1 height ratio filling screen height) -->
   <div class="grid-col">
     <div class="card-cell">
-      <CpuCard />
+      <CpuCard onclick={() => (showCpuModal = true)} />
     </div>
     <div class="card-cell">
-      <StorageCard />
+      <StorageCard onclick={() => (showStorageModal = true)} />
     </div>
   </div>
 
@@ -42,13 +51,29 @@
   <!-- Column 3: RAM + Network (1:1 height ratio filling screen height) -->
   <div class="grid-col">
     <div class="card-cell">
-      <RamCard />
+      <RamCard onclick={() => (showRamModal = true)} />
     </div>
     <div class="card-cell">
-      <NetworkCard />
+      <NetworkCard onclick={() => (showNetworkModal = true)} />
     </div>
   </div>
 </div>
+
+{#if showCpuModal}
+  <CpuModal onclose={() => (showCpuModal = false)} />
+{/if}
+
+{#if showRamModal}
+  <RamModal onclose={() => (showRamModal = false)} />
+{/if}
+
+{#if showStorageModal}
+  <StorageModal onclose={() => (showStorageModal = false)} />
+{/if}
+
+{#if showNetworkModal}
+  <NetworkModal onclose={() => (showNetworkModal = false)} />
+{/if}
 
 <style>
   .home-grid {

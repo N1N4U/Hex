@@ -4,6 +4,8 @@
   import Progress from '$lib/ui/feedback/Progress.svelte';
   import { stats } from '$lib/stores/core';
 
+  let { onclick }: { onclick?: () => void } = $props();
+
   const usedBytes = $derived($stats?.mem_used ?? 0);
   const totalBytes = $derived($stats?.mem_total ?? 1);
   const ramPercent = $derived(totalBytes > 0 ? (usedBytes / totalBytes) * 100 : 0);
@@ -16,22 +18,37 @@
     if (!bytes || bytes <= 0) return '0.00 GB';
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
   }
+
+  // If under 1 GB, show MB (e.g. 17.75 MB), otherwise show GB
+  function formatSwapMem(bytes: number) {
+    if (!bytes || bytes <= 0) return '0 MB';
+    if (bytes < 1024 * 1024 * 1024) {
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+  }
 </script>
 
-<Card label="RAM" navigable href="/home">
+<Card label="RAM" navigable {onclick}>
   <div class="ram-content">
-    <div class="gauge-box">
-      <GaugeChart
-        value={ramPercent}
-        size={150}
-        sublabel={formatGB(usedBytes)}
-      />
+    <div class="gauge-container">
+      <div class="gauge-box">
+        <GaugeChart
+          value={ramPercent}
+          size={146}
+          sublabel={formatGB(usedBytes)}
+        />
+      </div>
+      <!-- Centered total VPS RAM under the arc baseline -->
+      <div class="arc-endpoints">
+        <span class="endpoint-val highlight font-mono">{formatGB(totalBytes)}</span>
+      </div>
     </div>
 
     <div class="metrics-footer">
       <div class="ram-info">
         <span class="ram-label">Swap Memory</span>
-        <span class="ram-val">{formatGB(swapUsed)} / {formatGB(swapTotal)}</span>
+        <span class="ram-val font-mono">{formatSwapMem(swapUsed)} / {formatGB(swapTotal)}</span>
       </div>
       <Progress value={swapPercent} height="thin" />
     </div>
@@ -45,14 +62,40 @@
     align-items: center;
     justify-content: space-between;
     height: 100%;
-    gap: var(--space-3);
+    gap: var(--space-2);
+  }
+
+  .gauge-container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
   }
 
   .gauge-box {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-2) 0;
+  }
+
+  .arc-endpoints {
+    width: 146px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: -8px;
+  }
+
+  .endpoint-val {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+  }
+
+  .endpoint-val.highlight {
+    color: var(--accent);
+    font-weight: 600;
   }
 
   .metrics-footer {
@@ -60,6 +103,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    margin-top: auto;
   }
 
   .ram-info {
@@ -75,7 +119,6 @@
 
   .ram-val {
     color: var(--text-primary);
-    font-family: var(--font-mono);
     font-weight: 600;
   }
 </style>

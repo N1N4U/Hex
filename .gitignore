@@ -2,7 +2,11 @@
 node_modules/
 .pnp
 .pnp.js
-
+.bat
+.ps1
+ssh.bat
+sshc.ps1
+sshc.bat
 Old/
 needtoadd.txt
 z.txt
@@ -67,3 +71,4 @@ data/
 *.db-wal
 *.db-shm
 z*.txt
+ssh.bat

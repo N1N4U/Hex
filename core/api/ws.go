@@ -196,11 +196,6 @@ func (m *WSManager) streamStats(ctx context.Context, safeConn *SafeConn, monitor
 					}
 				}
 
-				stats.Partitions = nil
-				stats.DockerImagesSize = 0
-				stats.DockerLogsSize = 0
-				stats.DockerStorageSize = 0
-
 				payload, _ := json.Marshal(stats)
 				if err := safeConn.WriteJSONSafe(WSMessage{
 					ID:      reqId,

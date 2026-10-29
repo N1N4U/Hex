@@ -33,7 +33,14 @@
       try {
         const s = await get<any>('/core/stats');
         if (s && (s.cpu_usage !== undefined || s.mem_used !== undefined)) {
-          stats.set(s);
+          stats.update((prev) => {
+            if (!prev) return s;
+            return {
+              ...prev,
+              ...s,
+              partitions: (s.partitions && s.partitions.length > 0) ? s.partitions : prev.partitions,
+            };
+          });
         }
       } catch {}
     };
@@ -774,5 +781,4 @@
     margin: 0;
     line-height: 1.5;
   }
-
 </style>

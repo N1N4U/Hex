@@ -81,13 +81,24 @@ export function connect() {
         const payload = msg.payload || msg.data || msg;
         stats.update((prev) => {
           if (!prev) return payload;
+          const prevParts = prev.partitions || [];
+          const newParts = payload.partitions || [];
+          let mergedParts = prevParts;
+          if (newParts.length >= prevParts.length && newParts.length > 0) {
+            mergedParts = newParts;
+          } else if (newParts.length > 0) {
+            const pMap = new Map<string, any>();
+            for (const p of prevParts) pMap.set(p.mountpoint, p);
+            for (const p of newParts) pMap.set(p.mountpoint, p);
+            mergedParts = Array.from(pMap.values());
+          }
           return {
             ...prev,
             ...payload,
-            partitions: (payload.partitions && payload.partitions.length > 0) ? payload.partitions : prev.partitions,
-            docker_images_size: payload.docker_images_size !== undefined && payload.docker_images_size !== 0 ? payload.docker_images_size : prev.docker_images_size,
-            docker_logs_size: payload.docker_logs_size !== undefined && payload.docker_logs_size !== 0 ? payload.docker_logs_size : prev.docker_logs_size,
-            docker_storage_size: payload.docker_storage_size !== undefined && payload.docker_storage_size !== 0 ? payload.docker_storage_size : prev.docker_storage_size,
+            partitions: mergedParts,
+            docker_images_size: (payload.docker_images_size !== undefined && payload.docker_images_size > 0) ? payload.docker_images_size : prev.docker_images_size,
+            docker_logs_size: (payload.docker_logs_size !== undefined && payload.docker_logs_size > 0) ? payload.docker_logs_size : prev.docker_logs_size,
+            docker_storage_size: (payload.docker_storage_size !== undefined && payload.docker_storage_size > 0) ? payload.docker_storage_size : prev.docker_storage_size,
             location: payload.location || prev.location,
             top_processes: (payload.top_processes && payload.top_processes.length > 0) ? payload.top_processes : prev.top_processes,
           };
@@ -102,12 +113,23 @@ export function connect() {
         const storagePayload = msg.payload || msg.data || msg;
         stats.update((prev) => {
           if (!prev) return prev;
+          const prevParts = prev.partitions || [];
+          const newParts = storagePayload.partitions || [];
+          let mergedParts = prevParts;
+          if (newParts.length >= prevParts.length && newParts.length > 0) {
+            mergedParts = newParts;
+          } else if (newParts.length > 0) {
+            const pMap = new Map<string, any>();
+            for (const p of prevParts) pMap.set(p.mountpoint, p);
+            for (const p of newParts) pMap.set(p.mountpoint, p);
+            mergedParts = Array.from(pMap.values());
+          }
           return {
             ...prev,
-            partitions: (storagePayload.partitions && storagePayload.partitions.length > 0) ? storagePayload.partitions : prev.partitions,
-            docker_images_size: storagePayload.docker_images_size ?? prev.docker_images_size,
-            docker_logs_size: storagePayload.docker_logs_size ?? prev.docker_logs_size,
-            docker_storage_size: storagePayload.docker_storage_size ?? prev.docker_storage_size,
+            partitions: mergedParts,
+            docker_images_size: (storagePayload.docker_images_size !== undefined && storagePayload.docker_images_size > 0) ? storagePayload.docker_images_size : prev.docker_images_size,
+            docker_logs_size: (storagePayload.docker_logs_size !== undefined && storagePayload.docker_logs_size > 0) ? storagePayload.docker_logs_size : prev.docker_logs_size,
+            docker_storage_size: (storagePayload.docker_storage_size !== undefined && storagePayload.docker_storage_size > 0) ? storagePayload.docker_storage_size : prev.docker_storage_size,
           };
         });
         emit('storage.update', storagePayload);

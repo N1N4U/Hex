@@ -23,7 +23,17 @@
       try {
         const s = await get<any>('/core/stats');
         if (s && (s.cpu_usage !== undefined || s.mem_used !== undefined)) {
-          stats.set(s);
+          stats.update((prev) => {
+            if (!prev) return s;
+            return {
+              ...prev,
+              ...s,
+              partitions: (s.partitions && s.partitions.length > 0) ? s.partitions : prev.partitions,
+              docker_images_size: (s.docker_images_size !== undefined && s.docker_images_size > 0) ? s.docker_images_size : prev.docker_images_size,
+              docker_logs_size: (s.docker_logs_size !== undefined && s.docker_logs_size > 0) ? s.docker_logs_size : prev.docker_logs_size,
+              docker_storage_size: (s.docker_storage_size !== undefined && s.docker_storage_size > 0) ? s.docker_storage_size : prev.docker_storage_size,
+            };
+          });
         }
       } catch {}
     };
@@ -126,6 +136,7 @@
     .home-grid {
       grid-template-columns: 1fr;
       height: auto;
+      min-height: 0;
     }
     .grid-col {
       grid-template-rows: auto auto;

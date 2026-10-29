@@ -8,7 +8,7 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import { connect, disconnect, on } from '$lib/ws/client';
-  import { stats, wsStatus } from '$lib/stores/core';
+  import { wsStatus } from '$lib/stores/core';
   import { dialogStore } from '$lib/ui/overlay/dialogStore.svelte';
 
   let { children }: { children?: Snippet } = $props();
@@ -22,12 +22,8 @@
     loadNodes();
     connect();
     const offStatus = on('__status__', (s) => wsStatus.set(s as any));
-    const offStats = on('stats.update', (data: any) => {
-      if (data) stats.set(data);
-    });
     cleanupWs = () => {
       offStatus();
-      offStats();
       disconnect();
       cleanupWs = null;
     };

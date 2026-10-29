@@ -118,7 +118,7 @@
 
 <Card label="SERVER">
   <div class="server-content">
-    <!-- Real-time Clock Display -->
+    <!-- Real-time Clock Display (Enlarged) -->
     <div class="clock-display">
       <div class="time-text font-mono">{currentTime || '--:--'}</div>
       <div class="date-text">{currentDate || 'Loading system date...'}</div>
@@ -182,24 +182,20 @@
       </div>
     </div>
 
-    <!-- Bottom Quick Action Buttons -->
+    <!-- Bottom Quick Action Buttons with clear outline & icon spacing -->
     <div class="quick-actions-section">
       <div class="actions-grid">
-        <Button variant="ghost" size="sm" onclick={() => triggerAction('update')}>
-          <DownloadCloud size={14} />
-          <span>Update</span>
+        <Button variant="outline" size="sm" icon={DownloadCloud} onclick={() => triggerAction('update')}>
+          Update
         </Button>
-        <Button variant="ghost" size="sm" onclick={() => triggerAction('logs')}>
-          <FileText size={14} />
-          <span>Logs</span>
+        <Button variant="outline" size="sm" icon={FileText} onclick={() => triggerAction('logs')}>
+          Logs
         </Button>
-        <Button variant="ghost" size="sm" onclick={() => triggerAction('reboot')}>
-          <RotateCw size={14} />
-          <span>Reboot</span>
+        <Button variant="outline" size="sm" icon={RotateCw} onclick={() => triggerAction('reboot')}>
+          Reboot
         </Button>
-        <Button variant="danger" size="sm" onclick={() => triggerAction('shutdown')}>
-          <Power size={14} />
-          <span>Shutdown</span>
+        <Button variant="danger" size="sm" icon={Power} onclick={() => triggerAction('shutdown')}>
+          Shutdown
         </Button>
       </div>
     </div>
@@ -256,14 +252,14 @@
     <div class="confirm-body">
       <AlertTriangle size={24} class="confirm-icon" />
       <p>
-        Are you sure you want to <strong>{confirmAction}</strong> this server?
-        Active services, running Docker containers, and live connections will be interrupted.
+        Are you sure you want to {confirmAction} the remote server?
+        Active processes and sessions may be terminated.
       </p>
     </div>
   </Dialog>
 {/if}
 
-<!-- Update Options Modal (Hex Update vs VPS System Update) -->
+<!-- Update Options Modal -->
 {#if showUpdateModal}
   <UpdateModal onclose={() => showUpdateModal = false} />
 {/if}
@@ -288,18 +284,18 @@
   }
 
   .time-text {
-    font-size: 34px;
+    font-size: 54px;
     font-weight: 800;
     line-height: 1;
-    letter-spacing: -0.5px;
+    letter-spacing: -1px;
     color: var(--text-primary);
-    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
   }
 
   .date-text {
     font-size: var(--text-xs);
     color: var(--text-secondary);
-    margin-top: 4px;
+    margin-top: 6px;
     font-weight: 500;
   }
 
@@ -370,7 +366,7 @@
   .actions-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: var(--space-2);
+    gap: 10px;
   }
 
   .ping-matrix {

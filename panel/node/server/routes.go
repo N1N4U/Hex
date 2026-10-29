@@ -3,8 +3,8 @@ package server
 import (
 	"net/http"
 
-	nodeauth "github.com/N1N4U/Hex/panel/auth"
 	"github.com/N1N4U/Hex/panel/api"
+	nodeauth "github.com/N1N4U/Hex/panel/auth"
 	"github.com/N1N4U/Hex/panel/config"
 	"github.com/N1N4U/Hex/panel/core"
 	"github.com/N1N4U/Hex/panel/server/middleware"
@@ -17,7 +17,7 @@ func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manage
 	wsProxy := api.NewWSProxy(coreMgr)
 	sshTermH := api.NewSSHTerminalHandler()
 
-	// ?? Public auth & config endpoints ???????????????????????????????????????
+	// ── Public auth & config endpoints ───────────────────────────────────────
 	mux.HandleFunc("/api/v1/auth/login", middleware.RateLimit(10, 60e9, authH.Login))
 	mux.HandleFunc("/api/v1/auth/logout", authH.Logout)
 	mux.HandleFunc("/api/v1/auth/logout-all", authH.LogoutAll)
@@ -30,7 +30,7 @@ func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manage
 		w.Write([]byte("pong"))
 	})
 
-	// ?? Authenticated endpoints ?????????????????????????????????????????????
+	// ── Authenticated endpoints ─────────────────────────────────────────────
 	mux.HandleFunc("/api/v1/auth/me", middleware.Auth(cfg.JWTSecret, authH.Me))
 	mux.HandleFunc("/api/v1/nodes", middleware.Auth(cfg.JWTSecret, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
@@ -46,6 +46,7 @@ func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manage
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+	mux.HandleFunc("/api/v1/nodes/active", middleware.Auth(cfg.JWTSecret, nodesH.SetActive))
 	mux.HandleFunc("/api/v1/nodes/toggle", middleware.Auth(cfg.JWTSecret, nodesH.Toggle))
 	mux.HandleFunc("/api/v1/activities", middleware.Auth(cfg.JWTSecret, nodesH.Activities))
 
@@ -79,6 +80,6 @@ func registerRoutes(mux *http.ServeMux, cfg *config.Config, coreMgr *core.Manage
 		sshTermH.HandleTerminalWS(w, r)
 	})
 
-	// ?? Core proxy (all core endpoints under /api/v1/core/*) ????????????????
+	// ── Core proxy (all core endpoints under /api/v1/core/*) ─────────────────
 	mux.HandleFunc("/api/v1/core/", middleware.Auth(cfg.JWTSecret, proxy.Proxy))
 }

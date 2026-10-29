@@ -183,6 +183,13 @@ export function disconnect() {
   socket = null;
 }
 
+export function reconnect() {
+  disconnect();
+  setTimeout(() => {
+    connect();
+  }, 100);
+}
+
 export function send(data: unknown) {
   if (socket?.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify(data));

@@ -1,49 +1,49 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import { ripple } from '../motion/clickAnimation';
-  import Spinner from './Spinner.svelte';
+  import type { Snippet, Component } from 'svelte';
+  import { Loader2 } from '@lucide/svelte';
+
+  interface Props {
+    variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
+    size?: 'sm' | 'md' | 'lg';
+    disabled?: boolean;
+    loading?: boolean;
+    fullWidth?: boolean;
+    type?: 'button' | 'submit' | 'reset';
+    class?: string;
+    icon?: Component<{ size?: number; class?: string }>;
+    iconRight?: Component<{ size?: number; class?: string }>;
+    children?: Snippet;
+    onclick?: (e: MouseEvent) => void;
+    [key: string]: any;
+  }
 
   let {
     variant = 'secondary',
     size = 'md',
     disabled = false,
     loading = false,
-    icon = null,
-    iconRight = null,
     fullWidth = false,
     type = 'button',
-    onclick,
+    class: className = '',
+    icon: IconComponent,
+    iconRight: IconRightComponent,
     children,
-    class: customClass = ''
-  }: {
-    variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
-    size?: 'sm' | 'md' | 'lg';
-    disabled?: boolean;
-    loading?: boolean;
-    icon?: any;
-    iconRight?: any;
-    fullWidth?: boolean;
-    type?: 'button' | 'submit' | 'reset';
-    onclick?: (e: MouseEvent) => void;
-    children?: Snippet;
-    class?: string;
-  } = $props();
-
-  const IconComponent = $derived(icon);
-  const IconRightComponent = $derived(iconRight);
+    onclick,
+    ...restProps
+  }: Props = $props();
 </script>
 
 <button
-  use:ripple
-  {type}
-  class="btn {variant} {size} {customClass}"
+  type={type}
+  class="btn {variant} {size} {className}"
   class:full-width={fullWidth}
-  class:is-loading={loading}
+  class:loading
   disabled={disabled || loading}
-  {onclick}
+  onclick={onclick}
+  {...restProps}
 >
   {#if loading}
-    <Spinner size="sm" color={variant === 'primary' ? '#000000' : 'var(--accent)'} />
+    <Loader2 size={size === 'sm' ? 14 : size === 'lg' ? 18 : 16} class="spin" />
   {:else if IconComponent}
     <IconComponent size={size === 'sm' ? 14 : size === 'lg' ? 18 : 16} />
   {/if}
@@ -64,7 +64,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-2);
+    gap: 8px !important;
     border-radius: var(--radius-md);
     font-family: var(--font-sans);
     font-weight: 500;
@@ -92,7 +92,7 @@
 
   /* Sizes */
   .sm {
-    padding: 6px 12px;
+    padding: 7px 14px;
     font-size: var(--text-sm);
   }
 
@@ -153,18 +153,20 @@
   }
 
   .outline {
-    background: transparent;
-    border-color: var(--border);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
     color: var(--text-primary);
   }
 
   .outline:hover:not(:disabled) {
-    border-color: var(--accent);
-    color: var(--accent);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.35) !important;
+    color: #ffffff;
   }
 
   .btn-label {
     display: inline-flex;
     align-items: center;
+    gap: 8px;
   }
 </style>

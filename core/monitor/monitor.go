@@ -318,50 +318,45 @@ func NewManager() *Manager {
 						if err != nil {
 							continue
 						}
-						statusData, err := os.ReadFile(filepath.Join("/proc", d.Name(), "status"))
-						if err != nil {
-							continue
-						}
-
 						statStr := string(statData)
-						openParen := strings.IndexByte(statStr, '(')
-						closeParen := strings.LastIndexByte(statStr, ')')
-						if openParen < 0 || closeParen < 0 {
+						openParen := strings.Index(statStr, "(")
+						closeParen := strings.LastIndex(statStr, ")")
+						if openParen == -1 || closeParen == -1 || closeParen <= openParen {
 							continue
 						}
 						name := statStr[openParen+1 : closeParen]
-
-						fields := strings.Fields(statStr[closeParen+2:])
-						if len(fields) < 22 {
+						afterName := strings.Fields(statStr[closeParen+1:])
+						if len(afterName) < 20 {
 							continue
 						}
 
-						utime, _ := strconv.ParseUint(fields[11], 10, 64)
-						stime, _ := strconv.ParseUint(fields[12], 10, 64)
-						startTimeTicks, _ := strconv.ParseUint(fields[19], 10, 64)
+						utime, _ := strconv.ParseUint(afterName[11], 10, 64)
+						stime, _ := strconv.ParseUint(afterName[12], 10, 64)
+						startTimeTicks, _ := strconv.ParseUint(afterName[19], 10, 64)
 						totalTime := utime + stime
 
-						var memBytes uint64
-						var swapBytes uint64
+						var memBytes, swapBytes uint64
 						var uid string
-						lines := strings.Split(string(statusData), "\n")
-						for _, line := range lines {
-							if strings.HasPrefix(line, "VmRSS:") {
-								f := strings.Fields(line)
-								if len(f) >= 2 {
-									kb, _ := strconv.ParseUint(f[1], 10, 64)
-									memBytes = kb * 1024
-								}
-							} else if strings.HasPrefix(line, "VmSwap:") {
-								f := strings.Fields(line)
-								if len(f) >= 2 {
-									kb, _ := strconv.ParseUint(f[1], 10, 64)
-									swapBytes = kb * 1024
-								}
-							} else if strings.HasPrefix(line, "Uid:") {
-								f := strings.Fields(line)
-								if len(f) >= 2 {
-									uid = f[1]
+						statusData, err := os.ReadFile(filepath.Join("/proc", d.Name(), "status"))
+						if err == nil {
+							for _, line := range strings.Split(string(statusData), "\n") {
+								if strings.HasPrefix(line, "VmRSS:") {
+									f := strings.Fields(line)
+									if len(f) >= 2 {
+										kb, _ := strconv.ParseUint(f[1], 10, 64)
+										memBytes = kb * 1024
+									}
+								} else if strings.HasPrefix(line, "VmSwap:") {
+									f := strings.Fields(line)
+									if len(f) >= 2 {
+										kb, _ := strconv.ParseUint(f[1], 10, 64)
+										swapBytes = kb * 1024
+									}
+								} else if strings.HasPrefix(line, "Uid:") {
+									f := strings.Fields(line)
+									if len(f) >= 2 {
+										uid = f[1]
+									}
 								}
 							}
 						}
@@ -435,14 +430,37 @@ func NewManager() *Manager {
 				}
 			}
 
-			// Disk & Partition Tree Discovery (lsblk + statfs)
+			// Disk & Partition Tree Discovery (/proc/mounts + lsblk -P + /proc/partitions + statfs)
 			if tickCount%5 == 0 {
 				parts := m.discoverPartitions()
-				if len(parts) > 0 {
-					m.statsMu.Lock()
+				m.statsMu.Lock()
+				if len(parts) >= len(m.cachedPartitions) {
 					m.cachedPartitions = parts
-					m.statsMu.Unlock()
+				} else if len(parts) > 0 {
+					// Non-destructive merge: retain existing partitions (/boot/efi, [sda14])
+					existingMap := make(map[string]PartitionStats)
+					for _, p := range m.cachedPartitions {
+						existingMap[p.Mountpoint] = p
+					}
+					for _, p := range parts {
+						existingMap[p.Mountpoint] = p
+					}
+					var merged []PartitionStats
+					for _, p := range existingMap {
+						merged = append(merged, p)
+					}
+					sort.Slice(merged, func(i, j int) bool {
+						if merged[i].Mountpoint == "/" {
+							return true
+						}
+						if merged[j].Mountpoint == "/" {
+							return false
+						}
+						return merged[i].Mountpoint < merged[j].Mountpoint
+					})
+					m.cachedPartitions = merged
 				}
+				m.statsMu.Unlock()
 			}
 
 			m.statsMu.Lock()
@@ -520,29 +538,44 @@ func NewManager() *Manager {
 				}
 			}
 
-			// Fallback: If SDK returned 0 for images, run docker system df
+			// 2. Fallback: Parse standard 'docker system df' table output
 			if imagesSize == 0 {
-				out, err := exec.Command("docker", "system", "df", "--format", "{{.Type}}\t{{.Size}}").CombinedOutput()
+				out, err := exec.Command("docker", "system", "df").CombinedOutput()
 				if err == nil {
 					lines := strings.Split(string(out), "\n")
 					for _, line := range lines {
-						parts := strings.Split(line, "\t")
-						if len(parts) >= 2 {
-							typeStr := strings.TrimSpace(parts[0])
-							sizeStr := strings.TrimSpace(parts[1])
-							bytesVal := parseHumanBytes(sizeStr)
-							if strings.EqualFold(typeStr, "Images") {
-								imagesSize = bytesVal
-							} else if strings.EqualFold(typeStr, "Containers") {
-								containersSize = bytesVal
-							} else if strings.EqualFold(typeStr, "Local Volumes") {
-								volumesSize = bytesVal
-							} else if strings.EqualFold(typeStr, "Build Cache") {
-								buildCacheSize = bytesVal
+						fields := strings.Fields(line)
+						if len(fields) >= 4 && fields[0] == "Images" {
+							imagesSize = parseRobustBytes(fields[3])
+						} else if len(fields) >= 4 && fields[0] == "Containers" {
+							containersSize = parseRobustBytes(fields[3])
+						} else if len(fields) >= 5 && fields[0] == "Local" && fields[1] == "Volumes" {
+							volumesSize = parseRobustBytes(fields[4])
+						} else if len(fields) >= 5 && fields[0] == "Build" && fields[1] == "Cache" {
+							buildCacheSize = parseRobustBytes(fields[4])
+						}
+					}
+				}
+			}
+
+			// 3. Fallback: Direct du check on /var/lib/docker
+			totalDockerStorage := imagesSize + containersSize + volumesSize + buildCacheSize
+			if totalDockerStorage == 0 {
+				duDock, err := exec.Command("du", "-sb", "/var/lib/docker").CombinedOutput()
+				if err == nil {
+					f := strings.Fields(string(duDock))
+					if len(f) >= 1 {
+						b, _ := strconv.ParseUint(f[0], 10, 64)
+						if b > 0 {
+							totalDockerStorage = b
+							if imagesSize == 0 {
+								imagesSize = uint64(float64(b) * 0.8)
 							}
 						}
 					}
 				}
+			} else if totalDockerStorage == 0 && imagesSize > 0 {
+				totalDockerStorage = imagesSize
 			}
 
 			// Packages & System Logs size (/var/cache/apt + /var/log)
@@ -562,11 +595,6 @@ func NewManager() *Manager {
 				pkgAndLogsSize = 245 * 1024 * 1024 // reasonable fallback baseline
 			}
 
-			totalDockerStorage := imagesSize + containersSize + volumesSize + buildCacheSize
-			if totalDockerStorage == 0 && imagesSize > 0 {
-				totalDockerStorage = imagesSize
-			}
-
 			m.statsMu.Lock()
 			if imagesSize > 0 {
 				m.cachedDockerImages = imagesSize
@@ -584,35 +612,68 @@ func NewManager() *Manager {
 	return m
 }
 
-func parseHumanBytes(str string) uint64 {
+func parseRobustBytes(str string) uint64 {
 	str = strings.TrimSpace(str)
-	if str == "" || str == "0B" || str == "0" {
+	if str == "" || str == "0" || str == "0B" || str == "0.0B" {
 		return 0
 	}
-	var val float64
-	var unit string
-	n, _ := fmt.Sscanf(str, "%f%s", &val, &unit)
-	if n < 1 {
+	numStr := ""
+	unitStr := ""
+	for i, r := range str {
+		if (r >= '0' && r <= '9') || r == '.' {
+			numStr += string(r)
+		} else {
+			unitStr = strings.TrimSpace(str[i:])
+			break
+		}
+	}
+	val, err := strconv.ParseFloat(numStr, 64)
+	if err != nil || val <= 0 {
 		return 0
 	}
-	unit = strings.ToUpper(unit)
+	unitStr = strings.ToUpper(unitStr)
 	multiplier := float64(1)
 	switch {
-	case strings.HasPrefix(unit, "T"):
+	case strings.HasPrefix(unitStr, "T"):
 		multiplier = 1024 * 1024 * 1024 * 1024
-	case strings.HasPrefix(unit, "G"):
+	case strings.HasPrefix(unitStr, "G"):
 		multiplier = 1024 * 1024 * 1024
-	case strings.HasPrefix(unit, "M"):
+	case strings.HasPrefix(unitStr, "M"):
 		multiplier = 1024 * 1024
-	case strings.HasPrefix(unit, "K"):
+	case strings.HasPrefix(unitStr, "K"):
 		multiplier = 1024
+	case strings.HasPrefix(unitStr, "B"):
+		multiplier = 1
 	}
 	return uint64(val * multiplier)
 }
 
-// discoverPartitions runs lsblk to get complete partition tree (sda1, sda14, sda15 /boot/efi)
+func parseLsblkPairs(line string) map[string]string {
+	result := make(map[string]string)
+	line = strings.TrimSpace(line)
+	for len(line) > 0 {
+		eqIdx := strings.Index(line, "=\"")
+		if eqIdx == -1 {
+			break
+		}
+		key := strings.TrimSpace(line[:eqIdx])
+		line = line[eqIdx+2:]
+		quoteIdx := strings.Index(line, "\"")
+		if quoteIdx == -1 {
+			break
+		}
+		val := line[:quoteIdx]
+		result[key] = val
+		line = strings.TrimSpace(line[quoteIdx+1:])
+	}
+	return result
+}
+
+// discoverPartitions discovers full partition tree (sda1, sda14, sda15 /boot/efi) using multi-source verification
 func (m *Manager) discoverPartitions() []PartitionStats {
 	var list []PartitionStats
+	seenMounts := make(map[string]bool)
+	seenDevices := make(map[string]bool)
 
 	// 1. Always capture root partition
 	rootStat, err := disk.Usage("/")
@@ -625,99 +686,135 @@ func (m *Manager) discoverPartitions() []PartitionStats {
 			Used:        rootStat.Used,
 			UsedPercent: math.Round(rootStat.UsedPercent*100) / 100,
 		})
+		seenMounts["/"] = true
 	}
 
-	// 2. Discover via lsblk --json
-	out, err := exec.Command("lsblk", "-J", "-b", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,FSTYPE").CombinedOutput()
-	if err == nil {
-		type BlockDevice struct {
-			Name       string        `json:"name"`
-			Size       interface{}   `json:"size"`
-			Type       string        `json:"type"`
-			Mountpoint *string       `json:"mountpoint"`
-			FSType     *string       `json:"fstype"`
-			Children   []BlockDevice `json:"children,omitempty"`
-		}
-		var root struct {
-			BlockDevices []BlockDevice `json:"blockdevices"`
-		}
-
-		if jsonErr := json.Unmarshal(out, &root); jsonErr == nil {
-			var traverse func(devs []BlockDevice)
-			traverse = func(devs []BlockDevice) {
-				for _, d := range devs {
-					mp := ""
-					if d.Mountpoint != nil {
-						mp = *d.Mountpoint
-					}
-					fstype := ""
-					if d.FSType != nil {
-						fstype = *d.FSType
-					}
-
-					var devSize uint64
-					switch v := d.Size.(type) {
-					case float64:
-						devSize = uint64(v)
-					case string:
-						devSize, _ = strconv.ParseUint(v, 10, 64)
-					}
-
-					devPath := "/dev/" + d.Name
-
-					if d.Type == "part" {
-						if mp == "/" {
-							// Already added as rootfs
-							if len(d.Children) > 0 {
-								traverse(d.Children)
-							}
-							continue
-						}
-
-						if mp != "" {
-							// Mounted partition (e.g. /boot/efi)
+	// 2. Direct /proc/mounts scan for any other mounted filesystem (e.g. /boot/efi)
+	if mountsData, err := os.ReadFile("/proc/mounts"); err == nil {
+		for _, line := range strings.Split(string(mountsData), "\n") {
+			f := strings.Fields(line)
+			if len(f) >= 3 {
+				dev, mp, fstype := f[0], f[1], f[2]
+				if strings.HasPrefix(dev, "/dev/") && !strings.Contains(dev, "loop") {
+					if mp != "/" && fstype != "tmpfs" && fstype != "devtmpfs" && fstype != "overlay" && !strings.Contains(mp, "/docker") {
+						if !seenMounts[mp] {
 							st, err := disk.Usage(mp)
 							if err == nil && st.Total > 0 {
 								list = append(list, PartitionStats{
-									Device:      devPath,
+									Device:      dev,
 									Mountpoint:  mp,
 									FSType:      st.Fstype,
 									Total:       st.Total,
 									Used:        st.Used,
 									UsedPercent: math.Round(st.UsedPercent*100) / 100,
 								})
-							} else {
-								list = append(list, PartitionStats{
-									Device:      devPath,
-									Mountpoint:  mp,
-									FSType:      fstype,
-									Total:       devSize,
-									Used:        uint64(float64(devSize) * 0.1),
-									UsedPercent: 10.0,
-								})
+								seenMounts[mp] = true
+								seenDevices[dev] = true
 							}
-						} else {
-							// Unmounted partition like sda14
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 3. Discover via lsblk pairs (-P flag is robust against json unmarshal discrepancies)
+	cmdOut, err := exec.Command("lsblk", "-b", "-P", "-o", "NAME,SIZE,TYPE,MOUNTPOINT,MOUNTPOINTS,FSTYPE").CombinedOutput()
+	if err == nil {
+		lines := strings.Split(string(cmdOut), "\n")
+		for _, line := range lines {
+			pairs := parseLsblkPairs(line)
+			name := pairs["NAME"]
+			pType := pairs["TYPE"]
+			mp := pairs["MOUNTPOINT"]
+			if mp == "" {
+				mp = pairs["MOUNTPOINTS"]
+			}
+			fstype := pairs["FSTYPE"]
+			sizeBytes, _ := strconv.ParseUint(pairs["SIZE"], 10, 64)
+
+			if pType == "part" && name != "" {
+				devPath := "/dev/" + name
+				if mp == "/" {
+					seenDevices[devPath] = true
+					continue
+				}
+				if mp != "" {
+					if !seenMounts[mp] {
+						st, err := disk.Usage(mp)
+						if err == nil && st.Total > 0 {
 							list = append(list, PartitionStats{
 								Device:      devPath,
-								Mountpoint:  "[" + d.Name + "]",
+								Mountpoint:  mp,
+								FSType:      st.Fstype,
+								Total:       st.Total,
+								Used:        st.Used,
+								UsedPercent: math.Round(st.UsedPercent*100) / 100,
+							})
+						} else {
+							list = append(list, PartitionStats{
+								Device:      devPath,
+								Mountpoint:  mp,
 								FSType:      fstype,
-								Total:       devSize,
+								Total:       sizeBytes,
 								Used:        0,
 								UsedPercent: 0,
 							})
 						}
+						seenMounts[mp] = true
+						seenDevices[devPath] = true
 					}
-					if len(d.Children) > 0 {
-						traverse(d.Children)
+				} else {
+					// Unmounted partition like sda14
+					label := "[" + name + "]"
+					if !seenMounts[label] && !seenDevices[devPath] {
+						list = append(list, PartitionStats{
+							Device:      devPath,
+							Mountpoint:  label,
+							FSType:      fstype,
+							Total:       sizeBytes,
+							Used:        0,
+							UsedPercent: 0,
+						})
+						seenMounts[label] = true
+						seenDevices[devPath] = true
 					}
 				}
 			}
-			traverse(root.BlockDevices)
 		}
 	}
 
-	// 3. Fallback to gopsutil if lsblk produced only rootfs
+	// 4. Scan /proc/partitions to detect any hardware partition not yet reported
+	if partData, err := os.ReadFile("/proc/partitions"); err == nil {
+		for _, line := range strings.Split(string(partData), "\n") {
+			f := strings.Fields(line)
+			if len(f) >= 4 {
+				blocks, err := strconv.ParseUint(f[2], 10, 64)
+				name := f[3]
+				if err == nil && len(name) > 0 {
+					lastChar := name[len(name)-1]
+					if lastChar >= '0' && lastChar <= '9' && !strings.HasPrefix(name, "loop") && !strings.HasPrefix(name, "ram") {
+						devPath := "/dev/" + name
+						label := "[" + name + "]"
+						if !seenMounts[label] && !seenDevices[devPath] {
+							list = append(list, PartitionStats{
+								Device:      devPath,
+								Mountpoint:  label,
+								FSType:      "raw",
+								Total:       blocks * 1024,
+								Used:        0,
+								UsedPercent: 0,
+							})
+							seenMounts[label] = true
+							seenDevices[devPath] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// 5. Fallback to gopsutil if only rootfs was found
 	if len(list) <= 1 {
 		parts, err := disk.Partitions(true)
 		if err == nil {
@@ -725,20 +822,34 @@ func (m *Manager) discoverPartitions() []PartitionStats {
 				if p.Mountpoint == "/" || p.Fstype == "tmpfs" || p.Fstype == "overlay" || strings.Contains(p.Mountpoint, "/docker") {
 					continue
 				}
-				st, err := disk.Usage(p.Mountpoint)
-				if err == nil && st.Total > 0 {
-					list = append(list, PartitionStats{
-						Device:      p.Device,
-						Mountpoint:  p.Mountpoint,
-						FSType:      p.Fstype,
-						Total:       st.Total,
-						Used:        st.Used,
-						UsedPercent: math.Round(st.UsedPercent*100) / 100,
-					})
+				if !seenMounts[p.Mountpoint] {
+					st, err := disk.Usage(p.Mountpoint)
+					if err == nil && st.Total > 0 {
+						list = append(list, PartitionStats{
+							Device:      p.Device,
+							Mountpoint:  p.Mountpoint,
+							FSType:      p.Fstype,
+							Total:       st.Total,
+							Used:        st.Used,
+							UsedPercent: math.Round(st.UsedPercent*100) / 100,
+						})
+						seenMounts[p.Mountpoint] = true
+					}
 				}
 			}
 		}
 	}
+
+	// Sort partitions so '/' is always first
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].Mountpoint == "/" {
+			return true
+		}
+		if list[j].Mountpoint == "/" {
+			return false
+		}
+		return list[i].Mountpoint < list[j].Mountpoint
+	})
 
 	return list
 }

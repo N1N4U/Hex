@@ -1,4 +1,5 @@
 import { get, post, put, del } from '../api/client';
+import { reconnect } from '../ws/client';
 
 export interface NodeInfo {
   id: string;
@@ -28,6 +29,9 @@ export const nodeStore = {
   },
   setActive(id: string) {
     activeNodeIdState = id;
+    post('/nodes/active', { id })
+      .catch((err) => console.warn('Could not set active node on backend:', err))
+      .finally(() => reconnect());
   },
   setNodes(newNodes: NodeInfo[]) {
     nodesState = newNodes;
@@ -67,6 +71,13 @@ export async function addCoreNode(data: {
 }): Promise<NodeInfo> {
   const result = await post<NodeInfo>('/nodes', data);
   await loadNodes();
+  if (result?.id) {
+    activeNodeIdState = result.id;
+    try {
+      await post('/nodes/active', { id: result.id });
+    } catch {}
+    reconnect();
+  }
   return result;
 }
 
@@ -94,8 +105,18 @@ export async function toggleCoreNode(id: string, enabled: boolean): Promise<Node
     if (!enabled && activeNodeIdState === id) {
       const remaining = nodesState.find(n => n.id !== id && n.status !== 'disabled');
       activeNodeIdState = remaining ? remaining.id : '';
+      if (activeNodeIdState) {
+        try {
+          await post('/nodes/active', { id: activeNodeIdState });
+        } catch {}
+      }
+      reconnect();
     } else if (enabled) {
       activeNodeIdState = id;
+      try {
+        await post('/nodes/active', { id });
+      } catch {}
+      reconnect();
     }
     return updated;
   } catch (err) {
@@ -112,6 +133,12 @@ export async function deleteCoreNode(id: string): Promise<boolean> {
   if (activeNodeIdState === id) {
     const remaining = nodesState.find(n => n.status !== 'disabled');
     activeNodeIdState = remaining ? remaining.id : '';
+    if (activeNodeIdState) {
+      try {
+        await post('/nodes/active', { id: activeNodeIdState });
+      } catch {}
+    }
+    reconnect();
   }
   return true;
 }

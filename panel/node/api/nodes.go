@@ -166,9 +166,7 @@ func (h *NodesHandler) Add(w http.ResponseWriter, r *http.Request) {
 
 	if h.coreMgr != nil {
 		h.coreMgr.Invalidate(node.ID)
-		if h.coreMgr.ActiveNodeID() == "" {
-			h.coreMgr.SetActiveNodeID(node.ID)
-		}
+		h.coreMgr.SetActiveNodeID(node.ID)
 	}
 
 	// Redact API key in response
@@ -228,10 +226,8 @@ func (h *NodesHandler) Update(w http.ResponseWriter, r *http.Request) {
 		existing.APIKey = req.APIKey
 	}
 
-	if existing.Status != "disabled" {
-		status := checkCoreHealth(existing.Protocol, existing.IPAddress, existing.Port, existing.APIKey)
-		existing.Status = status
-	}
+	existing.Status = checkCoreHealth(existing.Protocol, existing.IPAddress, existing.Port, existing.APIKey)
+	existing.LastSeen = time.Now()
 
 	if err := users.UpdateNode(existing); err != nil {
 		http.Error(w, "Failed to update node: "+err.Error(), http.StatusInternalServerError)
@@ -316,6 +312,38 @@ func (h *NodesHandler) Toggle(w http.ResponseWriter, r *http.Request) {
 	node.APIKey = ""
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(node)
+}
+
+// POST /api/v1/nodes/active - Switch the active core node
+func (h *NodesHandler) SetActive(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		req.ID = r.URL.Query().Get("id")
+	}
+	if req.ID == "" {
+		http.Error(w, "Node ID required", http.StatusBadRequest)
+		return
+	}
+
+	node, err := users.GetNode(req.ID)
+	if err != nil || node == nil {
+		http.Error(w, "Node not found", http.StatusNotFound)
+		return
+	}
+
+	if h.coreMgr != nil {
+		h.coreMgr.SetActiveNodeID(req.ID)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "active_id": req.ID})
 }
 
 // GET /api/v1/activities - Get recent audit activities

@@ -2,7 +2,7 @@
 set -e
 
 # ==============================================================================
-#  HEX SERVER OS - AUTOMATED PRODUCTION INSTALLER v2.0
+#  HEX - AUTOMATED PRODUCTION INSTALLER v2.0
 #  Graphite Noir × Glacier Silver Edition
 #  Supported OS: Ubuntu, Debian, Fedora, Rocky Linux, AlmaLinux
 # ==============================================================================
@@ -34,8 +34,73 @@ print_banner() {
   ██║  ██║███████╗██╔╝ ██╗
   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 EOF
-  echo -e "  ${C_SILVER}${C_BOLD}HEX SERVER OS${C_RESET} ${C_GRAPHITE}·${C_RESET} ${C_DIM}Automated Production Installer v2.0${C_RESET}" >&3
+  echo -e "  ${C_SILVER}${C_BOLD}HEX${C_RESET} ${C_GRAPHITE}·${C_RESET} ${C_DIM}Automated Production Installer v2.0${C_RESET}" >&3
   echo -e "  ${C_GRAPHITE}─────────────────────────────────────────────────────────────${C_RESET}" >&3
+}
+
+# Sleek Modern Download Helper
+download_asset() {
+  local url="$1"
+  local dest="$2"
+  local label="$3"
+
+  rm -f "$dest"
+
+  local total_bytes
+  total_bytes=$(curl -sIL "$url" 2>/dev/null | tr -d '\r' | grep -i '^content-length:' | tail -n 1 | awk '{print $2}')
+
+  if ! [[ "$total_bytes" =~ ^[0-9]+$ ]] || [ "$total_bytes" -le 0 ]; then
+    printf "        ${C_CYAN}⟳${C_RESET} ${C_SILVER}Fetching %s...${C_RESET} " "$label" >&3
+    if curl -sSL -f -o "$dest" "$url"; then
+      local sz
+      sz=$(du -h "$dest" 2>/dev/null | awk '{print $1}' || echo "done")
+      echo -e "${C_GREEN}✓${C_RESET} ${C_DIM}($sz)${C_RESET}" >&3
+      return 0
+    else
+      echo -e "${C_RED}✗ Failed${C_RESET}" >&3
+      return 1
+    fi
+  fi
+
+  curl -sSL -f -o "$dest" "$url" 2>/dev/null &
+  local curl_pid=$!
+
+  local bar_width=24
+  local total_mb
+  total_mb=$(awk -v t="$total_bytes" 'BEGIN { printf "%.1f MB", t/(1024*1024) }')
+
+  while kill -0 "$curl_pid" 2>/dev/null; do
+    if [ -f "$dest" ]; then
+      local cur_bytes
+      cur_bytes=$(stat -c%s "$dest" 2>/dev/null || wc -c < "$dest" 2>/dev/null || echo 0)
+      if [ "$cur_bytes" -gt "$total_bytes" ]; then cur_bytes=$total_bytes; fi
+
+      local pct=$(( cur_bytes * 100 / total_bytes ))
+      local filled=$(( pct * bar_width / 100 ))
+      local empty=$(( bar_width - filled ))
+
+      local bar=""
+      for ((i=0; i<filled; i++)); do bar="${bar}█"; done
+      for ((i=0; i<empty; i++)); do bar="${bar}░"; done
+
+      local cur_mb
+      cur_mb=$(awk -v c="$cur_bytes" 'BEGIN { printf "%.1f", c/(1024*1024) }')
+
+      printf "\r        ${C_CYAN}[%s]${C_RESET} ${C_BOLD}%3d%%${C_RESET} ${C_DIM}(%s / %s)${C_RESET}" "$bar" "$pct" "$cur_mb" "$total_mb" >&3
+    fi
+    sleep 0.12
+  done
+
+  if wait "$curl_pid"; then
+    local full_bar=""
+    for ((i=0; i<bar_width; i++)); do full_bar="${full_bar}█"; done
+    printf "\r        ${C_GREEN}[%s] 100%%${C_RESET} ${C_DIM}(%s)${C_RESET} ${C_GREEN}✓ Complete${C_RESET}\n" "$full_bar" "$total_mb" >&3
+    return 0
+  else
+    printf "\r        ${C_RED}[✗] Download interrupted or failed for %s.${C_RESET}\n" "$label" >&3
+    rm -f "$dest"
+    return 1
+  fi
 }
 
 clear 2>/dev/null || true
@@ -188,7 +253,7 @@ if [ "$INSTALL_MODE" -eq 1 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -
   mkdir -p /var/log/hex
 
   CORE_DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-core-linux-$HEX_ARCH"
-  if ! curl -sSL -f -o /var/lib/hex/core/hex-core "$CORE_DOWNLOAD_URL"; then
+  if ! download_asset "$CORE_DOWNLOAD_URL" "/var/lib/hex/core/hex-core" "Hex Core Daemon"; then
     echo -e "  ${C_RED}[✗] Failed to download Hex Core binary from $CORE_DOWNLOAD_URL${C_RESET}" >&3
     exit 1
   fi
@@ -237,7 +302,7 @@ if [ "$INSTALL_MODE" -eq 2 ] || [ "$INSTALL_MODE" -eq 3 ] || [ "$INSTALL_MODE" -
   mkdir -p /opt/hex/panel/data
 
   PANEL_DOWNLOAD_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-panel-linux-$HEX_ARCH"
-  if ! curl -sSL -f -o /opt/hex/panel/hex-panel "$PANEL_DOWNLOAD_URL"; then
+  if ! download_asset "$PANEL_DOWNLOAD_URL" "/opt/hex/panel/hex-panel" "Hex Panel Interface"; then
     echo -e "  ${C_RED}[✗] Failed to download Hex Panel binary.${C_RESET}" >&3
     exit 1
   fi

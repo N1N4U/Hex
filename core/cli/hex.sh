@@ -2,7 +2,7 @@
 set -e
 
 # ==============================================================================
-#  HEX SERVER OS - UNIFIED COMMAND LINE INTERFACE (CLI) v2.0
+#  HEX - UNIFIED COMMAND LINE INTERFACE (CLI) v2.0
 #  Graphite Noir × Glacier Silver Edition
 # ==============================================================================
 
@@ -32,7 +32,7 @@ print_banner() {
   ██║  ██║███████╗██╔╝ ██╗
   ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
 EOF
-  echo -e "  ${C_SILVER}${C_BOLD}HEX SERVER OS${C_RESET} ${C_GRAPHITE}·${C_RESET} ${C_DIM}Management & Control CLI v2.0${C_RESET}"
+  echo -e "  ${C_SILVER}${C_BOLD}HEX${C_RESET} ${C_GRAPHITE}·${C_RESET} ${C_DIM}Management & Control CLI v2.0${C_RESET}"
   echo -e "  ${C_GRAPHITE}─────────────────────────────────────────────────────────────${C_RESET}"
 }
 
@@ -75,6 +75,76 @@ require_root() {
   if [ "$EUID" -ne 0 ]; then
     echo -e "  ${C_RED}[✗] Permission Denied:${C_RESET} Please run this command as root (${C_CYAN}sudo hex $1${C_RESET})"
     exit 1
+  fi
+}
+
+# ──────────────────────────────────────────────────────────────────────────────
+#  SLEEK MODERN DOWNLOAD HELPER
+# ──────────────────────────────────────────────────────────────────────────────
+download_asset() {
+  local url="$1"
+  local dest="$2"
+  local label="$3"
+
+  rm -f "$dest"
+
+  # Query remote Content-Length using redirect-aware HEAD request
+  local total_bytes
+  total_bytes=$(curl -sIL "$url" 2>/dev/null | tr -d '\r' | grep -i '^content-length:' | tail -n 1 | awk '{print $2}')
+
+  # If Content-Length could not be determined, run quiet curl with spinner/status
+  if ! [[ "$total_bytes" =~ ^[0-9]+$ ]] || [ "$total_bytes" -le 0 ]; then
+    printf "        ${C_CYAN}⟳${C_RESET} ${C_SILVER}Fetching %s...${C_RESET} " "$label"
+    if curl -sSL -f -o "$dest" "$url"; then
+      local sz
+      sz=$(du -h "$dest" 2>/dev/null | awk '{print $1}' || echo "done")
+      echo -e "${C_GREEN}✓${C_RESET} ${C_DIM}($sz)${C_RESET}"
+      return 0
+    else
+      echo -e "${C_RED}✗ Failed${C_RESET}"
+      return 1
+    fi
+  fi
+
+  # Background download for live modern progress bar
+  curl -sSL -f -o "$dest" "$url" 2>/dev/null &
+  local curl_pid=$!
+
+  local bar_width=24
+  local total_mb
+  total_mb=$(awk -v t="$total_bytes" 'BEGIN { printf "%.1f MB", t/(1024*1024) }')
+
+  while kill -0 "$curl_pid" 2>/dev/null; do
+    if [ -f "$dest" ]; then
+      local cur_bytes
+      cur_bytes=$(stat -c%s "$dest" 2>/dev/null || wc -c < "$dest" 2>/dev/null || echo 0)
+      if [ "$cur_bytes" -gt "$total_bytes" ]; then cur_bytes=$total_bytes; fi
+
+      local pct=$(( cur_bytes * 100 / total_bytes ))
+      local filled=$(( pct * bar_width / 100 ))
+      local empty=$(( bar_width - filled ))
+
+      local bar=""
+      for ((i=0; i<filled; i++)); do bar="${bar}█"; done
+      for ((i=0; i<empty; i++)); do bar="${bar}░"; done
+
+      local cur_mb
+      cur_mb=$(awk -v c="$cur_bytes" 'BEGIN { printf "%.1f", c/(1024*1024) }')
+
+      printf "\r        ${C_CYAN}[%s]${C_RESET} ${C_BOLD}%3d%%${C_RESET} ${C_DIM}(%s / %s)${C_RESET}" "$bar" "$pct" "$cur_mb" "$total_mb"
+    fi
+    sleep 0.12
+  done
+
+  if wait "$curl_pid"; then
+    local full_bar=""
+    for ((i=0; i<bar_width; i++)); do full_bar="${full_bar}█"; done
+    printf "\r        ${C_GREEN}[%s] 100%%${C_RESET} ${C_DIM}(%s)${C_RESET} ${C_GREEN}✓ Complete${C_RESET}\n" "$full_bar" "$total_mb"
+    return 0
+  else
+    printf "\r        ${C_RED}[✗] Download interrupted or failed for %s.${C_RESET}\n" "$label"
+    rm -f "$dest"
+    return 1
   fi
 }
 
@@ -204,17 +274,17 @@ manage_master() {
   SERVER_IP=$(curl -s4 --max-time 2 https://api.ipify.org 2>/dev/null || ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' | head -n 1 || hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 
   echo -e "  ${C_BOLD}${C_AMBER}👑 HEX MASTER ACCESS CONTROL (EMERGENCY RECOVERY)${C_RESET}"
-  echo -e "  ${C_GRAPHITE}╭─────────────────────────────────────────────────────────────╮${C_RESET}"
-  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Access Level:${C_RESET}  ${C_AMBER}Owner / SuperAdmin${C_RESET} ${C_DIM}(Full RBAC Bypass)${C_RESET}         ${C_GRAPHITE}│${C_RESET}"
-  printf "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Username:${C_RESET}      ${C_CYAN}%-43s${C_RESET} ${C_GRAPHITE}│${C_RESET}\n" "$MASTER_USER"
-  printf "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Temp Key:${C_RESET}      ${C_GREEN}${C_BOLD}%-43s${C_RESET} ${C_GRAPHITE}│${C_RESET}\n" "$TEMP_PASS"
-  printf "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Valid Until:${C_RESET}   ${C_DIM}%-43s${C_RESET} ${C_GRAPHITE}│${C_RESET}\n" "$EXPIRY_TIME"
+  echo -e "  ${C_GRAPHITE}┌── Master Access Key Issued ─────────────────────────────────┐${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Access Level:${C_RESET}  ${C_AMBER}Owner / SuperAdmin${C_RESET} ${C_DIM}(Full RBAC Bypass)${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Username:${C_RESET}      ${C_CYAN}${MASTER_USER}${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Temp Key:${C_RESET}      ${C_GREEN}${C_BOLD}${TEMP_PASS}${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Valid Until:${C_RESET}   ${C_DIM}${EXPIRY_TIME}${C_RESET}"
   echo -e "  ${C_GRAPHITE}├─────────────────────────────────────────────────────────────┤${C_RESET}"
-  printf "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Panel URL:${C_RESET}     ${C_BLUE}http://%s:%s${C_RESET}%*s ${C_GRAPHITE}│${C_RESET}\n" "$SERVER_IP" "$PANEL_PORT" $((40 - ${#SERVER_IP} - ${#PANEL_PORT})) ""
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_BOLD}${C_SILVER}Panel URL:${C_RESET}     ${C_BLUE}http://${SERVER_IP}:${PANEL_PORT}${C_RESET}"
   echo -e "  ${C_GRAPHITE}├─────────────────────────────────────────────────────────────┤${C_RESET}"
-  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_DIM}Security Notice: The master key is a 1-time emergency key.${C_RESET}   ${C_GRAPHITE}│${C_RESET}"
-  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_DIM}Run 'hex master' anytime on this VPS to issue a new key.${C_RESET}   ${C_GRAPHITE}│${C_RESET}"
-  echo -e "  ${C_GRAPHITE}╰─────────────────────────────────────────────────────────────╯${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_DIM}Security Notice: The master key is a 1-time emergency key.${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_DIM}Run 'hex master' anytime on this VPS to issue a new key.${C_RESET}"
+  echo -e "  ${C_GRAPHITE}└─────────────────────────────────────────────────────────────┘${C_RESET}"
   echo ""
 }
 
@@ -260,12 +330,23 @@ perform_update() {
   echo -e "  ${C_GRAPHITE}└─────────────────────────────────────────────────────────────┘${C_RESET}"
   echo ""
 
+  # Check service state before update
+  WAS_CORE_ACTIVE="false"
+  if systemctl is-active --quiet hex-core 2>/dev/null; then
+    WAS_CORE_ACTIVE="true"
+  fi
+
+  WAS_PANEL_ACTIVE="false"
+  if systemctl is-active --quiet hex-panel 2>/dev/null; then
+    WAS_PANEL_ACTIVE="true"
+  fi
+
   # [1/4] Update Core
   echo -e "  ${C_CYAN}[1/4]${C_RESET} ${C_BOLD}${C_SILVER}Updating Hex Core Daemon ($HEX_ARCH)...${C_RESET}"
   CORE_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-core-linux-$HEX_ARCH"
   rm -f /tmp/hex-core-update
 
-  if curl -# -L -f -o /tmp/hex-core-update "$CORE_URL"; then
+  if download_asset "$CORE_URL" "/tmp/hex-core-update" "Hex Core"; then
     chmod +x /tmp/hex-core-update
     # Verify ELF binary
     if file /tmp/hex-core-update 2>/dev/null | grep -q "ELF" || [ -s /tmp/hex-core-update ]; then
@@ -275,12 +356,17 @@ perform_update() {
       fi
       mkdir -p /var/lib/hex/core
       mv /tmp/hex-core-update /var/lib/hex/core/hex-core
-      systemctl start hex-core 2>/dev/null || true
-      sleep 1
-      if systemctl is-active --quiet hex-core; then
-        echo -e "        ${C_GREEN}✓${C_RESET} Hex Core daemon updated & running healthy."
+
+      if [ "$WAS_CORE_ACTIVE" == "true" ]; then
+        systemctl start hex-core 2>/dev/null || true
+        sleep 1
+        if systemctl is-active --quiet hex-core; then
+          echo -e "        ${C_GREEN}✓${C_RESET} Hex Core daemon updated & running healthy."
+        else
+          echo -e "        ${C_AMBER}[!]${C_RESET} Warning: Core service started but pending healthcheck."
+        fi
       else
-        echo -e "        ${C_AMBER}[!]${C_RESET} Warning: Core service started but pending healthcheck."
+        echo -e "        ${C_GREEN}✓${C_RESET} Hex Core binary updated ${C_DIM}(kept stopped as configured)${C_RESET}."
       fi
     else
       echo -e "        ${C_RED}[✗] Invalid binary downloaded for Core.${C_RESET}"
@@ -295,19 +381,24 @@ perform_update() {
     echo -e "  ${C_CYAN}[2/4]${C_RESET} ${C_BOLD}${C_SILVER}Updating Hex Panel (Node BFF + UI)...${C_RESET}"
     PANEL_URL="https://github.com/N1N4U/Hex/releases/latest/download/hex-panel-linux-$HEX_ARCH"
     rm -f /tmp/hex-panel-update
-    if curl -# -L -f -o /tmp/hex-panel-update "$PANEL_URL"; then
+    if download_asset "$PANEL_URL" "/tmp/hex-panel-update" "Hex Panel"; then
       chmod +x /tmp/hex-panel-update
       systemctl stop hex-panel 2>/dev/null || true
       if [ -f "/opt/hex/panel/hex-panel" ]; then
         cp /opt/hex/panel/hex-panel /opt/hex/panel/hex-panel.bak
       fi
       mv /tmp/hex-panel-update /opt/hex/panel/hex-panel
-      systemctl start hex-panel 2>/dev/null || true
-      sleep 1
-      if systemctl is-active --quiet hex-panel; then
-        echo -e "        ${C_GREEN}✓${C_RESET} Hex Panel service updated & running healthy."
+
+      if [ "$WAS_PANEL_ACTIVE" == "true" ]; then
+        systemctl start hex-panel 2>/dev/null || true
+        sleep 1
+        if systemctl is-active --quiet hex-panel; then
+          echo -e "        ${C_GREEN}✓${C_RESET} Hex Panel service updated & running healthy."
+        else
+          echo -e "        ${C_AMBER}[!]${C_RESET} Warning: Panel service started but pending healthcheck."
+        fi
       else
-        echo -e "        ${C_AMBER}[!]${C_RESET} Warning: Panel service started but pending healthcheck."
+        echo -e "        ${C_GREEN}✓${C_RESET} Hex Panel binary updated ${C_DIM}(kept stopped as configured)${C_RESET}."
       fi
     else
       echo -e "        ${C_RED}[✗] Failed to download Hex Panel binary.${C_RESET}"
@@ -350,15 +441,31 @@ perform_update() {
   fi
   echo ""
 
+  # Service status badges for summary
+  CORE_BADGE="${C_DIM}○ Stopped${C_RESET}"
+  if systemctl is-active --quiet hex-core 2>/dev/null; then
+    CORE_BADGE="${C_GREEN}● Running${C_RESET}"
+  fi
+
+  PANEL_BADGE="${C_DIM}○ Stopped${C_RESET}"
+  if [ -f "/opt/hex/panel/hex-panel" ]; then
+    if systemctl is-active --quiet hex-panel 2>/dev/null; then
+      PANEL_BADGE="${C_GREEN}● Running${C_RESET}"
+    fi
+  else
+    PANEL_BADGE="${C_DIM}- Not Installed${C_RESET}"
+  fi
+
   # Final Summary Box
-  echo -e "  ${C_GRAPHITE}╭─────────────────────────────────────────────────────────────╮${C_RESET}"
-  echo -e "  ${C_GRAPHITE}│${C_RESET}                 ${C_GREEN}${C_BOLD}✓ HEX PLATFORM UPDATE COMPLETE${C_RESET}              ${C_GRAPHITE}│${C_RESET}"
+  echo -e "  ${C_GRAPHITE}┌── Update Summary ───────────────────────────────────────────┐${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_SILVER}Release Version:${C_RESET}    ${C_GREEN}${C_BOLD}${NEW_VERSION}${C_RESET} ${C_DIM}(Previous: ${OLD_VERSION})${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_SILVER}Core Daemon:${C_RESET}        ${CORE_BADGE} ${C_DIM}(/var/lib/hex/core/hex-core)${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_SILVER}Panel Interface:${C_RESET}    ${PANEL_BADGE} ${C_DIM}(/opt/hex/panel/hex-panel)${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_SILVER}CLI Management:${C_RESET}     ${C_GREEN}● Synced${C_RESET} ${C_DIM}(/usr/local/bin/hex)${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_SILVER}Presets Catalog:${C_RESET}    ${C_GREEN}● Synced${C_RESET} ${C_DIM}(/var/lib/hex/presets)${C_RESET}"
   echo -e "  ${C_GRAPHITE}├─────────────────────────────────────────────────────────────┤${C_RESET}"
-  printf "  ${C_GRAPHITE}│${C_RESET}  ${C_SILVER}Version Transition:${C_RESET} ${C_DIM}%s${C_RESET} ➜ ${C_GREEN}${C_BOLD}%s${C_RESET}%*s ${C_GRAPHITE}│${C_RESET}\n" "$OLD_VERSION" "$NEW_VERSION" $((32 - ${#OLD_VERSION} - ${#NEW_VERSION})) ""
-  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_SILVER}Active Services:${C_RESET}    ${C_GREEN}● Core Daemon${C_RESET}  ${C_GREEN}● Panel UI${C_RESET}  ${C_GREEN}● CLI${C_RESET}         ${C_GRAPHITE}│${C_RESET}"
-  echo -e "  ${C_GRAPHITE}├─────────────────────────────────────────────────────────────┤${C_RESET}"
-  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_DIM}Run 'hex status' anytime to view system telemetry.${C_RESET}        ${C_GRAPHITE}│${C_RESET}"
-  echo -e "  ${C_GRAPHITE}╰─────────────────────────────────────────────────────────────╯${C_RESET}"
+  echo -e "  ${C_GRAPHITE}│${C_RESET}  ${C_DIM}Run '${C_CYAN}hex status${C_RESET}${C_DIM}' or '${C_CYAN}hex s${C_RESET}${C_DIM}' anytime to inspect node health.${C_RESET}"
+  echo -e "  ${C_GRAPHITE}└─────────────────────────────────────────────────────────────┘${C_RESET}"
   echo ""
 }
 

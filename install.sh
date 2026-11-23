@@ -273,7 +273,7 @@ fi
 
 # 7. Install CLI tool
 echo -e "${CYAN}[*] Installing CLI Tool...${NC}" >&3
-wget -q -O /usr/local/bin/hex "https://raw.githubusercontent.com/N1N4U/Hex/main/core/cli/hex.sh"
+wget -q -O /usr/local/bin/hex "https://raw.githubusercontent.com/N1N4U/Hex/main/hex.sh"
 chmod +x /usr/local/bin/hex
 
 # 8. Firewall Detection & Configuration
